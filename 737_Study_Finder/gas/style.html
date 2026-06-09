@@ -81,7 +81,8 @@
   }
 
   .module-list,
-  .study-grid > section {
+  .study-grid > section,
+  .utility-grid > section {
     background: var(--panel);
     border: 1px solid var(--line);
     border-radius: 8px;
@@ -106,10 +107,20 @@
   }
 
   .study-grid {
+    grid-column: 1 / -1;
     display: grid;
     grid-template-columns: 300px minmax(0, 1fr) 360px;
     gap: 16px;
     min-width: 0;
+  }
+
+  .utility-grid {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 16px;
+    min-width: 0;
+    margin-top: 16px;
   }
 
   .toolbar {
@@ -163,15 +174,11 @@
   }
 
   .answer-editor {
-    border-top: 1px solid var(--line);
-    margin-top: 14px;
-    padding-top: 14px;
+    margin-top: 0;
   }
 
   .import-panel {
-    border-top: 1px solid var(--line);
-    margin-top: 16px;
-    padding-top: 14px;
+    margin-top: 0;
   }
 
   .check-label {
@@ -232,7 +239,8 @@
 
   @media (max-width: 980px) {
     .layout,
-    .study-grid {
+    .study-grid,
+    .utility-grid {
       grid-template-columns: 1fr;
     }
   }

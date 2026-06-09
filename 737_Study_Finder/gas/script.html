@@ -4,6 +4,35 @@
   const appState = bootstrap.data || {};
   let selectedQuestionId = '';
 
+  function renderAtaFilterOptions() {
+    const select = document.getElementById('ataFilter');
+    const currentValue = select.value;
+    const existingAtas = Array.from(select.options || [])
+      .map((option) => String(option.value || '').replace(/\D/g, ''))
+      .filter(Boolean);
+    const atas = Array.from(new Set(existingAtas.concat((appState.preparedAtas || [])
+      .map((ata) => String(ata || '').replace(/\D/g, ''))
+      .filter(Boolean))))
+      .sort((a, b) => Number(a) - Number(b));
+
+    select.innerHTML = '';
+    const allOption = document.createElement('option');
+    allOption.value = '';
+    allOption.textContent = 'ATA All';
+    select.appendChild(allOption);
+
+    atas.forEach((ata) => {
+      const option = document.createElement('option');
+      option.value = ata;
+      option.textContent = 'ATA ' + ata;
+      select.appendChild(option);
+    });
+
+    if (atas.includes(currentValue)) {
+      select.value = currentValue;
+    }
+  }
+
   function unwrap(response) {
     if (!response || !response.ok) {
       const message = response && response.error ? response.error.message : 'Unknown error';
@@ -14,9 +43,13 @@
 
   function loadQuestions() {
     const ata = document.getElementById('ataFilter').value;
+    document.getElementById('questionList').textContent = '問題を読み込み中...';
     google.script.run
       .withSuccessHandler((response) => renderQuestions(unwrap(response)))
-      .withFailureHandler(showError)
+      .withFailureHandler((error) => {
+        document.getElementById('questionList').textContent = '読み込みに失敗しました。';
+        showError(error);
+      })
       .apiGetQuestions({ ata });
   }
 
@@ -38,9 +71,17 @@
 
   function loadDetail(questionId) {
     selectedQuestionId = questionId;
+    document.getElementById('questionDetail').innerHTML = '<p class="muted">問題詳細を読み込み中...</p>';
+    document.getElementById('confirmedAnswers').innerHTML = '';
+    document.getElementById('answerNotes').innerHTML = '';
+    document.getElementById('candidateList').textContent = '候補ページを読み込み中...';
     google.script.run
       .withSuccessHandler((response) => renderDetail(unwrap(response)))
-      .withFailureHandler(showError)
+      .withFailureHandler((error) => {
+        document.getElementById('questionDetail').textContent = '問題詳細の読み込みに失敗しました。';
+        document.getElementById('candidateList').textContent = '';
+        showError(error);
+      })
       .apiGetQuestionDetail(questionId);
   }
 
@@ -310,6 +351,8 @@
   document.getElementById('adoptButton').addEventListener('click', adoptAnswer);
   document.getElementById('clearDraftButton').addEventListener('click', resetAnswerEditor);
   document.getElementById('importCsvButton').addEventListener('click', importCsv);
+
+  renderAtaFilterOptions();
 
   if (appState.setup && appState.setup.study737DbId) {
     loadQuestions();

@@ -8,36 +8,10 @@
         <option value="24">ATA 24</option>
       </select>
       <button id="loadQuestions">読み込み</button>
-      <button id="importPreparedButton">ATA24準備データ取込</button>
+      <button id="importPreparedButton">Prepared ATA取込</button>
     </div>
     <p id="preparedImportStatus" class="muted"></p>
     <div id="questionList" class="muted">初期設定後に問題を読み込みます。</div>
-
-    <div class="import-panel">
-      <h3>CSV Import</h3>
-      <label>
-        Target
-        <select id="csvTarget">
-          <option value="question_bank">question_bank</option>
-          <option value="textbook_pages">textbook_pages</option>
-          <option value="textbook_sections">textbook_sections</option>
-          <option value="candidate_links">candidate_links</option>
-          <option value="answer_notes">answer_notes</option>
-          <option value="term_dictionary">term_dictionary</option>
-          <option value="source_files">source_files</option>
-        </select>
-      </label>
-      <label>
-        CSV File
-        <input id="csvFile" type="file" accept=".csv,text/csv">
-      </label>
-      <label class="check-label">
-        <input id="csvReplace" type="checkbox" checked>
-        既存行を置き換える
-      </label>
-      <button id="importCsvButton">CSV取込</button>
-      <p id="importStatus" class="muted"></p>
-    </div>
   </section>
 
   <section>
@@ -45,30 +19,6 @@
     <div id="questionDetail" class="muted">問題を選択してね。</div>
     <div id="confirmedAnswers"></div>
     <div id="answerNotes"></div>
-
-    <div class="answer-editor">
-      <h3>Answer Draft</h3>
-      <input id="activeNoteId" type="hidden">
-      <label>
-        Source
-        <select id="answerSource">
-          <option value="chatgpt_manual">ChatGPT/Codex</option>
-          <option value="manual_user">手入力</option>
-          <option value="copied_from_sg">Study Guideから転記</option>
-          <option value="unknown">不明</option>
-        </select>
-      </label>
-      <label>
-        参照ページ
-        <input id="answerEvidencePages" placeholder="D0-09, F0-09">
-      </label>
-      <textarea id="answerText" placeholder="AI回答や修正後の回答をここに貼る"></textarea>
-      <div class="toolbar">
-        <button id="saveDraftButton">下書き保存</button>
-        <button id="adoptButton" class="primary">確定回答にする</button>
-        <button id="clearDraftButton">クリア</button>
-      </div>
-    </div>
 
     <div class="toolbar">
       <button id="promptButton">回答作成用プロンプト</button>
@@ -79,5 +29,57 @@
   <section>
     <h2>Candidate Pages</h2>
     <div id="candidateList" class="muted">候補ページはここに表示します。</div>
+  </section>
+</section>
+
+<section class="utility-grid" aria-label="Study utility tools">
+  <section class="answer-editor">
+    <h2>Answer Draft</h2>
+    <input id="activeNoteId" type="hidden">
+    <label>
+      Source
+      <select id="answerSource">
+        <option value="chatgpt_manual">ChatGPT/Codex</option>
+        <option value="manual_user">手入力</option>
+        <option value="copied_from_sg">Study Guideから転記</option>
+        <option value="unknown">不明</option>
+      </select>
+    </label>
+    <label>
+      参照ページ
+      <input id="answerEvidencePages" placeholder="D0-09, F0-09">
+    </label>
+    <textarea id="answerText" placeholder="AI回答や修正後の回答をここに貼る"></textarea>
+    <div class="toolbar">
+      <button id="saveDraftButton">下書き保存</button>
+      <button id="adoptButton" class="primary">確定回答にする</button>
+      <button id="clearDraftButton">クリア</button>
+    </div>
+  </section>
+
+  <section class="import-panel">
+    <h2>CSV Import</h2>
+    <label>
+      Target
+      <select id="csvTarget">
+        <option value="question_bank">question_bank</option>
+        <option value="textbook_pages">textbook_pages</option>
+        <option value="textbook_sections">textbook_sections</option>
+        <option value="candidate_links">candidate_links</option>
+        <option value="answer_notes">answer_notes</option>
+        <option value="term_dictionary">term_dictionary</option>
+        <option value="source_files">source_files</option>
+      </select>
+    </label>
+    <label>
+      CSV File
+      <input id="csvFile" type="file" accept=".csv,text/csv">
+    </label>
+    <label class="check-label">
+      <input id="csvReplace" type="checkbox" checked>
+      既存行を置き換える
+    </label>
+    <button id="importCsvButton">CSV取込</button>
+    <p id="importStatus" class="muted"></p>
   </section>
 </section>
