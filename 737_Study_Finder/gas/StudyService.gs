@@ -14,20 +14,15 @@ function getQuestions(filters) {
 
 function getQuestionDetail(questionId) {
   const spreadsheet = openStudySpreadsheet_();
-  const question = readObjects_(getSheet_(spreadsheet, 'question_bank')).find(function (row) {
-    return row.question_id === questionId;
-  });
+  const question = readObjectByColumnValue_(getSheet_(spreadsheet, 'question_bank'), 'question_id', questionId);
   if (!question) {
     throw new Error('Question not found: ' + questionId);
   }
 
-  const candidates = readObjects_(getSheet_(spreadsheet, 'candidate_links'))
-    .filter(function (row) { return row.question_id === questionId; })
+  const candidates = readObjectsByColumnValue_(getSheet_(spreadsheet, 'candidate_links'), 'question_id', questionId)
     .sort(function (a, b) { return Number(a.rank) - Number(b.rank); });
-  const notes = readObjects_(getSheet_(spreadsheet, 'answer_notes'))
-    .filter(function (row) { return row.question_id === questionId; });
-  const confirmed = readObjects_(getSheet_(spreadsheet, 'confirmed_answers'))
-    .filter(function (row) { return row.question_id === questionId; });
+  const notes = readObjectsByColumnValue_(getSheet_(spreadsheet, 'answer_notes'), 'question_id', questionId);
+  const confirmed = readObjectsByColumnValue_(getSheet_(spreadsheet, 'confirmed_answers'), 'question_id', questionId);
 
   return {
     question: question,

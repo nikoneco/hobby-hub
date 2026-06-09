@@ -53,6 +53,35 @@ function readObjects_(sheet) {
   });
 }
 
+function readObjectsByColumnValue_(sheet, columnName, columnValue) {
+  const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
+  if (lastRow < 2 || lastColumn < 1) {
+    return [];
+  }
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0].map(String);
+  const columnIndex = headers.indexOf(columnName);
+  if (columnIndex === -1) {
+    throw new Error('Column not found: ' + columnName);
+  }
+
+  const matches = sheet
+    .getRange(2, columnIndex + 1, lastRow - 1, 1)
+    .createTextFinder(String(columnValue))
+    .matchEntireCell(true)
+    .findAll();
+
+  return matches.map(function (match) {
+    const row = sheet.getRange(match.getRow(), 1, 1, lastColumn).getValues()[0];
+    return rowToObject_(headers, row);
+  });
+}
+
+function readObjectByColumnValue_(sheet, columnName, columnValue) {
+  const rows = readObjectsByColumnValue_(sheet, columnName, columnValue);
+  return rows.length ? rows[0] : null;
+}
+
 function rowToObject_(headers, row) {
   return headers.reduce(function (obj, header, index) {
     obj[header] = row[index];
