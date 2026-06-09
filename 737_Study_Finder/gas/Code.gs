@@ -101,6 +101,10 @@ function apiImportPreparedAta24Data() {
   return importPreparedAta24Data();
 }
 
+function apiImportPreparedAta32Data() {
+  return apiImportPreparedAtaData('32');
+}
+
 function apiImportPreparedAtaData(ata) {
   return importPreparedAtaData(ata || '24');
 }
