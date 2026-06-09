@@ -1,43 +1,62 @@
 # 趣味HUB
 
-Google Apps Script Web App + Google Sheetsで作る趣味/学習HUBです。
+Google Apps Script Web App + Google Sheetsで作る趣味アプリ群の入口です。
 
-## 現在の検証対象
+## 構成
 
-- ローカル資料: `737_Study_Finder`
-- Study Guide: `Study_Guide/24_REF.pdf`
-- 標準問題集: `標準問題集/737-800標準問題集(2012.03.13).pdf`
-- Driveフォルダ:
-  - `マイドライブ/アプリ開発/趣味HUB`
-  - `マイドライブ/アプリ開発/737_Study_Finder`
+- `gas/`
+  - 趣味HUB本体。
+  - 各アプリへのリンク集/ランチャー専用。
+  - `HobbyHub_Master` の `hub_modules` を読んでアプリ一覧を表示します。
+- `737_Study_Finder/gas/`
+  - 737 Study Finder本体。
+  - `Study737_DB` を使って、問題、参照ページ、候補ページ、AI下書き回答、確定回答を管理します。
+- `scripts/`
+  - PDFからCSVを作る抽出スクリプト。
+  - 抽出済みCSVから候補ページとAI回答下書きCSVを作る補助スクリプト。
+- `data/`
+  - 生成CSV置き場。Git管理対象外です。
 
-## 初期化方針
+## Drive / Apps Script
 
-`gas/SetupService.gs` の `setupProject()` を実行すると、以下を作成または再利用します。
-
-- `HobbyHub_Master`: 趣味HUBフォルダ内
-- `Study737_DB`: 737_Study_Finderフォルダ内
-
-作成後、必要なシートとヘッダーを用意し、ATA 24の動作確認用サンプルを投入します。
-
-## Apps Script / clasp
+### 趣味HUB
 
 - Script URL: https://script.google.com/d/1zeYJdhMTa4odr3SXLFv6ns0LOg2zmAJeOPxYUjbnACDN8o5oeYtRmzaI/edit
 - Web App URL: https://script.google.com/macros/s/AKfycbxXGa_ahv1ZvjJ9-kbSqTJbdtY1NgrqJQu85LYERrBEi5QQnl1uwDMCIZ25zzYNMGG1/exec
-- HobbyHub_Master: https://docs.google.com/spreadsheets/d/1jMJdrYongZ9_mF_2i82g65Hh-0nTHztVusYpg8vEx_A/edit
-- Study737_DB: https://docs.google.com/spreadsheets/d/11YODNUHgln3dL_wADeR7va4EfAltIzY68lQxNGvBpto/edit
+- Spreadsheet: https://docs.google.com/spreadsheets/d/1jMJdrYongZ9_mF_2i82g65Hh-0nTHztVusYpg8vEx_A/edit
 - Local root: `gas/`
 
-初回だけ、Apps Script画面で `setupProject` を手動実行してDrive/Sheets権限を承認してください。
-承認後は、`HobbyHub_Master` と `Study737_DB` がそれぞれDriveの対象フォルダ内に作成されます。
+### 737 Study Finder
 
-## Webアプリ方針
+- Script URL: https://script.google.com/d/1qOkLEui2ZCfWIAEsW7AW7v4ZwZFl8K1i6UtWG1_LaayRR4eFf6DLM1K-/edit
+- Web App URL: https://script.google.com/macros/s/AKfycbzPwkINDY--2PUYQg5xGoPDtkCLYvGoItobfEJocINxBFviRzcCrxb7Iu5lylirQ7tLOg/exec
+- Spreadsheet: https://docs.google.com/spreadsheets/d/11YODNUHgln3dL_wADeR7va4EfAltIzY68lQxNGvBpto/edit
+- Local root: `737_Study_Finder/gas/`
 
-- 趣味HUB本体は各趣味ツールへのリンク集/入口として扱う
-- 737 Study Finderは質問ごとに参照ページ、AI/Codex下書き回答、補足メモ、採用済み回答を参照するDBビューとして扱う
-- AI/Codex下書き回答は画面上では折りたたみ表示し、必要な時に開いて確認・修正・採用できるようにする
-- 外部AI APIは使わない
-- 回答案は `answer_notes` に保存
-- 正解扱いはユーザー採用済みの `confirmed_answers` のみ
-- ChatGPT/Codex用のプロンプトを生成して手動で使う
-- PDF解析はローカルPythonでCSV化してSheetsへ取り込む
+## CSV準備
+
+```powershell
+$py = "C:\Users\aqua_\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"
+& $py scripts\extract_study_guide.py "737_Study_Finder\Study_Guide\24_REF.pdf" --out-dir data
+& $py scripts\extract_question_bank.py "737_Study_Finder\標準問題集\737-800標準問題集(2012.03.13).pdf" --out-dir data
+node scripts\generate_answer_drafts.js 24
+node scripts\build_prepared_gas_data.js 24
+```
+
+主な出力:
+
+- `data/textbook_pages_ata24.csv`
+- `data/textbook_sections_ata24.csv`
+- `data/question_bank_ata24.csv`
+- `data/question_bank_ata24_prepared.csv`
+- `data/candidate_links_ata24.csv`
+- `data/answer_notes_ata24.csv`
+
+## 運用メモ
+
+- 他ATAを追加するときは、同じCSVスキーマで `ata` 列を分けます。
+- ATA24の初期データは `737_Study_Finder/gas/PreparedAta24Data.gs` に同梱できます。
+- Studyアプリの `ATA24準備データ取込` ボタン、または `?action=importAta24` でCSV選択なしに一括投入します。
+- AI下書きは `answer_notes` に保存します。
+- ユーザーが確認・修正して採用した回答だけを `confirmed_answers` に保存します。
+- 外部AI APIは使いません。ChatGPT/Codexで作った下書きやローカル抽出テキスト由来の下書きを、CSVまたは画面から取り込みます。

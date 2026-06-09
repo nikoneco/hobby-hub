@@ -1,7 +1,7 @@
-function openMasterSpreadsheet_() {
-  const id = getScriptProperty_(CONFIG.PROPERTIES.HOBBY_HUB_MASTER_ID);
+function openStudySpreadsheet_() {
+  const id = getScriptProperty_(CONFIG.PROPERTIES.STUDY737_DB_ID);
   if (!id) {
-    throw new Error('HobbyHub_Master is not configured. Run setupProject first.');
+    throw new Error('Study737_DB is not configured. Run setupProject first.');
   }
   return SpreadsheetApp.openById(id);
 }
@@ -89,6 +89,10 @@ function updateObjectById_(sheet, idColumn, idValue, patch) {
     }
   }
   return false;
+}
+
+function generateId_(prefix) {
+  return prefix + '_' + Utilities.getUuid().replace(/-/g, '').slice(0, 16);
 }
 
 function nowIso_() {

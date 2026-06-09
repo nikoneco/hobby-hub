@@ -8,20 +8,14 @@
     <div id="app" data-bootstrap='<?= bootstrapJson ?>'>
       <header class="topbar">
         <div>
-          <p class="eyebrow">HobbyHub</p>
-          <h1>趣味HUB</h1>
+          <p class="eyebrow">Study App</p>
+          <h1>737 Study Finder</h1>
         </div>
         <button id="setupButton" class="primary">初期設定</button>
       </header>
 
       <main class="layout">
-        <section class="module-list">
-          <div class="section-heading">
-            <h2>Apps</h2>
-            <button id="refreshButton">更新</button>
-          </div>
-          <div id="modules"></div>
-        </section>
+        <?!= include('study'); ?>
       </main>
     </div>
     <?!= include('script'); ?>

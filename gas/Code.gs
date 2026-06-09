@@ -36,39 +36,3 @@ function setupProject() {
 function apiGetModules() {
   return safeRun_('apiGetModules', getModules);
 }
-
-function apiGetQuestions(filters) {
-  return safeRun_('apiGetQuestions', function () {
-    return getQuestions(filters || {});
-  });
-}
-
-function apiGetQuestionDetail(questionId) {
-  return safeRun_('apiGetQuestionDetail', function () {
-    return getQuestionDetail(questionId);
-  });
-}
-
-function apiBuildReviewPrompt(questionId) {
-  return safeRun_('apiBuildReviewPrompt', function () {
-    return buildReviewPrompt(questionId);
-  });
-}
-
-function apiSaveAnswerNote(payload) {
-  return safeRun_('apiSaveAnswerNote', function () {
-    return saveAnswerNote(payload || {});
-  });
-}
-
-function apiUpdateAnswerNote(noteId, payload) {
-  return safeRun_('apiUpdateAnswerNote', function () {
-    return updateAnswerNote(noteId, payload || {});
-  });
-}
-
-function apiSaveConfirmedAnswer(payload) {
-  return safeRun_('apiSaveConfirmedAnswer', function () {
-    return saveConfirmedAnswer(payload || {});
-  });
-}

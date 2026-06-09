@@ -1,10 +1,7 @@
 function normalizeText(text) {
   return String(text || '')
     .normalize('NFKC')
-    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, function (char) {
-      return String.fromCharCode(char.charCodeAt(0) - 0xfee0);
-    })
-    .replace(/[‐-‒–—―]/g, '-')
+    .replace(/[‐-―−]/g, '-')
     .replace(/\s+/g, ' ')
     .trim()
     .toUpperCase();

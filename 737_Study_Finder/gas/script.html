@@ -1,0 +1,312 @@
+<script>
+  const app = document.getElementById('app');
+  const bootstrap = JSON.parse(app.dataset.bootstrap || '{}');
+  const appState = bootstrap.data || {};
+  let selectedQuestionId = '';
+
+  function unwrap(response) {
+    if (!response || !response.ok) {
+      const message = response && response.error ? response.error.message : 'Unknown error';
+      throw new Error(message);
+    }
+    return response.data;
+  }
+
+  function loadQuestions() {
+    const ata = document.getElementById('ataFilter').value;
+    google.script.run
+      .withSuccessHandler((response) => renderQuestions(unwrap(response)))
+      .withFailureHandler(showError)
+      .apiGetQuestions({ ata });
+  }
+
+  function renderQuestions(questions) {
+    const root = document.getElementById('questionList');
+    root.innerHTML = '';
+    if (!questions.length) {
+      root.textContent = '問題がまだありません。CSV取込か初期設定を確認してね。';
+      return;
+    }
+    questions.forEach((question) => {
+      const button = document.createElement('button');
+      button.className = 'question-button';
+      button.innerHTML = '<strong>' + escapeHtml(question.question_text) + '</strong><span class="status">' + escapeHtml(question.check_status) + '</span>';
+      button.addEventListener('click', () => loadDetail(question.question_id));
+      root.appendChild(button);
+    });
+  }
+
+  function loadDetail(questionId) {
+    selectedQuestionId = questionId;
+    google.script.run
+      .withSuccessHandler((response) => renderDetail(unwrap(response)))
+      .withFailureHandler(showError)
+      .apiGetQuestionDetail(questionId);
+  }
+
+  function renderDetail(detail) {
+    const question = detail.question;
+    document.getElementById('questionDetail').innerHTML = [
+      '<p><span class="status">' + escapeHtml(question.check_status) + '</span></p>',
+      '<h3>' + escapeHtml(question.question_text) + '</h3>',
+      '<p class="muted">ATA ' + escapeHtml(question.ata) + ' / ' + escapeHtml(question.section_name || '') + '</p>'
+    ].join('');
+    renderConfirmedAnswers(detail.confirmedAnswers || []);
+    renderAnswerNotes(detail.answerNotes || []);
+    resetAnswerEditor();
+    renderCandidates(detail.candidates || {});
+  }
+
+  function renderConfirmedAnswers(answers) {
+    const root = document.getElementById('confirmedAnswers');
+    root.innerHTML = '';
+    if (!answers.length) return;
+    const heading = document.createElement('h3');
+    heading.textContent = 'Confirmed Answer';
+    root.appendChild(heading);
+    answers.forEach((answer) => {
+      const item = document.createElement('article');
+      item.className = 'answer-card confirmed';
+      item.innerHTML = [
+        '<div class="answer-meta">' + escapeHtml(answer.evidence_page_codes || '') + '</div>',
+        '<pre>' + escapeHtml(answer.final_answer_text || '') + '</pre>'
+      ].join('');
+      root.appendChild(item);
+    });
+  }
+
+  function renderAnswerNotes(notes) {
+    const root = document.getElementById('answerNotes');
+    root.innerHTML = '';
+    const heading = document.createElement('h3');
+    heading.textContent = 'AI / Draft Answers';
+    root.appendChild(heading);
+    if (!notes.length) {
+      const empty = document.createElement('p');
+      empty.className = 'muted';
+      empty.textContent = 'まだ回答案はありません。ChatGPT/Codexの回答を貼って保存できます。';
+      root.appendChild(empty);
+      return;
+    }
+    notes.forEach((note, index) => {
+      const details = document.createElement('details');
+      details.className = 'answer-card';
+      details.innerHTML = [
+        '<summary><span>回答案 ' + (index + 1) + '</span><span class="status">' + escapeHtml(note.status || 'draft') + '</span></summary>',
+        '<div class="answer-meta">' + escapeHtml(note.source_type || '') + ' / ' + escapeHtml(note.evidence_page_codes || '') + '</div>',
+        '<pre>' + escapeHtml(note.answer_text || '') + '</pre>',
+        '<div class="toolbar"><button type="button" data-note-id="' + escapeHtml(note.note_id) + '">編集</button></div>'
+      ].join('');
+      details.querySelector('button').addEventListener('click', () => loadNoteIntoEditor(note));
+      root.appendChild(details);
+    });
+  }
+
+  function renderCandidates(groups) {
+    const labels = {
+      best: '本命候補',
+      related_figure: '関連図',
+      general_reference: 'General参照',
+      neighbor: '近接ページ',
+      manual: '手動候補'
+    };
+    const root = document.getElementById('candidateList');
+    root.innerHTML = '';
+    Object.keys(groups).forEach((key) => {
+      const heading = document.createElement('h3');
+      heading.textContent = labels[key] || key;
+      root.appendChild(heading);
+      groups[key].forEach((candidate) => {
+        const item = document.createElement('div');
+        item.className = 'candidate';
+        item.innerHTML = [
+          '<div class="candidate-code">' + escapeHtml(candidate.page_code) + '</div>',
+          '<strong>' + escapeHtml(candidate.title || '') + '</strong>',
+          '<p class="muted">' + escapeHtml(candidate.excerpt || '') + '</p>'
+        ].join('');
+        root.appendChild(item);
+      });
+    });
+  }
+
+  function buildPrompt() {
+    if (!selectedQuestionId) {
+      showError(new Error('先に問題を選んでね。'));
+      return;
+    }
+    google.script.run
+      .withSuccessHandler((response) => {
+        document.getElementById('promptOutput').value = unwrap(response);
+      })
+      .withFailureHandler(showError)
+      .apiBuildReviewPrompt(selectedQuestionId);
+  }
+
+  function inferCsvTarget(fileName) {
+    const name = String(fileName || '').toLowerCase();
+    if (name.includes('textbook_pages')) return 'textbook_pages';
+    if (name.includes('textbook_sections')) return 'textbook_sections';
+    if (name.includes('question_bank')) return 'question_bank';
+    if (name.includes('candidate_links')) return 'candidate_links';
+    if (name.includes('answer_notes')) return 'answer_notes';
+    if (name.includes('term_dictionary')) return 'term_dictionary';
+    if (name.includes('source_files')) return 'source_files';
+    return document.getElementById('csvTarget').value;
+  }
+
+  function importCsv() {
+    const fileInput = document.getElementById('csvFile');
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) {
+      showError(new Error('CSVファイルを選んでね。'));
+      return;
+    }
+    const target = inferCsvTarget(file.name);
+    document.getElementById('csvTarget').value = target;
+    document.getElementById('importStatus').textContent = '読み込み中...';
+    const reader = new FileReader();
+    reader.onload = () => {
+      google.script.run
+        .withSuccessHandler((response) => {
+          const result = unwrap(response);
+          document.getElementById('importStatus').textContent =
+            result.sheet_name + ' に ' + result.imported_rows + ' 行取り込みました。';
+          if (result.sheet_name === 'question_bank') loadQuestions();
+        })
+        .withFailureHandler((error) => {
+          document.getElementById('importStatus').textContent = '';
+          showError(error);
+        })
+        .apiImportCsv({
+          sheet_name: target,
+          csv_text: reader.result,
+          mode: document.getElementById('csvReplace').checked ? 'replace' : 'append'
+        });
+    };
+    reader.onerror = () => showError(new Error('CSVを読めませんでした。'));
+    reader.readAsText(file, 'utf-8');
+  }
+
+  function importPreparedAta24() {
+    document.getElementById('preparedImportStatus').textContent = 'ATA24準備データを取り込み中...';
+    google.script.run
+      .withSuccessHandler((response) => {
+        const result = unwrap(response);
+        const total = result.imported.reduce((sum, item) => sum + Number(item.imported_rows || 0), 0);
+        document.getElementById('preparedImportStatus').textContent =
+          'ATA24準備データを取り込みました。合計 ' + total + ' 行';
+        loadQuestions();
+      })
+      .withFailureHandler((error) => {
+        document.getElementById('preparedImportStatus').textContent = '';
+        showError(error);
+      })
+      .apiImportPreparedAta24Data();
+  }
+
+  function loadNoteIntoEditor(note) {
+    document.getElementById('activeNoteId').value = note.note_id || '';
+    document.getElementById('answerSource').value = note.source_type || 'manual_user';
+    document.getElementById('answerEvidencePages').value = note.evidence_page_codes || '';
+    document.getElementById('answerText').value = note.answer_text || '';
+  }
+
+  function resetAnswerEditor() {
+    document.getElementById('activeNoteId').value = '';
+    document.getElementById('answerSource').value = 'chatgpt_manual';
+    document.getElementById('answerEvidencePages').value = '';
+    document.getElementById('answerText').value = '';
+  }
+
+  function collectAnswerPayload() {
+    if (!selectedQuestionId) throw new Error('先に問題を選んでね。');
+    const answerText = document.getElementById('answerText').value.trim();
+    if (!answerText) throw new Error('回答本文が空です。');
+    return {
+      question_id: selectedQuestionId,
+      answer_text: answerText,
+      final_answer_text: answerText,
+      evidence_page_codes: document.getElementById('answerEvidencePages').value.trim(),
+      evidence_page_ids: '',
+      evidence_excerpts: '',
+      source_type: document.getElementById('answerSource').value,
+      status: 'reviewed_ok'
+    };
+  }
+
+  function saveDraft() {
+    let payload;
+    try {
+      payload = collectAnswerPayload();
+    } catch (error) {
+      showError(error);
+      return;
+    }
+    const noteId = document.getElementById('activeNoteId').value;
+    const runner = google.script.run
+      .withSuccessHandler((response) => {
+        unwrap(response);
+        loadDetail(selectedQuestionId);
+      })
+      .withFailureHandler(showError);
+    if (noteId) {
+      runner.apiUpdateAnswerNote(noteId, payload);
+    } else {
+      runner.apiSaveAnswerNote(payload);
+    }
+  }
+
+  function adoptAnswer() {
+    let payload;
+    try {
+      payload = collectAnswerPayload();
+    } catch (error) {
+      showError(error);
+      return;
+    }
+    google.script.run
+      .withSuccessHandler((response) => {
+        unwrap(response);
+        loadDetail(selectedQuestionId);
+      })
+      .withFailureHandler(showError)
+      .apiSaveConfirmedAnswer(payload);
+  }
+
+  function runSetup() {
+    google.script.run
+      .withSuccessHandler((response) => {
+        const data = unwrap(response);
+        alert('初期設定完了: ' + data.study737Db.url);
+        loadQuestions();
+      })
+      .withFailureHandler(showError)
+      .setupProject();
+  }
+
+  function showError(error) {
+    alert(error.message || String(error));
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  document.getElementById('setupButton').addEventListener('click', runSetup);
+  document.getElementById('loadQuestions').addEventListener('click', loadQuestions);
+  document.getElementById('importPreparedButton').addEventListener('click', importPreparedAta24);
+  document.getElementById('promptButton').addEventListener('click', buildPrompt);
+  document.getElementById('saveDraftButton').addEventListener('click', saveDraft);
+  document.getElementById('adoptButton').addEventListener('click', adoptAnswer);
+  document.getElementById('clearDraftButton').addEventListener('click', resetAnswerEditor);
+  document.getElementById('importCsvButton').addEventListener('click', importCsv);
+
+  if (appState.setup && appState.setup.study737DbId) {
+    loadQuestions();
+  }
+</script>
