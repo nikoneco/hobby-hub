@@ -6,7 +6,7 @@ function getModules() {
 
   const spreadsheet = openMasterSpreadsheet_();
   const sheet = getSheet_(spreadsheet, 'hub_modules');
-  return includeMissingDefaultModules_(readObjects_(sheet))
+  return applyDefaultModuleConfig_(readObjects_(sheet))
     .filter(function (module) {
       return module.enabled === true || module.enabled === 'TRUE' || module.enabled === 'true';
     })
@@ -15,17 +15,32 @@ function getModules() {
     });
 }
 
-function includeMissingDefaultModules_(modules) {
+function applyDefaultModuleConfig_(modules) {
+  const defaults = buildDefaultModules_();
+  const defaultsById = defaults.reduce(function (map, module) {
+    map[String(module.module_id)] = module;
+    return map;
+  }, {});
+  const normalizedModules = modules.map(function (module) {
+    const defaultModule = defaultsById[String(module.module_id)];
+    if (!defaultModule) {
+      return module;
+    }
+    return Object.assign({}, module, defaultModule, {
+      enabled: module.enabled
+    });
+  });
+
   const existingIds = modules.reduce(function (map, module) {
     map[String(module.module_id)] = true;
     return map;
   }, {});
-  buildDefaultModules_().forEach(function (module) {
+  defaults.forEach(function (module) {
     if (!existingIds[module.module_id]) {
-      modules.push(module);
+      normalizedModules.push(module);
     }
   });
-  return modules;
+  return normalizedModules;
 }
 
 function buildDefaultModules_() {
