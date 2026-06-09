@@ -9,6 +9,7 @@ const PAGES_INPUT = path.join(DATA_DIR, `textbook_pages_ata${ATA}.csv`);
 const QUESTION_OUTPUT = path.join(DATA_DIR, `question_bank_ata${ATA}_prepared.csv`);
 const CANDIDATE_OUTPUT = path.join(DATA_DIR, `candidate_links_ata${ATA}.csv`);
 const ANSWER_OUTPUT = path.join(DATA_DIR, `answer_notes_ata${ATA}.csv`);
+const REVIEWED_ANSWERS = loadReviewedAnswers(ATA);
 
 const CANDIDATE_HEADERS = [
   'candidate_id',
@@ -117,6 +118,12 @@ function normalize(text) {
 
 function uniq(items) {
   return Array.from(new Set(items.filter(Boolean)));
+}
+
+function loadReviewedAnswers(ata) {
+  const reviewedPath = path.join(__dirname, `reviewed_answers_ata${ata}.js`);
+  if (!fs.existsSync(reviewedPath)) return {};
+  return require(reviewedPath);
 }
 
 function termsForQuestion(question, index) {
@@ -273,6 +280,86 @@ function buildAnswer(question, candidates) {
   ].join('\n');
 }
 
+function buildReviewedAnswer(question, reviewed) {
+  return [
+    '確認済み下書き',
+    `質問: ${question.question_text}`,
+    '',
+    '回答:',
+    ...(reviewed.answer_lines || []),
+    '',
+    `根拠: ${(reviewed.evidence_page_codes || []).join(', ')}`,
+    '',
+    'Study Guide本文を確認して作成した回答下書きです。最終表現は必要に応じてWebアプリで調整してください。'
+  ].join('\n');
+}
+
+function mergeReviewedCandidates(question, candidates, pagesByCode, reviewed, now) {
+  const reviewedCodes = reviewed.evidence_page_codes || [];
+  const excerptTerms = reviewedExcerptTerms(question, reviewed);
+  const reviewedCandidates = reviewedCodes
+    .map((pageCode, index) => {
+      const page = pagesByCode.get(pageCode);
+      if (!page) return null;
+      return {
+        candidate_id: `cand_${question.question_id}_reviewed_${index + 1}`,
+        question_id: question.question_id,
+        page_id: page.page_id,
+        ata: question.ata,
+        candidate_group: index === 0 ? 'best' : 'reviewed_reference',
+        page_code: page.page_code,
+        pdf_page: page.pdf_page,
+        title: page.title,
+        section_title: page.section_title,
+        excerpt: excerptFor(page, excerptTerms),
+        body_text: page.body_text,
+        score: 10000 - index,
+        match_terms: 'reviewed_answer_reference',
+        rank: index + 1,
+        generated_by: `codex_reviewed_ata${question.ata}`,
+        generated_at: now,
+        user_status: 'reviewed_reference'
+      };
+    })
+    .filter(Boolean);
+
+  return reviewedCandidates;
+}
+
+function reviewedExcerptTerms(question, reviewed) {
+  const questionText = normalize(`${question.question_text || ''} ${question.normalized_question || ''}`);
+  const terms = [...(reviewed.evidence_terms || [])];
+  [
+    'FUNCTION',
+    'CLOSE',
+    'POWER SOURCE',
+    'RATING',
+    'LIGHT',
+    'LOCATION',
+    'CONTROL',
+    'PURPOSE',
+    'INPUT',
+    'OIL SERVICE',
+    'COMPONENT'
+  ].forEach((term) => {
+    if (questionText.includes(term)) terms.push(term);
+  });
+  terms.push(...(questionText.match(/[A-Z][A-Z0-9-]{1,}/g) || []));
+  return uniq(terms);
+}
+
+function evidenceForReviewed(question, reviewed, pagesByCode) {
+  const excerptTerms = reviewedExcerptTerms(question, reviewed);
+  const pages = (reviewed.evidence_page_codes || [])
+    .map((pageCode) => pagesByCode.get(pageCode))
+    .filter(Boolean);
+  return {
+    pageCodes: pages.map((page) => page.page_code).join(', '),
+    pageIds: pages.map((page) => page.page_id).join(', '),
+    excerpts: pages.map((page) => `${page.page_code}: ${excerptFor(page, excerptTerms)}`).join('\n---\n')
+  };
+}
+
 function extractDirectAnswer(question, candidates) {
   const questionText = normalize(question.question_text);
   if (!questionText.includes('FUNCTION')) return null;
@@ -344,6 +431,7 @@ function main() {
   const now = new Date().toISOString();
   const questions = readCsv(QUESTION_INPUT);
   const pages = readCsv(PAGES_INPUT);
+  const pagesByCode = new Map(pages.map((page) => [page.page_code, page]));
   const candidateRows = [];
   const answerRows = [];
   const preparedQuestions = [];
@@ -359,7 +447,7 @@ function main() {
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
 
-    const candidates = scored.map((item, index) => {
+    let candidates = scored.map((item, index) => {
       const page = item.page;
       return {
         candidate_id: `cand_${question.question_id}_${index + 1}`,
@@ -382,17 +470,23 @@ function main() {
       };
     });
 
+    const reviewed = REVIEWED_ANSWERS[question.question_id];
+    if (reviewed) {
+      candidates = mergeReviewedCandidates(question, candidates, pagesByCode, reviewed, now);
+    }
+
     candidateRows.push(...candidates);
+    const reviewedEvidence = reviewed ? evidenceForReviewed(question, reviewed, pagesByCode) : null;
     answerRows.push({
       note_id: `note_${question.question_id}_draft`,
       question_id: question.question_id,
-      answer_text: buildAnswer(question, candidates),
-      evidence_page_codes: candidates.slice(0, 3).map((row) => row.page_code).filter(Boolean).join(', '),
-      evidence_page_ids: candidates.slice(0, 3).map((row) => row.page_id).filter(Boolean).join(', '),
-      evidence_excerpts: candidates.slice(0, 3).map((row) => `${row.page_code}: ${row.excerpt}`).join('\n---\n'),
-      source_type: 'codex_local_extractive',
-      status: 'draft_ai',
-      problem_reason: 'Auto-generated from extracted Study Guide text; user verification required.',
+      answer_text: reviewed ? buildReviewedAnswer(question, reviewed) : buildAnswer(question, candidates),
+      evidence_page_codes: reviewed ? reviewedEvidence.pageCodes : candidates.slice(0, 3).map((row) => row.page_code).filter(Boolean).join(', '),
+      evidence_page_ids: reviewed ? reviewedEvidence.pageIds : candidates.slice(0, 3).map((row) => row.page_id).filter(Boolean).join(', '),
+      evidence_excerpts: reviewed ? reviewedEvidence.excerpts : candidates.slice(0, 3).map((row) => `${row.page_code}: ${row.excerpt}`).join('\n---\n'),
+      source_type: reviewed ? `codex_reviewed_ata${question.ata}` : 'codex_local_extractive',
+      status: reviewed ? 'reviewed_draft' : 'draft_ai',
+      problem_reason: reviewed ? 'Reviewed against extracted Study Guide ATA text; user can edit final wording in the web app.' : 'Auto-generated from extracted Study Guide text; user verification required.',
       created_at: now,
       updated_at: now
     });

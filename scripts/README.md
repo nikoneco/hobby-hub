@@ -10,6 +10,11 @@ node scripts\generate_answer_drafts.js 24
 node scripts\build_prepared_gas_data.js 24
 ```
 
+If a reviewed answer file exists, `generate_answer_drafts.js` uses it before the extractive draft.
+Use one file per ATA so future chapters stay separate, for example:
+
+- `scripts/reviewed_answers_ata24.js`
+
 Outputs are ATA-scoped, for example:
 
 - `737_Study_Finder/data/textbook_pages_ata24.csv`
