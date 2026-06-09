@@ -318,27 +318,28 @@ function candidateGroup(page, rank) {
 
 function buildAnswer(question, candidates) {
   const directAnswer = extractDirectAnswer(question, candidates);
-  const evidenceLines = candidates.slice(0, 3).map((candidate) => {
-    return `- ${candidate.page_code}: ${candidate.title} / ${candidate.excerpt}`;
+  const primaryCandidates = candidates.slice(0, 3);
+  const evidenceLines = primaryCandidates.map((candidate) => {
+    return `- ${candidate.page_code}: ${candidate.title} / ${compact(candidate.excerpt, 360)}`;
   });
   const draftLines = directAnswer
     ? directAnswer.items.map((item) => `- ${item}`)
-    : candidates.slice(0, 3).map((candidate) => `- ${candidate.page_code}: ${compact(candidate.excerpt, 260)}`);
+    : primaryCandidates.map((candidate) => `- ${candidate.page_code}: ${compact(candidate.excerpt, 320)}`);
   const directEvidence = directAnswer
-    ? ['', `根拠: ${directAnswer.page_code} ${directAnswer.title}`]
+    ? ['', `主根拠: ${directAnswer.page_code} ${directAnswer.title}`]
     : [];
   return [
-    'AI下書き（要確認）',
+    'AI回答ドラフト（要確認）',
     `質問: ${question.question_text}`,
     '',
-    '暫定回答:',
+    '回答候補:',
     ...draftLines,
     ...directEvidence,
     '',
     '根拠候補:',
     ...evidenceLines,
     '',
-    'この下書きはStudy Guide抽出テキストから自動生成したため、確定前に本文ページで確認してください。'
+    '注記: Study Guide 抽出テキストから生成した初期回答です。最終表現は根拠ページを確認してWebアプリ上で修正してください。'
   ].join('\n');
 }
 

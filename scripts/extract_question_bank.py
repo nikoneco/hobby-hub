@@ -51,6 +51,14 @@ DEFAULT_STOP_MARKERS = [
 ]
 
 STOP_MARKERS_BY_ATA = {
+    "30": [
+        "31 INDICATION & RECORDING",
+        "INDICATION & RECORDING",
+    ],
+    "29": [
+        "WING THERMAL ANTI ICE SYSTEM",
+        "ANTI ICE SYSTEM",
+    ],
     "49": [
         "5X STRUCTURES",
         "STRUCTURES",
@@ -148,10 +156,28 @@ def expand_target_specific_questions(question: str, target_ata: str) -> list[str
             before.strip(),
             "APU CONTROL " + after.strip(),
         ]
+    if target_ata == "30":
+        return expand_ata30_questions(question)
     if target_ata == "26":
         return expand_ata26_questions(question)
     if target_ata == "27":
         return [normalize_ata27_question(question)]
+    return [question]
+
+
+def expand_ata30_questions(question: str) -> list[str]:
+    if "TAT Test SW" in question and "Window Anti-Ice System" in question:
+        before, after = question.split("Cockpit Window Anti-Ice System", 1)
+        return [
+            before.strip(),
+            "Cockpit Window Anti-Ice System" + after.strip(),
+        ]
+    if "737でProbe Anti-Ice" in question and "Cockpit Window Anti-Ice System" in question:
+        before, after = question.split("Cockpit Window Anti-Ice System", 1)
+        return [
+            before.strip(),
+            "Cockpit Window Anti-Ice System" + after.strip(),
+        ]
     return [question]
 
 
@@ -257,6 +283,10 @@ def extract_rows(pdf_path: Path, target_ata: str, source_id: str) -> list[dict[s
             current_ata = normalize_ata_key(match.group("ata"))
             current_section_name = match.group("title").strip()
             body = match.group("body")
+        elif target_ata == "30" and "Check WING THERMAL ANTI ICE SYSTEM" in text:
+            current_ata = "30"
+            current_section_name = "ICE AND RAIN PROTECTION SYSTEM"
+            body = text.split("Check WING THERMAL ANTI ICE SYSTEM", 1)[1]
         elif current_ata == target_ata:
             continuation = CONTINUATION_PAGE_RE.search(text)
             body = continuation.group("body") if continuation else text

@@ -148,8 +148,10 @@ def extract_section_code(text: str, ata: str) -> str:
     return f"{ata}-{matches[-1]}"
 
 
-def build_index_title_map(reader: PdfReader, max_index_pages: int = 4) -> dict[str, str]:
-    index_text = " ".join(compact_text(reader.pages[i].extract_text() or "") for i in range(min(max_index_pages, len(reader.pages))))
+def build_index_title_map(reader: PdfReader, start_page: int = 1, end_page: int | None = None, max_index_pages: int = 4) -> dict[str, str]:
+    last_page = end_page or len(reader.pages)
+    indexes = range(start_page - 1, min(start_page - 1 + max_index_pages, last_page, len(reader.pages)))
+    index_text = " ".join(compact_text(reader.pages[i].extract_text() or "") for i in indexes)
     title_map: dict[str, str] = {}
     for match in INDEX_ENTRY_RE.finditer(index_text):
         code = match.group("code")
@@ -222,15 +224,23 @@ def keywords_for(title: str, body_text: str) -> str:
     return ",".join(terms[:40])
 
 
-def build_rows(pdf_path: Path, ata: str, source_id: str) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+def build_rows(
+    pdf_path: Path,
+    ata: str,
+    source_id: str,
+    start_page: int = 1,
+    end_page: int | None = None,
+) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
     reader = PdfReader(str(pdf_path))
-    title_map = build_index_title_map(reader)
+    last_page = end_page or len(reader.pages)
+    title_map = build_index_title_map(reader, start_page=start_page, end_page=last_page)
     now = datetime.now(timezone.utc).isoformat()
     rows: list[dict[str, str]] = []
 
-    for index, page in enumerate(reader.pages, start=1):
+    for index in range(start_page, min(last_page, len(reader.pages)) + 1):
+        page = reader.pages[index - 1]
         body_text = compact_text(page.extract_text() or "")
-        is_index_page = index <= 4
+        is_index_page = index < start_page + 4
         code = "" if is_index_page else infer_page_code(body_text, ata)
         title = "INDEX" if is_index_page else infer_title(body_text, code, title_map, ata)
         section_code = extract_section_code(body_text, ata)
@@ -305,13 +315,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--out-dir", type=Path, default=Path("data"))
     parser.add_argument("--ata", default="24")
     parser.add_argument("--source-id", default="")
+    parser.add_argument("--page-start", type=int, default=1)
+    parser.add_argument("--page-end", type=int, default=0)
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
     source_id = args.source_id or f"src_sg_{args.ata}_ref"
-    page_rows, section_rows = build_rows(args.pdf, args.ata, source_id)
+    page_rows, section_rows = build_rows(
+        args.pdf,
+        args.ata,
+        source_id,
+        start_page=args.page_start,
+        end_page=args.page_end or None,
+    )
     suffix = f"ata{args.ata}"
     write_csv(args.out_dir / f"textbook_pages_{suffix}.csv", TEXTBOOK_PAGE_HEADERS, page_rows)
     write_csv(args.out_dir / f"textbook_sections_{suffix}.csv", TEXTBOOK_SECTION_HEADERS, section_rows)
