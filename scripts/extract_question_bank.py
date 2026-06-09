@@ -148,6 +148,66 @@ def expand_target_specific_questions(question: str, target_ata: str) -> list[str
             before.strip(),
             "APU CONTROL " + after.strip(),
         ]
+    if target_ata == "26":
+        return expand_ata26_questions(question)
+    return [question]
+
+
+def expand_ata26_questions(question: str) -> list[str]:
+    replacements = {
+        "P8 PNLのAPU Fire HNDLを引くと機体としてどのような状態になるか？ ATA別に整理して説明しなさい。":
+            "P8 PNLのAPU Fire HNDLを引くと機体としてどのような状態になるか、ATA別に整理して説明しなさい。",
+        "（P8 PNLのAPU Fire HNDLを引く事による Systemの作動を ATA別に整理して説明しなさい。":
+            "",
+        "） APU Fire Extinguishing Bottleの取扱い注意事項を記入しなさい。":
+            "APU Fire Extinguishing Bottleの取扱い注意事項を記入しなさい。",
+        "APU Remote Control Panelの機能（できること全て）を記入しなさい。":
+            "APU Remote Control Panelの機能（できること全て）を記入しなさい。",
+        "分かりますか。 を記入しなさい。":
+            "",
+    }
+    if question in replacements:
+        replacement = replacements[question]
+        return [replacement] if replacement else []
+
+    if "Engine Fire Extinguishing SYSの主要構成Component" in question and "ENG Fire Extinguishing BTLから" in question:
+        return [
+            "Engine Fire Extinguishing SYSの主要構成ComponentおよびLocationを記入しなさい。",
+            "ENG Fire Extinguishing BTLから噴射されたハロンがENGのどこに噴射されるか記入しなさい。",
+        ]
+    if "P8 PNLのENG Fire HNDL" in question and "ENG Fire Extinguishing BTLの取扱い注意事項" in question:
+        return [
+            "P8 PNLのENG Fire HNDLを引く事によるSystemの作動を説明しなさい。",
+            "ENG Fire Extinguishing BTLの取扱い注意事項を記入しなさい。",
+        ]
+    if "APU Fire Extinguishing SYSの主要構成Component" in question:
+        return ["APU Fire Extinguishing SYSの主要構成ComponentおよびLocationを記入しなさい。"]
+    if "CARGO COMPARTMENT SMOKE DETECTION SYSTEM" in question and "CGO Electronic Unit" in question:
+        return [
+            "CGO COMP'T Smoke DET SYSの主要構成ComponentおよびLocationを記入しなさい。（FWD/AFTで個数が違う場合にはその個数も記入すること）",
+            "CGO Electronic Unitの機能を記入しなさい。",
+        ]
+    if "APU Fire Extinguishing BTLから" in question:
+        return ["APU Fire Extinguishing BTLから噴射されたハロンがAPUのどこに噴射されるか記入しなさい。"]
+    if "CARGO COMPARTMENT FIRE EXTINGUISHING SYSTEM" in question and "国内線機/国際線機" in question:
+        return [
+            "CGO COMP'T Fire Extinguishing SYSの主要構成ComponentおよびLocationを記入しなさい。",
+            "Cargo COMP'T Fire Extinguishing SYSの国内線機/国際線機の違いを説明しなさい。",
+        ]
+    if "LAVATORY SMOKE DETECTION" in question and "Smoke Detector" in question:
+        return ["LavatoryのSmoke Detectorの作動原理について、イオン化式とPhotoelectric式を分けて説明しなさい。"]
+    if "（イオン化式とPhotoelectric式分別して）" in question and "Fire Extinguishing Bottle" in question:
+        return ["LavatoryのFire Extinguishing Bottleの作動及びLocationについて記入しなさい。"]
+    if "Wing & Body Duct OVHT DET SYS" in question and "SensorのType" in question:
+        return [
+            "Wing & Body Duct OVHT DET SYSの主要構成ComponentおよびLocationを記入しなさい。",
+            "Wing & Body Duct OVHT DET SensorのTypeおよび検知する原理を記入しなさい。",
+        ]
+    if "Wing & Body Duct OVHT DET SNSRに不具合" in question:
+        return [
+            "Wing & Body Duct OVHT DET SNSRに不具合が発生した場合には、どこで分かりますか。",
+            "737-800型機の機内に装備されている消火器のType（種類）について記入しなさい。（FWD/AFTで個数が違う場合にはその個数も記入すること）",
+        ]
     return [question]
 
 
@@ -180,6 +240,8 @@ def extract_rows(pdf_path: Path, target_ata: str, source_id: str) -> list[dict[s
         for question in split_questions(body, stop_markers):
             cleaned_question = clean_question_text(question, target_ata, current_section_name)
             questions.extend(expand_target_specific_questions(cleaned_question, target_ata))
+        if target_ata == "26":
+            questions = list(dict.fromkeys(questions))
 
         for question in questions:
             question_type = classify_question(question)
