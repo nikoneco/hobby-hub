@@ -176,6 +176,8 @@ function setupProject_() {
   Object.keys(STUDY_SCHEMA).forEach(function (sheetName) {
     ensureSheet_(study, sheetName, STUDY_SCHEMA[sheetName]);
   });
+  removeBlankDefaultSheet_(master);
+  removeBlankDefaultSheet_(study);
 
   seedMaster_(master, study.getId());
   seedStudySamples_(study);
@@ -206,6 +208,18 @@ function ensureSpreadsheetInFolder_(folderId, title) {
   const file = DriveApp.getFileById(spreadsheet.getId());
   file.moveTo(folder);
   return spreadsheet;
+}
+
+function removeBlankDefaultSheet_(spreadsheet) {
+  const sheet = spreadsheet.getSheetByName('シート1') || spreadsheet.getSheetByName('Sheet1');
+  if (!sheet || spreadsheet.getSheets().length <= 1) {
+    return;
+  }
+  const values = sheet.getDataRange().getValues();
+  const isBlank = values.length === 1 && values[0].length === 1 && values[0][0] === '';
+  if (isBlank) {
+    spreadsheet.deleteSheet(sheet);
+  }
 }
 
 function seedMaster_(spreadsheet, studyDbId) {

@@ -24,6 +24,8 @@ Google Apps Script Web App + Google Sheetsで作る趣味/学習HUBです。
 
 - Script URL: https://script.google.com/d/1zeYJdhMTa4odr3SXLFv6ns0LOg2zmAJeOPxYUjbnACDN8o5oeYtRmzaI/edit
 - Web App URL: https://script.google.com/macros/s/AKfycbxXGa_ahv1ZvjJ9-kbSqTJbdtY1NgrqJQu85LYERrBEi5QQnl1uwDMCIZ25zzYNMGG1/exec
+- HobbyHub_Master: https://docs.google.com/spreadsheets/d/1jMJdrYongZ9_mF_2i82g65Hh-0nTHztVusYpg8vEx_A/edit
+- Study737_DB: https://docs.google.com/spreadsheets/d/11YODNUHgln3dL_wADeR7va4EfAltIzY68lQxNGvBpto/edit
 - Local root: `gas/`
 
 初回だけ、Apps Script画面で `setupProject` を手動実行してDrive/Sheets権限を承認してください。
