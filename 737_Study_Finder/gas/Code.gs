@@ -55,6 +55,12 @@ function apiGetQuestionDetail(questionId) {
   });
 }
 
+function apiGetRandomQuestionDetail(filters) {
+  return safeRun_('apiGetRandomQuestionDetail', function () {
+    return getRandomQuestionDetail(filters || {});
+  });
+}
+
 function apiBuildReviewPrompt(questionId) {
   return safeRun_('apiBuildReviewPrompt', function () {
     return buildReviewPrompt(questionId);

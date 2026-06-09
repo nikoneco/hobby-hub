@@ -37,6 +37,15 @@ function getQuestionDetail(questionId) {
   };
 }
 
+function getRandomQuestionDetail(filters) {
+  const questions = getQuestions(filters || {});
+  if (!questions.length) {
+    throw new Error('No questions found for the selected filter.');
+  }
+  const question = questions[Math.floor(Math.random() * questions.length)];
+  return getQuestionDetail(question.question_id);
+}
+
 function saveAnswerNote(payload) {
   const spreadsheet = openStudySpreadsheet_();
   const sheet = getSheet_(spreadsheet, 'answer_notes');

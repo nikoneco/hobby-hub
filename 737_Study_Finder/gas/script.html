@@ -84,7 +84,7 @@
     status.textContent = message;
     count.textContent = countText || '';
     loadButton.disabled = state === 'loading';
-    randomButton.disabled = state === 'loading' || !currentQuestions.length;
+    randomButton.disabled = state === 'loading';
     toggleButton.disabled = state === 'loading';
   }
 
@@ -142,6 +142,7 @@
     syncQuestionListVisibility();
   }
 
+  /*
   function loadRandomQuestion() {
     if (!currentQuestions.length) {
       showError(new Error('先に問題を読み込んでね。'));
@@ -151,6 +152,7 @@
     loadDetail(question.question_id);
   }
 
+  */
   function toggleQuestionList() {
     questionListExpanded = !questionListExpanded;
     syncQuestionListVisibility();
@@ -438,6 +440,28 @@
       .replace(/'/g, '&#039;');
   }
 
+  function loadRandomQuestion() {
+    const selectedAta = getSelectedAtaKey();
+    if (currentQuestions.length && loadedAtaKey === selectedAta) {
+      const question = currentQuestions[Math.floor(Math.random() * currentQuestions.length)];
+      loadDetail(question.question_id);
+      return;
+    }
+    selectedQuestionId = '';
+    document.getElementById('questionDetail').innerHTML = '<p class="muted">ランダム問題を読み込み中...</p>';
+    document.getElementById('confirmedAnswers').innerHTML = '';
+    document.getElementById('answerNotes').innerHTML = '';
+    document.getElementById('candidateList').textContent = '候補ページを読み込み中...';
+    google.script.run
+      .withSuccessHandler((response) => renderDetail(unwrap(response)))
+      .withFailureHandler((error) => {
+        document.getElementById('questionDetail').textContent = 'ランダム問題の読み込みに失敗しました。';
+        document.getElementById('candidateList').textContent = '';
+        showError(error);
+      })
+      .apiGetRandomQuestionDetail({ ata: selectedAta });
+  }
+
   document.getElementById('setupButton').addEventListener('click', runSetup);
   document.getElementById('ataFilter').addEventListener('change', markQuestionsPending);
   document.getElementById('loadQuestions').addEventListener('click', loadQuestions);
@@ -453,8 +477,4 @@
   renderAtaFilterOptions();
   syncQuestionListVisibility();
   markQuestionsPending();
-
-  if (appState.setup && appState.setup.study737DbId) {
-    loadQuestions();
-  }
 </script>
