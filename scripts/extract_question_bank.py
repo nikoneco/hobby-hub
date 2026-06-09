@@ -36,7 +36,7 @@ QUESTION_END_RE = re.compile(
     r"(.*?(?:答えなさい。?|説明しなさい。?|記入しなさい。?|答えられる。?|説明できる。?|述べなさい。?))"
 )
 
-STOP_MARKERS = [
+DEFAULT_STOP_MARKERS = [
     "AIR CONDITIONING SYSTEM",
     "ELECTRICAL POWER SYSTEM",
     "DC GENERATION SYSTEM",
@@ -46,7 +46,16 @@ STOP_MARKERS = [
     "AC ELECTRICAL LOAD DISTRIBUTION",
     "HYDRAULIC POWER SYSTEM",
     "FUEL SYSTEM",
+    "STRUCTURES",
+    "DOOR",
 ]
+
+STOP_MARKERS_BY_ATA = {
+    "49": [
+        "5X STRUCTURES",
+        "STRUCTURES",
+    ],
+}
 
 
 def normalize_ata_key(value: str) -> str:
@@ -101,9 +110,9 @@ def expected_answer_style(question_type: str, text: str) -> str:
     return "short_explanation"
 
 
-def split_questions(body: str) -> list[str]:
+def split_questions(body: str, stop_markers: list[str]) -> list[str]:
     stop_at = len(body)
-    for marker in STOP_MARKERS:
+    for marker in stop_markers:
         pos = body.find(marker)
         if pos != -1:
             stop_at = min(stop_at, pos)
@@ -132,6 +141,16 @@ def clean_question_text(question: str, ata: str, section_name: str) -> str:
     return cleaned
 
 
+def expand_target_specific_questions(question: str, target_ata: str) -> list[str]:
+    if target_ata == "49" and "APU CONTROL" in question and "Lub Modle" in question:
+        before, after = question.split("APU CONTROL", 1)
+        return [
+            before.strip(),
+            "APU CONTROL " + after.strip(),
+        ]
+    return [question]
+
+
 def extract_rows(pdf_path: Path, target_ata: str, source_id: str) -> list[dict[str, str]]:
     reader = PdfReader(str(pdf_path))
     now = datetime.now(timezone.utc).isoformat()
@@ -139,6 +158,7 @@ def extract_rows(pdf_path: Path, target_ata: str, source_id: str) -> list[dict[s
     current_ata = ""
     current_section_name = ""
     target_ata = normalize_ata_key(target_ata)
+    stop_markers = STOP_MARKERS_BY_ATA.get(target_ata, DEFAULT_STOP_MARKERS)
 
     for page_number, page in enumerate(reader.pages, start=1):
         text = compact_text(page.extract_text() or "")
@@ -156,8 +176,12 @@ def extract_rows(pdf_path: Path, target_ata: str, source_id: str) -> list[dict[s
         if current_ata != target_ata or not body:
             continue
 
-        for question in split_questions(body):
-            question = clean_question_text(question, target_ata, current_section_name)
+        questions: list[str] = []
+        for question in split_questions(body, stop_markers):
+            cleaned_question = clean_question_text(question, target_ata, current_section_name)
+            questions.extend(expand_target_specific_questions(cleaned_question, target_ata))
+
+        for question in questions:
             question_type = classify_question(question)
             order = len(rows) + 1
             rows.append(
