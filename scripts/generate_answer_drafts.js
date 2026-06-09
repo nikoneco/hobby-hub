@@ -485,8 +485,10 @@ function main() {
       evidence_page_ids: reviewed ? reviewedEvidence.pageIds : candidates.slice(0, 3).map((row) => row.page_id).filter(Boolean).join(', '),
       evidence_excerpts: reviewed ? reviewedEvidence.excerpts : candidates.slice(0, 3).map((row) => `${row.page_code}: ${row.excerpt}`).join('\n---\n'),
       source_type: reviewed ? `codex_reviewed_ata${question.ata}` : 'codex_local_extractive',
-      status: reviewed ? 'reviewed_draft' : 'draft_ai',
-      problem_reason: reviewed ? 'Reviewed against extracted Study Guide ATA text; user can edit final wording in the web app.' : 'Auto-generated from extracted Study Guide text; user verification required.',
+      status: reviewed ? (reviewed.status || 'reviewed_draft') : 'draft_ai',
+      problem_reason: reviewed
+        ? (reviewed.problem_reason || 'Reviewed against extracted Study Guide ATA text; user can edit final wording in the web app.')
+        : 'Auto-generated from extracted Study Guide text; user verification required.',
       created_at: now,
       updated_at: now
     });

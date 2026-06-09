@@ -9,6 +9,11 @@ function doGet(e) {
       .createTextOutput(JSON.stringify(importPreparedAta24Data()))
       .setMimeType(ContentService.MimeType.JSON);
   }
+  if (e && e.parameter && e.parameter.action === 'importAta') {
+    return ContentService
+      .createTextOutput(JSON.stringify(importPreparedAtaData(e.parameter.ata || '24')))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
 
   const template = HtmlService.createTemplateFromFile('index');
   template.bootstrapJson = JSON.stringify(getClientBootstrap_());
@@ -26,7 +31,8 @@ function getClientBootstrap_() {
   return safeRun_('getClientBootstrap_', function () {
     return {
       appName: CONFIG.APP_NAME,
-      setup: getSetupStatus()
+      setup: getSetupStatus(),
+      preparedAtas: typeof getPreparedAtaList_ === 'function' ? getPreparedAtaList_() : ['24']
     };
   });
 }
@@ -81,4 +87,8 @@ function apiImportCsv(payload) {
 
 function apiImportPreparedAta24Data() {
   return importPreparedAta24Data();
+}
+
+function apiImportPreparedAtaData(ata) {
+  return importPreparedAtaData(ata || '24');
 }

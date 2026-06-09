@@ -121,7 +121,19 @@ def extract_page_codes(text: str) -> list[str]:
     return [canonical_page_code(match) for match in PAGE_CODE_RE.finditer(text)]
 
 
-def infer_page_code(text: str) -> str:
+def infer_page_code(text: str, ata: str) -> str:
+    footer_re = re.compile(
+        rf"737-\s*\d\s*\d\s*\d\s+{re.escape(ata)}-\d{{2}}\s+\d{{4}}\s+([DF]\s*\d+\s*-\s*\d\s*\d?)",
+        re.IGNORECASE,
+    )
+    footer_codes = []
+    for match in footer_re.finditer(text):
+        code_match = PAGE_CODE_RE.search(match.group(1))
+        if code_match:
+            footer_codes.append(canonical_page_code(code_match))
+    if footer_codes:
+        return footer_codes[-1]
+
     codes = extract_page_codes(text)
     if not codes:
         return ""
@@ -219,7 +231,7 @@ def build_rows(pdf_path: Path, ata: str, source_id: str) -> tuple[list[dict[str,
     for index, page in enumerate(reader.pages, start=1):
         body_text = compact_text(page.extract_text() or "")
         is_index_page = index <= 4
-        code = "" if is_index_page else infer_page_code(body_text)
+        code = "" if is_index_page else infer_page_code(body_text, ata)
         title = "INDEX" if is_index_page else infer_title(body_text, code, title_map, ata)
         section_code = extract_section_code(body_text, ata)
         row_page_id = page_id(ata, code, index)

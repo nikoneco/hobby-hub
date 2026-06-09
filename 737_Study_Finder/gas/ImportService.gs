@@ -41,7 +41,9 @@ function importCsvText(payload) {
   });
   const spreadsheet = openStudySpreadsheet_();
   const sheet = ensureSheet_(spreadsheet, sheetName, schema);
-  writeImportedRows_(sheet, schema, headers, rows, mode);
+  writeImportedRows_(sheet, schema, headers, rows, mode, {
+    ata: payload.ata || payload.ata_filter || payload.ataFilter || ''
+  });
 
   return {
     sheet_name: sheetName,
@@ -96,10 +98,13 @@ function validateCsvHeaders_(sheetName, schema, headers) {
   }
 }
 
-function writeImportedRows_(sheet, schema, headers, csvRows, mode) {
+function writeImportedRows_(sheet, schema, headers, csvRows, mode, options) {
+  options = options || {};
   ensureHeaders_(sheet, schema);
   if (mode === 'replace') {
     clearDataRows_(sheet);
+  } else if (mode === 'replace_ata') {
+    clearRowsByAta_(sheet, schema, options.ata);
   }
   if (!csvRows.length) {
     return;
@@ -112,12 +117,40 @@ function writeImportedRows_(sheet, schema, headers, csvRows, mode) {
     });
   });
 
-  const startRow = mode === 'append' ? sheet.getLastRow() + 1 : 2;
+  const startRow = mode === 'append' || mode === 'replace_ata' ? sheet.getLastRow() + 1 : 2;
   ensureGridSize_(sheet, startRow + mappedRows.length - 1, schema.length);
   const chunkSize = 100;
   for (let index = 0; index < mappedRows.length; index += chunkSize) {
     const chunk = mappedRows.slice(index, index + chunkSize);
     sheet.getRange(startRow + index, 1, chunk.length, schema.length).setValues(chunk);
+  }
+}
+
+function clearRowsByAta_(sheet, schema, ata) {
+  const ataValue = String(ata || '').replace(/\D/g, '');
+  if (!ataValue) {
+    throw new Error('ATA is required for replace_ata import.');
+  }
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) {
+    return;
+  }
+
+  const ataColumnIndex = schema.indexOf('ata');
+  const questionIdColumnIndex = schema.indexOf('question_id');
+  if (ataColumnIndex === -1 && questionIdColumnIndex === -1) {
+    throw new Error('replace_ata is not supported for sheet without ata/question_id column: ' + sheet.getName());
+  }
+
+  const values = sheet.getRange(2, 1, lastRow - 1, Math.max(schema.length, sheet.getLastColumn())).getValues();
+  for (let index = values.length - 1; index >= 0; index--) {
+    const row = values[index];
+    const rowAta = ataColumnIndex === -1 ? '' : String(row[ataColumnIndex] || '').replace(/\D/g, '');
+    const questionId = questionIdColumnIndex === -1 ? '' : String(row[questionIdColumnIndex] || '');
+    if (rowAta === ataValue || questionId.indexOf('q_' + ataValue + '_') === 0) {
+      sheet.deleteRow(index + 2);
+    }
   }
 }
 

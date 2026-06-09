@@ -28,13 +28,30 @@ QUESTION_HEADERS = [
     "updated_at",
 ]
 
-ATA_PAGE_RE = re.compile(r"737-800\s+標準問題\s+JHZ/T\s+737\s+Team\s+(?P<ata>\d{2})\s+(?P<title>[A-Z0-9 &/-]+?)\s+Check\s+(?P<body>.*)")
-QUESTION_END_RE = re.compile(r"(.*?(?:答えなさい|説明しなさい|説明しなさい。|答えられる|答えられる。|説明できる|説明できる。|要領を説明しなさい|要領を説明しなさい。))")
+ATA_PAGE_RE = re.compile(
+    r"737-800\s*標準問題\s+JHZ/T\s+737\s+Team\s+(?P<ata>\d{2})\s+(?P<title>.+?)\s+Check\s+(?P<body>.*)"
+)
+CONTINUATION_PAGE_RE = re.compile(r"737-800\s*標準問題\s+JHZ/T\s+737\s+Team\s+(?P<body>.*)")
+QUESTION_END_RE = re.compile(
+    r"(.*?(?:答えなさい。?|説明しなさい。?|答えられる。?|説明できる。?|述べなさい。?))"
+)
+
+STOP_MARKERS = [
+    "AIR CONDITIONING SYSTEM",
+    "ELECTRICAL POWER SYSTEM",
+    "DC GENERATION SYSTEM",
+    "EXTERNAL POWER",
+    "GENERATOR DRIVE",
+    "AC GENERATION SYSTEM",
+    "AC ELECTRICAL LOAD DISTRIBUTION",
+    "HYDRAULIC POWER SYSTEM",
+    "FUEL SYSTEM",
+]
 
 
 def normalize_text(value: str) -> str:
     text = unicodedata.normalize("NFKC", value or "")
-    text = re.sub(r"[‐-‒–—―]", "-", text)
+    text = re.sub(r"[窶・窶停凪披評]", "-", text)
     text = re.sub(r"\s+", " ", text)
     return text.strip().upper()
 
@@ -52,13 +69,13 @@ def classify_question(text: str) -> str:
     normalized = normalize_text(text)
     if "COMPONENT LOCATION" in normalized or ("LOCATION" in normalized and ("FUNCTION" in normalized or "機能" in text)):
         return "component_location_function"
-    if any(term in normalized for term in ["LIGHT", "SWITCH", "CONDITION", "点灯条件"]):
+    if any(term in normalized for term in ["LIGHT", "SWITCH", "CONDITION"]) or any(term in text for term in ["点灯条件", "作動条件"]):
         return "condition_list"
-    if any(term in normalized for term in ["定格", "KVA", "VOLT", "AMP", "HZ"]):
+    if any(term in normalized for term in ["KVA", "VOLT", "AMP", "HZ"]) or "定格" in text:
         return "rating"
-    if any(term in normalized for term in ["SERVICE", "要領", "手順"]):
+    if any(term in normalized for term in ["SERVICE", "PROCEDURE"]) or any(term in text for term in ["要領", "手順"]):
         return "procedure"
-    if any(term in normalized for term in ["FUNCTION", "機能"]):
+    if "FUNCTION" in normalized or "機能" in text:
         return "function_list"
     if any(term in normalized for term in ["LOCATION", "PANEL", "MODULE", "COMPONENT"]):
         return "component_location_function"
@@ -78,16 +95,8 @@ def expected_answer_style(question_type: str, text: str) -> str:
 
 
 def split_questions(body: str) -> list[str]:
-    stop_markers = [
-        "DC GENERATION SYSTEM",
-        "ELECTRICAL POWER SYSTEM",
-        "EXTERNAL POWER",
-        "GENERATOR DRIVE",
-        "AC GENERATION SYSTEM",
-        "AC ELECTRICAL LOAD DISTRIBUTION",
-    ]
     stop_at = len(body)
-    for marker in stop_markers:
+    for marker in STOP_MARKERS:
         pos = body.find(marker)
         if pos != -1:
             stop_at = min(stop_at, pos)
@@ -99,35 +108,57 @@ def split_questions(body: str) -> list[str]:
         match = QUESTION_END_RE.match(cursor)
         if not match:
             break
-        question = match.group(1).strip()
-        question = re.sub(r"^[。．\s]+", "", question)
-        question = question if question.endswith("。") else question + "。"
-        questions.append(question)
+        question = re.sub(r"^[、。・\s]+", "", match.group(1).strip())
+        if question and not question.endswith("。"):
+            question += "。"
+        if question:
+            questions.append(question)
         cursor = cursor[match.end() :].strip()
     return questions
+
+
+def clean_question_text(question: str, ata: str, section_name: str) -> str:
+    cleaned = question.strip()
+    prefix = f"{ata} {section_name} "
+    if cleaned.startswith(prefix):
+        cleaned = cleaned[len(prefix) :].strip()
+    return cleaned
 
 
 def extract_rows(pdf_path: Path, target_ata: str, source_id: str) -> list[dict[str, str]]:
     reader = PdfReader(str(pdf_path))
     now = datetime.now(timezone.utc).isoformat()
     rows: list[dict[str, str]] = []
+    current_ata = ""
+    current_section_name = ""
 
     for page_number, page in enumerate(reader.pages, start=1):
         text = compact_text(page.extract_text() or "")
         match = ATA_PAGE_RE.search(text)
-        if not match or match.group("ata") != target_ata:
+        if match:
+            current_ata = match.group("ata")
+            current_section_name = match.group("title").strip()
+            body = match.group("body")
+        elif current_ata == target_ata:
+            continuation = CONTINUATION_PAGE_RE.search(text)
+            body = continuation.group("body") if continuation else text
+        else:
+            body = ""
+
+        if current_ata != target_ata or not body:
             continue
-        section_name = match.group("title").strip()
-        questions = split_questions(match.group("body"))
-        for index, question in enumerate(questions, start=1):
+
+        for question in split_questions(body):
+            question = clean_question_text(question, target_ata, current_section_name)
             question_type = classify_question(question)
+            order = len(rows) + 1
             rows.append(
                 {
-                    "question_id": stable_question_id(target_ata, question, index),
+                    "question_id": stable_question_id(target_ata, question, order),
                     "ata": target_ata,
                     "source_id": source_id,
                     "pdf_page": str(page_number),
-                    "section_name": section_name,
+                    "section_name": current_section_name,
                     "subsection_name": "",
                     "question_text": question,
                     "normalized_question": normalize_text(question),

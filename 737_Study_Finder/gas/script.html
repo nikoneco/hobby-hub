@@ -187,21 +187,26 @@
     reader.readAsText(file, 'utf-8');
   }
 
-  function importPreparedAta24() {
-    document.getElementById('preparedImportStatus').textContent = 'ATA24準備データを取り込み中...';
+  function importPreparedAta() {
+    const ata = document.getElementById('ataFilter').value;
+    if (!ata) {
+      showError(new Error('Prepared import needs a selected ATA.'));
+      return;
+    }
+    document.getElementById('preparedImportStatus').textContent = 'ATA' + ata + ' prepared data import running...';
     google.script.run
       .withSuccessHandler((response) => {
         const result = unwrap(response);
         const total = result.imported.reduce((sum, item) => sum + Number(item.imported_rows || 0), 0);
         document.getElementById('preparedImportStatus').textContent =
-          'ATA24準備データを取り込みました。合計 ' + total + ' 行';
+          'ATA' + result.ata + ' prepared data imported. Total ' + total + ' rows.';
         loadQuestions();
       })
       .withFailureHandler((error) => {
         document.getElementById('preparedImportStatus').textContent = '';
         showError(error);
       })
-      .apiImportPreparedAta24Data();
+      .apiImportPreparedAtaData(ata);
   }
 
   function loadNoteIntoEditor(note) {
@@ -299,7 +304,7 @@
 
   document.getElementById('setupButton').addEventListener('click', runSetup);
   document.getElementById('loadQuestions').addEventListener('click', loadQuestions);
-  document.getElementById('importPreparedButton').addEventListener('click', importPreparedAta24);
+  document.getElementById('importPreparedButton').addEventListener('click', importPreparedAta);
   document.getElementById('promptButton').addEventListener('click', buildPrompt);
   document.getElementById('saveDraftButton').addEventListener('click', saveDraft);
   document.getElementById('adoptButton').addEventListener('click', adoptAnswer);

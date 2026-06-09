@@ -1,13 +1,22 @@
-function importPreparedAta24Data() {
-  return safeRun_('importPreparedAta24Data', function () {
-    return importPreparedAta24Data_();
+function importPreparedAtaData(ata) {
+  return safeRun_('importPreparedAtaData', function () {
+    return importPreparedAtaData_(ata || '24');
   });
 }
 
-function importPreparedAta24Data_() {
+function importPreparedAta24Data() {
+  return importPreparedAtaData('24');
+}
+
+function importPreparedAtaData_(ata) {
+  const ataValue = String(ata || '').replace(/\D/g, '');
+  if (!ataValue) {
+    throw new Error('ATA is required.');
+  }
+
   setupProject_();
 
-  const csvMap = getPreparedAta24CsvMap_();
+  const csvMap = getPreparedAtaCsvMap_(ataValue);
   const order = [
     'source_files',
     'textbook_pages',
@@ -24,12 +33,13 @@ function importPreparedAta24Data_() {
     return importCsvText({
       sheet_name: sheetName,
       csv_text: csvMap[sheetName],
-      mode: 'replace'
+      mode: 'replace_ata',
+      ata: ataValue
     });
   });
 
   return {
-    ata: '24',
+    ata: ataValue,
     imported: results,
     imported_at: nowIso_()
   };
