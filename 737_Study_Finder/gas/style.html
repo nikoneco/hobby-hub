@@ -38,6 +38,11 @@
     color: #ffffff;
   }
 
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
   .topbar {
     min-height: 84px;
     display: flex;
@@ -128,6 +133,82 @@
     gap: 8px;
     margin-bottom: 12px;
     flex-wrap: wrap;
+  }
+
+  .load-panel {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fbfcfd;
+    margin: -2px 0 12px;
+    padding: 10px;
+  }
+
+  .load-panel-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  #questionLoadStatus {
+    color: var(--text);
+    font-weight: 700;
+  }
+
+  #questionLoadCount {
+    flex: 0 0 auto;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .load-bar {
+    height: 6px;
+    margin-top: 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #e8edf2;
+  }
+
+  .load-bar span {
+    display: block;
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--accent);
+    transition: width 180ms ease;
+  }
+
+  .load-panel.is-pending .load-bar span {
+    width: 34%;
+    background: #8a96a3;
+  }
+
+  .load-panel.is-loading .load-bar span {
+    width: 72%;
+    animation: loadingPulse 900ms ease-in-out infinite alternate;
+  }
+
+  .load-panel.is-loaded .load-bar span {
+    width: 100%;
+  }
+
+  .load-panel.is-failed .load-bar span {
+    width: 100%;
+    background: var(--accent-2);
+  }
+
+  @keyframes loadingPulse {
+    from {
+      opacity: 0.55;
+      transform: translateX(-8%);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(8%);
+    }
   }
 
   input,

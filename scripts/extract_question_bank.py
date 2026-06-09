@@ -150,7 +150,37 @@ def expand_target_specific_questions(question: str, target_ata: str) -> list[str
         ]
     if target_ata == "26":
         return expand_ata26_questions(question)
+    if target_ata == "27":
+        return [normalize_ata27_question(question)]
     return [question]
+
+
+def normalize_ata27_question(question: str) -> str:
+    replacements = {
+        "下記の操舵角を答えなさい。":
+            "Aileron、Elevator、Rudderの操舵角を答えなさい。",
+        "Spoilet Mixer&Ratio Changerの機能を説明しなさい。":
+            "Spoiler Mixer & Ratio Changerの機能を説明しなさい。",
+        "FLT Spoiler ActuatorのＳolenoid Operated Valveを作動について説明しなさい。":
+            "FLT Spoiler ActuatorのSolenoid Operated Valveの作動について説明しなさい。",
+        "Manual Reversion OperationにおいてControl Cloumnを操作した時Elevatorが作動 するまでの流れについて説明しなさい。":
+            "Manual Reversion OperationにおいてControl Columnを操作した時Elevatorが作動するまでの流れについて説明しなさい。",
+        "Balance ModeとAnti Blance Modeの作動と目的について説明しなさい。":
+            "Balance ModeとAnti-Balance Modeの作動と目的について説明しなさい。",
+        "T/E ＦalpのＰrotectionについて説明しなさい。":
+            "T/E FlapのProtectionについて説明しなさい。",
+        "T/E ＦalpのIndication Systemの構成、Locationを説明しなさい。":
+            "T/E FlapのIndication Systemの構成、Locationを説明しなさい。",
+        "Auto Speed Brake ModuleのＬocationを記入しなさい。":
+            "Auto Speed Brake ModuleのLocationを記入しなさい。",
+        "Cap ContwheelがJammingしたときのRoll Controlを説明しなさい。":
+            "Captain Control WheelがJammingしたときのRoll Controlを説明しなさい。",
+        "Cap Control ColumnがJammingしたときのPitch Controlについて説明しなさい。":
+            "Captain Control ColumnがJammingしたときのPitch Controlについて説明しなさい。",
+        "下記図面番号のComponentについて、正式名称、Location、機能を答えなさい。":
+            "Aileron and Aileron Trim Control System図の番号Componentについて、正式名称、Location、機能を答えなさい。",
+    }
+    return replacements.get(question, question)
 
 
 def expand_ata26_questions(question: str) -> list[str]:

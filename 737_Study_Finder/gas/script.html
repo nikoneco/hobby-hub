@@ -5,6 +5,8 @@
   let selectedQuestionId = '';
   let currentQuestions = [];
   let questionListExpanded = false;
+  let loadedAtaKey = null;
+  let questionLoadRequestId = 0;
 
   function normalizeAtaKey(value) {
     const text = String(value || '').trim().toUpperCase();
@@ -62,13 +64,59 @@
     return response.data;
   }
 
+  function getSelectedAtaKey() {
+    return normalizeAtaKey(document.getElementById('ataFilter').value);
+  }
+
+  function getSelectedAtaLabel() {
+    const ata = getSelectedAtaKey();
+    return ata ? 'ATA ' + ata : 'ATA All';
+  }
+
+  function setQuestionLoadState(state, message, countText) {
+    const panel = document.getElementById('questionLoadPanel');
+    const status = document.getElementById('questionLoadStatus');
+    const count = document.getElementById('questionLoadCount');
+    const loadButton = document.getElementById('loadQuestions');
+    const randomButton = document.getElementById('randomQuestionButton');
+    const toggleButton = document.getElementById('toggleQuestionListButton');
+    panel.className = 'load-panel is-' + state;
+    status.textContent = message;
+    count.textContent = countText || '';
+    loadButton.disabled = state === 'loading';
+    randomButton.disabled = state === 'loading' || !currentQuestions.length;
+    toggleButton.disabled = state === 'loading';
+  }
+
+  function markQuestionsPending() {
+    questionLoadRequestId += 1;
+    const label = getSelectedAtaLabel();
+    if (loadedAtaKey === getSelectedAtaKey()) {
+      setQuestionLoadState('loaded', label + ' 読み込み済み', currentQuestions.length + '問');
+      return;
+    }
+    const countText = currentQuestions.length ? '表示中: ' + currentQuestions.length + '問' : '未読み込み';
+    setQuestionLoadState('pending', label + ' を選択中。読み込みを押すと問題一覧を更新します。', countText);
+  }
+
   function loadQuestions() {
     const ata = document.getElementById('ataFilter').value;
+    const requestId = ++questionLoadRequestId;
+    const label = getSelectedAtaLabel();
+    setQuestionLoadState('loading', label + ' を読み込み中...', '読み込み中');
     document.getElementById('questionList').textContent = '問題を読み込み中...';
     google.script.run
-      .withSuccessHandler((response) => renderQuestions(unwrap(response)))
+      .withSuccessHandler((response) => {
+        if (requestId !== questionLoadRequestId) return;
+        const questions = unwrap(response);
+        renderQuestions(questions);
+        loadedAtaKey = normalizeAtaKey(ata);
+        setQuestionLoadState('loaded', label + ' 読み込み完了', questions.length + '問');
+      })
       .withFailureHandler((error) => {
+        if (requestId !== questionLoadRequestId) return;
         document.getElementById('questionList').textContent = '読み込みに失敗しました。';
+        setQuestionLoadState('failed', label + ' の読み込みに失敗しました。', '要確認');
         showError(error);
       })
       .apiGetQuestions({ ata });
@@ -81,6 +129,7 @@
     if (!questions.length) {
       root.textContent = '問題がまだありません。CSV取込か初期設定を確認してね。';
       syncQuestionListVisibility();
+      setQuestionLoadState('loaded', getSelectedAtaLabel() + ' 読み込み完了', '0問');
       return;
     }
     questions.forEach((question) => {
@@ -390,6 +439,7 @@
   }
 
   document.getElementById('setupButton').addEventListener('click', runSetup);
+  document.getElementById('ataFilter').addEventListener('change', markQuestionsPending);
   document.getElementById('loadQuestions').addEventListener('click', loadQuestions);
   document.getElementById('randomQuestionButton').addEventListener('click', loadRandomQuestion);
   document.getElementById('toggleQuestionListButton').addEventListener('click', toggleQuestionList);
@@ -402,6 +452,7 @@
 
   renderAtaFilterOptions();
   syncQuestionListVisibility();
+  markQuestionsPending();
 
   if (appState.setup && appState.setup.study737DbId) {
     loadQuestions();

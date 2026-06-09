@@ -12,6 +12,15 @@
       <button id="toggleQuestionListButton" aria-expanded="false">問題一覧を表示</button>
       <button id="importPreparedButton">Prepared ATA取込</button>
     </div>
+    <div id="questionLoadPanel" class="load-panel is-idle" aria-live="polite">
+      <div class="load-panel-row">
+        <span id="questionLoadStatus">ATAを選んで読み込みを押してください。</span>
+        <span id="questionLoadCount">未読み込み</span>
+      </div>
+      <div class="load-bar" aria-hidden="true">
+        <span id="questionLoadBar"></span>
+      </div>
+    </div>
     <p id="preparedImportStatus" class="muted"></p>
     <div id="questionList" class="muted question-list is-collapsed">初期設定後に問題を読み込みます。</div>
   </section>
