@@ -4,7 +4,7 @@ Google Apps Script Web App + Google Sheetsで作る趣味/学習HUBです。
 
 ## 現在の検証対象
 
-- ローカル資料: `../737_Study_Finder`
+- ローカル資料: `737_Study_Finder`
 - Study Guide: `Study_Guide/24_REF.pdf`
 - 標準問題集: `標準問題集/737-800標準問題集(2012.03.13).pdf`
 - Driveフォルダ:
@@ -33,6 +33,9 @@ Google Apps Script Web App + Google Sheetsで作る趣味/学習HUBです。
 
 ## Webアプリ方針
 
+- 趣味HUB本体は各趣味ツールへのリンク集/入口として扱う
+- 737 Study Finderは質問ごとに参照ページ、AI/Codex下書き回答、補足メモ、採用済み回答を参照するDBビューとして扱う
+- AI/Codex下書き回答は画面上では折りたたみ表示し、必要な時に開いて確認・修正・採用できるようにする
 - 外部AI APIは使わない
 - 回答案は `answer_notes` に保存
 - 正解扱いはユーザー採用済みの `confirmed_answers` のみ

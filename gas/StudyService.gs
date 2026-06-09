@@ -40,6 +40,9 @@ function getQuestionDetail(questionId) {
 function saveAnswerNote(payload) {
   const spreadsheet = openStudySpreadsheet_();
   const sheet = getSheet_(spreadsheet, 'answer_notes');
+  if (!payload.question_id) {
+    throw new Error('question_id is required.');
+  }
   const note = {
     note_id: generateId_('note'),
     question_id: payload.question_id,
@@ -58,9 +61,35 @@ function saveAnswerNote(payload) {
   return note;
 }
 
+function updateAnswerNote(noteId, payload) {
+  if (!noteId) {
+    throw new Error('note_id is required.');
+  }
+  const spreadsheet = openStudySpreadsheet_();
+  const sheet = getSheet_(spreadsheet, 'answer_notes');
+  const patch = {
+    answer_text: payload.answer_text || '',
+    evidence_page_codes: payload.evidence_page_codes || '',
+    evidence_page_ids: payload.evidence_page_ids || '',
+    evidence_excerpts: payload.evidence_excerpts || '',
+    source_type: payload.source_type || 'manual_user',
+    status: payload.status || 'reviewed_ok',
+    problem_reason: payload.problem_reason || '',
+    updated_at: nowIso_()
+  };
+  const updated = updateObjectById_(sheet, 'note_id', noteId, patch);
+  if (!updated) {
+    throw new Error('Answer note not found: ' + noteId);
+  }
+  return Object.assign({ note_id: noteId }, patch);
+}
+
 function saveConfirmedAnswer(payload) {
   const spreadsheet = openStudySpreadsheet_();
   const sheet = getSheet_(spreadsheet, 'confirmed_answers');
+  if (!payload.question_id) {
+    throw new Error('question_id is required.');
+  }
   const answer = {
     answer_id: generateId_('ans'),
     question_id: payload.question_id,

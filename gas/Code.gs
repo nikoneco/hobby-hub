@@ -54,3 +54,21 @@ function apiBuildReviewPrompt(questionId) {
     return buildReviewPrompt(questionId);
   });
 }
+
+function apiSaveAnswerNote(payload) {
+  return safeRun_('apiSaveAnswerNote', function () {
+    return saveAnswerNote(payload || {});
+  });
+}
+
+function apiUpdateAnswerNote(noteId, payload) {
+  return safeRun_('apiUpdateAnswerNote', function () {
+    return updateAnswerNote(noteId, payload || {});
+  });
+}
+
+function apiSaveConfirmedAnswer(payload) {
+  return safeRun_('apiSaveConfirmedAnswer', function () {
+    return saveConfirmedAnswer(payload || {});
+  });
+}

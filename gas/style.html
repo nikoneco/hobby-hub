@@ -116,6 +116,7 @@
     display: flex;
     gap: 8px;
     margin-bottom: 12px;
+    flex-wrap: wrap;
   }
 
   input,
@@ -131,6 +132,13 @@
   textarea {
     min-height: 180px;
     resize: vertical;
+  }
+
+  label {
+    display: block;
+    margin-bottom: 10px;
+    color: var(--muted);
+    font-size: 13px;
   }
 
   .question-button {
@@ -152,6 +160,47 @@
   .candidate-code {
     color: var(--accent-2);
     font-weight: 700;
+  }
+
+  .answer-editor {
+    border-top: 1px solid var(--line);
+    margin-top: 14px;
+    padding-top: 14px;
+  }
+
+  .answer-card {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    margin: 10px 0;
+    padding: 10px;
+    background: #fbfcfd;
+  }
+
+  .answer-card.confirmed {
+    border-color: rgba(18, 106, 114, 0.35);
+    background: var(--soft);
+  }
+
+  .answer-card summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    font-weight: 700;
+  }
+
+  .answer-meta {
+    color: var(--muted);
+    font-size: 12px;
+    margin: 8px 0;
+  }
+
+  pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0;
+    font-family: inherit;
+    line-height: 1.5;
   }
 
   .status {

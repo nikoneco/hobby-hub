@@ -14,6 +14,31 @@
   <section>
     <h2>Question</h2>
     <div id="questionDetail" class="muted">問題を選択してね。</div>
+    <div id="confirmedAnswers"></div>
+    <div id="answerNotes"></div>
+    <div class="answer-editor">
+      <h3>Answer Draft</h3>
+      <input id="activeNoteId" type="hidden">
+      <label>
+        Source
+        <select id="answerSource">
+          <option value="chatgpt_manual">ChatGPT/Codex</option>
+          <option value="manual_user">手入力</option>
+          <option value="copied_from_sg">SGから転記</option>
+          <option value="unknown">不明</option>
+        </select>
+      </label>
+      <label>
+        根拠ページ
+        <input id="answerEvidencePages" placeholder="D0-09, F0-09">
+      </label>
+      <textarea id="answerText" placeholder="AI回答や修正後の回答をここに貼る"></textarea>
+      <div class="toolbar">
+        <button id="saveDraftButton">下書き保存</button>
+        <button id="adoptButton" class="primary">採用</button>
+        <button id="clearDraftButton">クリア</button>
+      </div>
+    </div>
     <div class="toolbar">
       <button id="promptButton">回答作成用プロンプト</button>
     </div>
