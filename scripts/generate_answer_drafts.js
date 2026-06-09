@@ -144,7 +144,44 @@ function termsForQuestion(question, index) {
     ['OIL SERVICE', 'SERVICING'],
     ['OIL SYSTEM', 'OIL SYSTEM'],
     ['CLOSE', 'CLOSE'],
-    ['RATING', 'RATING']
+    ['RATING', 'RATING'],
+    ['NAME PLATE', 'NAME PLATE'],
+    ['HAZARD', 'HAZARD'],
+    ['ENTRY/EXIT CORRIDOR', 'ENTRY/EXIT CORRIDOR'],
+    ['ENTRY', 'ENTRY'],
+    ['EXIT CORRIDOR', 'EXIT CORRIDOR'],
+    ['ENGINE MOUNT', 'ENGINE MOUNT'],
+    ['INLET COWL', 'INLET COWL'],
+    ['FAN COWL', 'FAN COWL'],
+    ['PRESSURE RELIEF DOOR', 'PRESSURE RELIEF DOOR'],
+    ['DRAIN SYSTEM', 'DRAIN SYSTEM'],
+    ['ENGINE COWLING', 'ENGINE COWLING'],
+    ['VORTEX CONTROL DEVICE', 'VORTEX CONTROL DEVICE'],
+    ['MAIN BEARING', 'MAIN BEARING'],
+    ['ACCESSORY GEAR BOX', 'ACCESSORY GEAR BOX'],
+    ['AERODYNAMIC STATION', 'AERODYNAMIC STATION'],
+    ['ACCESSORY DRIVE', 'ACCESSORY DRIVE'],
+    ['FAN BLADE', 'FAN BLADE'],
+    ['SPINNER', 'SPINNER'],
+    ['EEC', 'EEC'],
+    ['HMU', 'HMU'],
+    ['IDLE', 'IDLE'],
+    ['IGNITION', 'IGNITION'],
+    ['HPTACC', 'HPTACC'],
+    ['LPTACC', 'LPTACC'],
+    ['VSV', 'VSV'],
+    ['VBV', 'VBV'],
+    ['TBV', 'TBV'],
+    ['AUTOTHROTTLE', 'AUTOTHROTTLE'],
+    ['START LEVER', 'START LEVER'],
+    ['REVERSE THRUST', 'REVERSE THRUST'],
+    ['N1', 'N1'],
+    ['N2', 'N2'],
+    ['EGT', 'EGT'],
+    ['AVM', 'AVM'],
+    ['THRUST REVERSER', 'THRUST REVERSER'],
+    ['START VALVE', 'START VALVE'],
+    ['STARTER', 'STARTER']
   ];
   phraseMap.forEach(([needle, term]) => {
     if (normalized.includes(needle)) terms.push(term);
@@ -157,10 +194,27 @@ function termsForQuestion(question, index) {
   if (text.includes('条件')) terms.push('CONDITION', 'CONTROL');
   if (text.includes('構造')) terms.push('GENERAL DESCRIPTION');
 
-  return uniq([...terms, ...contextTerms(index)]);
+  return uniq([...terms, ...contextTerms(index, question.ata)]);
 }
 
-function contextTerms(index) {
+function contextTerms(index, ata) {
+  if (String(ata).toUpperCase() === '7X') {
+    const engineRanges = [
+      [1, 8, 'ATA71'],
+      [9, 14, 'ATA72'],
+      [15, 25, 'ATA73'],
+      [26, 31, 'ATA74'],
+      [32, 42, 'ATA75'],
+      [43, 47, 'ATA76'],
+      [48, 51, 'ATA77'],
+      [52, 60, 'ATA78'],
+      [61, 64, 'ATA79'],
+      [65, 68, 'ATA80']
+    ];
+    const match = engineRanges.find(([start, end]) => index >= start && index <= end);
+    return match ? [match[2]] : [];
+  }
+
   const table = {
     1: ['DISTRIBUTION', 'AC BUS', 'DC BUS', 'STANDBY BUS'],
     2: ['AIRPLANE', 'COMPONENT LOCATION', 'ELECTRICAL POWER'],
@@ -204,6 +258,14 @@ function scorePage(question, questionTerms, page) {
   questionTerms.forEach((term) => {
     const normalizedTerm = normalize(term);
     if (!normalizedTerm || normalizedTerm.length < 2) return;
+    const ataMatch = normalizedTerm.match(/^ATA(\d{2})$/);
+    if (ataMatch) {
+      if (String(page.page_code || '').startsWith(ataMatch[1] + '-')) {
+        score += 300;
+        matches.push(term);
+      }
+      return;
+    }
     if (title.includes(normalizedTerm)) {
       score += normalizedTerm.includes(' ') ? 55 : 35;
       matches.push(term);

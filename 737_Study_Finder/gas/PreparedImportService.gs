@@ -9,7 +9,7 @@ function importPreparedAta24Data() {
 }
 
 function importPreparedAtaData_(ata) {
-  const ataValue = String(ata || '').replace(/\D/g, '');
+  const ataValue = normalizeAtaKey_(ata);
   if (!ataValue) {
     throw new Error('ATA is required.');
   }

@@ -3,17 +3,25 @@
   const bootstrap = JSON.parse(app.dataset.bootstrap || '{}');
   const appState = bootstrap.data || {};
   let selectedQuestionId = '';
+  let currentQuestions = [];
+  let questionListExpanded = false;
+
+  function normalizeAtaKey(value) {
+    const text = String(value || '').trim().toUpperCase();
+    if (/^7X$/.test(text)) return '7X';
+    return text.replace(/\D/g, '');
+  }
 
   function renderAtaFilterOptions() {
     const select = document.getElementById('ataFilter');
     const currentValue = select.value;
     const existingAtas = Array.from(select.options || [])
-      .map((option) => String(option.value || '').replace(/\D/g, ''))
+      .map((option) => normalizeAtaKey(option.value))
       .filter(Boolean);
     const atas = Array.from(new Set(existingAtas.concat((appState.preparedAtas || [])
-      .map((ata) => String(ata || '').replace(/\D/g, ''))
+      .map((ata) => normalizeAtaKey(ata))
       .filter(Boolean))))
-      .sort((a, b) => Number(a) - Number(b));
+      .sort(compareAtaKeys);
 
     select.innerHTML = '';
     const allOption = document.createElement('option');
@@ -31,6 +39,19 @@
     if (atas.includes(currentValue)) {
       select.value = currentValue;
     }
+  }
+
+  function compareAtaKeys(a, b) {
+    const numberA = ataSortValue(a);
+    const numberB = ataSortValue(b);
+    if (numberA !== numberB) return numberA - numberB;
+    return String(a).localeCompare(String(b));
+  }
+
+  function ataSortValue(value) {
+    const key = normalizeAtaKey(value);
+    if (key === '7X') return 79;
+    return Number(String(key).replace(/\D/g, ''));
   }
 
   function unwrap(response) {
@@ -54,10 +75,12 @@
   }
 
   function renderQuestions(questions) {
+    currentQuestions = questions;
     const root = document.getElementById('questionList');
     root.innerHTML = '';
     if (!questions.length) {
       root.textContent = '問題がまだありません。CSV取込か初期設定を確認してね。';
+      syncQuestionListVisibility();
       return;
     }
     questions.forEach((question) => {
@@ -67,6 +90,29 @@
       button.addEventListener('click', () => loadDetail(question.question_id));
       root.appendChild(button);
     });
+    syncQuestionListVisibility();
+  }
+
+  function loadRandomQuestion() {
+    if (!currentQuestions.length) {
+      showError(new Error('先に問題を読み込んでね。'));
+      return;
+    }
+    const question = currentQuestions[Math.floor(Math.random() * currentQuestions.length)];
+    loadDetail(question.question_id);
+  }
+
+  function toggleQuestionList() {
+    questionListExpanded = !questionListExpanded;
+    syncQuestionListVisibility();
+  }
+
+  function syncQuestionListVisibility() {
+    const root = document.getElementById('questionList');
+    const button = document.getElementById('toggleQuestionListButton');
+    root.classList.toggle('is-collapsed', !questionListExpanded);
+    button.setAttribute('aria-expanded', questionListExpanded ? 'true' : 'false');
+    button.textContent = questionListExpanded ? '問題一覧を隠す' : '問題一覧を表示';
   }
 
   function loadDetail(questionId) {
@@ -345,6 +391,8 @@
 
   document.getElementById('setupButton').addEventListener('click', runSetup);
   document.getElementById('loadQuestions').addEventListener('click', loadQuestions);
+  document.getElementById('randomQuestionButton').addEventListener('click', loadRandomQuestion);
+  document.getElementById('toggleQuestionListButton').addEventListener('click', toggleQuestionList);
   document.getElementById('importPreparedButton').addEventListener('click', importPreparedAta);
   document.getElementById('promptButton').addEventListener('click', buildPrompt);
   document.getElementById('saveDraftButton').addEventListener('click', saveDraft);
@@ -353,6 +401,7 @@
   document.getElementById('importCsvButton').addEventListener('click', importCsv);
 
   renderAtaFilterOptions();
+  syncQuestionListVisibility();
 
   if (appState.setup && appState.setup.study737DbId) {
     loadQuestions();

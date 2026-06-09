@@ -29,11 +29,11 @@ QUESTION_HEADERS = [
 ]
 
 ATA_PAGE_RE = re.compile(
-    r"737-800\s*標準問題\s+JHZ/T\s+737\s+Team\s+(?P<ata>\d{2})\s+(?P<title>.+?)\s+Check\s+(?P<body>.*)"
+    r"737-800\s*標準問題\s+JHZ/T\s+737\s+Team\s+(?P<ata>(?:\d{2}|[7７][XxＸｘ]))\s+(?P<title>.+?)\s+Check\s+(?P<body>.*)"
 )
 CONTINUATION_PAGE_RE = re.compile(r"737-800\s*標準問題\s+JHZ/T\s+737\s+Team\s+(?P<body>.*)")
 QUESTION_END_RE = re.compile(
-    r"(.*?(?:答えなさい。?|説明しなさい。?|答えられる。?|説明できる。?|述べなさい。?))"
+    r"(.*?(?:答えなさい。?|説明しなさい。?|記入しなさい。?|答えられる。?|説明できる。?|述べなさい。?))"
 )
 
 STOP_MARKERS = [
@@ -47,6 +47,13 @@ STOP_MARKERS = [
     "HYDRAULIC POWER SYSTEM",
     "FUEL SYSTEM",
 ]
+
+
+def normalize_ata_key(value: str) -> str:
+    text = unicodedata.normalize("NFKC", value or "").strip().upper()
+    if text == "7X":
+        return "7X"
+    return re.sub(r"\D", "", text)
 
 
 def normalize_text(value: str) -> str:
@@ -131,12 +138,13 @@ def extract_rows(pdf_path: Path, target_ata: str, source_id: str) -> list[dict[s
     rows: list[dict[str, str]] = []
     current_ata = ""
     current_section_name = ""
+    target_ata = normalize_ata_key(target_ata)
 
     for page_number, page in enumerate(reader.pages, start=1):
         text = compact_text(page.extract_text() or "")
         match = ATA_PAGE_RE.search(text)
         if match:
-            current_ata = match.group("ata")
+            current_ata = normalize_ata_key(match.group("ata"))
             current_section_name = match.group("title").strip()
             body = match.group("body")
         elif current_ata == target_ata:

@@ -127,7 +127,7 @@ function writeImportedRows_(sheet, schema, headers, csvRows, mode, options) {
 }
 
 function clearRowsByAta_(sheet, schema, ata) {
-  const ataValue = String(ata || '').replace(/\D/g, '');
+  const ataValue = normalizeAtaKey_(ata);
   if (!ataValue) {
     throw new Error('ATA is required for replace_ata import.');
   }
@@ -146,12 +146,20 @@ function clearRowsByAta_(sheet, schema, ata) {
   const values = sheet.getRange(2, 1, lastRow - 1, Math.max(schema.length, sheet.getLastColumn())).getValues();
   for (let index = values.length - 1; index >= 0; index--) {
     const row = values[index];
-    const rowAta = ataColumnIndex === -1 ? '' : String(row[ataColumnIndex] || '').replace(/\D/g, '');
+    const rowAta = ataColumnIndex === -1 ? '' : normalizeAtaKey_(row[ataColumnIndex]);
     const questionId = questionIdColumnIndex === -1 ? '' : String(row[questionIdColumnIndex] || '');
     if (rowAta === ataValue || questionId.indexOf('q_' + ataValue + '_') === 0) {
       sheet.deleteRow(index + 2);
     }
   }
+}
+
+function normalizeAtaKey_(value) {
+  const text = String(value || '').trim().toUpperCase();
+  if (/^7X$/.test(text)) {
+    return '7X';
+  }
+  return text.replace(/\D/g, '');
 }
 
 function clearDataRows_(sheet) {
