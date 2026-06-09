@@ -76,26 +76,27 @@ function removeBlankDefaultSheet_(spreadsheet) {
 
 function seedMaster_(spreadsheet) {
   const sheet = getSheet_(spreadsheet, 'hub_modules');
-  const module = buildStudyModule_();
-  const patch = {
-    module_name: module.module_name,
-    description: module.description,
-    enabled: module.enabled,
-    display_order: module.display_order,
-    icon: module.icon,
-    target_url: module.target_url,
-    app_folder_id: module.app_folder_id,
-    script_id: module.script_id,
-    db_spreadsheet_id: module.db_spreadsheet_id,
-    updated_at: nowIso_()
-  };
+  buildDefaultModules_().forEach(function (module) {
+    const patch = {
+      module_name: module.module_name,
+      description: module.description,
+      enabled: module.enabled,
+      display_order: module.display_order,
+      icon: module.icon,
+      target_url: module.target_url,
+      app_folder_id: module.app_folder_id,
+      script_id: module.script_id,
+      db_spreadsheet_id: module.db_spreadsheet_id,
+      updated_at: nowIso_()
+    };
 
-  if (updateObjectById_(sheet, 'module_id', module.module_id, patch)) {
-    return;
-  }
+    if (updateObjectById_(sheet, 'module_id', module.module_id, patch)) {
+      return;
+    }
 
-  appendObject_(sheet, MASTER_SCHEMA.hub_modules, Object.assign({}, module, {
-    created_at: nowIso_(),
-    updated_at: nowIso_()
-  }));
+    appendObject_(sheet, MASTER_SCHEMA.hub_modules, Object.assign({}, module, {
+      created_at: nowIso_(),
+      updated_at: nowIso_()
+    }));
+  });
 }

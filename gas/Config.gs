@@ -20,6 +20,14 @@ const CONFIG = {
       FOLDER_ID: '1173fD2V7ftdfXSdo1HAeLIaiKQL5H4pX',
       SCRIPT_ID: '1qOkLEui2ZCfWIAEsW7AW7v4ZwZFl8K1i6UtWG1_LaayRR4eFf6DLM1K-',
       DB_SPREADSHEET_ID: '11YODNUHgln3dL_wADeR7va4EfAltIzY68lQxNGvBpto'
+    },
+    ROOM_LIBRARY: {
+      MODULE_ID: 'room_library',
+      NAME: '趣味部屋図書館',
+      DESCRIPTION: '趣味部屋図書館Webアプリ',
+      WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbza7tfhqVYgNv_9N1WGj6hlE_8dBaMZCwuBuQKa4yfDrSeFODZTL63GE4R3g27eQAb_/exec',
+      ICON: 'library',
+      DISPLAY_ORDER: 2
     }
   }
 };
