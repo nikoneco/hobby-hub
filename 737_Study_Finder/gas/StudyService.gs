@@ -12,6 +12,54 @@ function getQuestions(filters) {
   });
 }
 
+function getQuestionsBundle(filters) {
+  const questions = getQuestions(filters || {});
+  if (!filters || !filters.ata) {
+    return {
+      questions: questions,
+      detailsById: {}
+    };
+  }
+
+  const questionIdSet = questions.reduce(function (set, question) {
+    set[String(question.question_id)] = true;
+    return set;
+  }, {});
+
+  const spreadsheet = openStudySpreadsheet_();
+  const candidatesByQuestionId = groupRowsByQuestionId_(
+    readObjects_(getSheet_(spreadsheet, 'candidate_links')).filter(function (row) {
+      return questionIdSet[String(row.question_id)];
+    }).sort(function (a, b) { return Number(a.rank) - Number(b.rank); })
+  );
+  const notesByQuestionId = groupRowsByQuestionId_(
+    readObjects_(getSheet_(spreadsheet, 'answer_notes')).filter(function (row) {
+      return questionIdSet[String(row.question_id)];
+    })
+  );
+  const confirmedByQuestionId = groupRowsByQuestionId_(
+    readObjects_(getSheet_(spreadsheet, 'confirmed_answers')).filter(function (row) {
+      return questionIdSet[String(row.question_id)];
+    })
+  );
+
+  const detailsById = questions.reduce(function (details, question) {
+    const questionId = String(question.question_id);
+    details[questionId] = {
+      question: question,
+      candidates: groupCandidates_(candidatesByQuestionId[questionId] || []),
+      answerNotes: notesByQuestionId[questionId] || [],
+      confirmedAnswers: confirmedByQuestionId[questionId] || []
+    };
+    return details;
+  }, {});
+
+  return {
+    questions: questions,
+    detailsById: detailsById
+  };
+}
+
 function getQuestionDetail(questionId) {
   const spreadsheet = openStudySpreadsheet_();
   const question = readObjectByColumnValue_(getSheet_(spreadsheet, 'question_bank'), 'question_id', questionId);
@@ -136,6 +184,20 @@ function groupCandidates_(candidates) {
       groups[key] = [];
     }
     groups[key].push(candidate);
+    return groups;
+  }, {});
+}
+
+function groupRowsByQuestionId_(rows) {
+  return rows.reduce(function (groups, row) {
+    const key = String(row.question_id || '');
+    if (!key) {
+      return groups;
+    }
+    if (!groups[key]) {
+      groups[key] = [];
+    }
+    groups[key].push(row);
     return groups;
   }, {});
 }

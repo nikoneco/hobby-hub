@@ -4,6 +4,7 @@
   const appState = bootstrap.data || {};
   let selectedQuestionId = '';
   let currentQuestions = [];
+  let currentDetailsByQuestionId = {};
   let questionListExpanded = false;
   let loadedAtaKey = null;
   let questionLoadRequestId = 0;
@@ -95,6 +96,7 @@
       setQuestionLoadState('loaded', label + ' 読み込み済み', currentQuestions.length + '問');
       return;
     }
+    currentDetailsByQuestionId = {};
     const countText = currentQuestions.length ? '表示中: ' + currentQuestions.length + '問' : '未読み込み';
     setQuestionLoadState('pending', label + ' を選択中。読み込みを押すと問題一覧を更新します。', countText);
   }
@@ -108,7 +110,9 @@
     google.script.run
       .withSuccessHandler((response) => {
         if (requestId !== questionLoadRequestId) return;
-        const questions = unwrap(response);
+        const data = unwrap(response);
+        const questions = Array.isArray(data) ? data : (data.questions || []);
+        currentDetailsByQuestionId = Array.isArray(data) ? {} : (data.detailsById || {});
         renderQuestions(questions);
         loadedAtaKey = normalizeAtaKey(ata);
         setQuestionLoadState('loaded', label + ' 読み込み完了', questions.length + '問');
@@ -119,7 +123,7 @@
         setQuestionLoadState('failed', label + ' の読み込みに失敗しました。', '要確認');
         showError(error);
       })
-      .apiGetQuestions({ ata });
+      .apiGetQuestionsBundle({ ata });
   }
 
   function renderQuestions(questions) {
@@ -166,14 +170,24 @@
     button.textContent = questionListExpanded ? '問題一覧を隠す' : '問題一覧を表示';
   }
 
-  function loadDetail(questionId) {
+  function loadDetail(questionId, forceRefresh) {
     selectedQuestionId = questionId;
+    if (!forceRefresh && currentDetailsByQuestionId[questionId]) {
+      renderDetail(currentDetailsByQuestionId[questionId]);
+      return;
+    }
     document.getElementById('questionDetail').innerHTML = '<p class="muted">問題詳細を読み込み中...</p>';
     document.getElementById('confirmedAnswers').innerHTML = '';
     document.getElementById('answerNotes').innerHTML = '';
     document.getElementById('candidateList').textContent = '候補ページを読み込み中...';
     google.script.run
-      .withSuccessHandler((response) => renderDetail(unwrap(response)))
+      .withSuccessHandler((response) => {
+        const detail = unwrap(response);
+        if (detail && detail.question && detail.question.question_id) {
+          currentDetailsByQuestionId[detail.question.question_id] = detail;
+        }
+        renderDetail(detail);
+      })
       .withFailureHandler((error) => {
         document.getElementById('questionDetail').textContent = '問題詳細の読み込みに失敗しました。';
         document.getElementById('candidateList').textContent = '';
@@ -389,7 +403,8 @@
     const runner = google.script.run
       .withSuccessHandler((response) => {
         unwrap(response);
-        loadDetail(selectedQuestionId);
+        delete currentDetailsByQuestionId[selectedQuestionId];
+        loadDetail(selectedQuestionId, true);
       })
       .withFailureHandler(showError);
     if (noteId) {
@@ -410,7 +425,8 @@
     google.script.run
       .withSuccessHandler((response) => {
         unwrap(response);
-        loadDetail(selectedQuestionId);
+        delete currentDetailsByQuestionId[selectedQuestionId];
+        loadDetail(selectedQuestionId, true);
       })
       .withFailureHandler(showError)
       .apiSaveConfirmedAnswer(payload);
@@ -453,7 +469,13 @@
     document.getElementById('answerNotes').innerHTML = '';
     document.getElementById('candidateList').textContent = '候補ページを読み込み中...';
     google.script.run
-      .withSuccessHandler((response) => renderDetail(unwrap(response)))
+      .withSuccessHandler((response) => {
+        const detail = unwrap(response);
+        if (detail && detail.question && detail.question.question_id) {
+          currentDetailsByQuestionId[detail.question.question_id] = detail;
+        }
+        renderDetail(detail);
+      })
       .withFailureHandler((error) => {
         document.getElementById('questionDetail').textContent = 'ランダム問題の読み込みに失敗しました。';
         document.getElementById('candidateList').textContent = '';

@@ -49,6 +49,12 @@ function apiGetQuestions(filters) {
   });
 }
 
+function apiGetQuestionsBundle(filters) {
+  return safeRun_('apiGetQuestionsBundle', function () {
+    return getQuestionsBundle(filters || {});
+  });
+}
+
 function apiGetQuestionDetail(questionId) {
   return safeRun_('apiGetQuestionDetail', function () {
     return getQuestionDetail(questionId);
