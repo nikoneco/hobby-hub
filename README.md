@@ -20,6 +20,15 @@ Google Apps Script Web App + Google Sheetsで作る趣味/学習HUBです。
 
 作成後、必要なシートとヘッダーを用意し、ATA 24の動作確認用サンプルを投入します。
 
+## Apps Script / clasp
+
+- Script URL: https://script.google.com/d/1zeYJdhMTa4odr3SXLFv6ns0LOg2zmAJeOPxYUjbnACDN8o5oeYtRmzaI/edit
+- Web App URL: https://script.google.com/macros/s/AKfycbxXGa_ahv1ZvjJ9-kbSqTJbdtY1NgrqJQu85LYERrBEi5QQnl1uwDMCIZ25zzYNMGG1/exec
+- Local root: `gas/`
+
+初回だけ、Apps Script画面で `setupProject` を手動実行してDrive/Sheets権限を承認してください。
+承認後は、`HobbyHub_Master` と `Study737_DB` がそれぞれDriveの対象フォルダ内に作成されます。
+
 ## Webアプリ方針
 
 - 外部AI APIは使わない
