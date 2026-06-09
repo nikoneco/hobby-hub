@@ -1,0 +1,174 @@
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f7f8fb;
+    --panel: #ffffff;
+    --text: #1d2733;
+    --muted: #657181;
+    --line: #d9e0e7;
+    --accent: #126a72;
+    --accent-2: #b6423c;
+    --soft: #eef5f6;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  button {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #ffffff;
+  }
+
+  .topbar {
+    min-height: 84px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .eyebrow {
+    margin: 0;
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+
+  h1,
+  h2,
+  h3,
+  p {
+    margin-top: 0;
+  }
+
+  h1 {
+    margin-bottom: 0;
+    font-size: 24px;
+  }
+
+  h2 {
+    font-size: 16px;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .module-list,
+  .study-grid > section {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px;
+  }
+
+  .module-card {
+    display: block;
+    width: 100%;
+    text-align: left;
+    margin-bottom: 10px;
+  }
+
+  .module-card strong {
+    display: block;
+  }
+
+  .module-card span,
+  .muted {
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .study-grid {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr) 360px;
+    gap: 16px;
+    min-width: 0;
+  }
+
+  .toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  input,
+  select,
+  textarea {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 8px;
+    font: inherit;
+  }
+
+  textarea {
+    min-height: 180px;
+    resize: vertical;
+  }
+
+  .question-button {
+    width: 100%;
+    display: block;
+    text-align: left;
+    margin-bottom: 8px;
+  }
+
+  .candidate {
+    border-top: 1px solid var(--line);
+    padding: 10px 0;
+  }
+
+  .candidate:first-child {
+    border-top: 0;
+  }
+
+  .candidate-code {
+    color: var(--accent-2);
+    font-weight: 700;
+  }
+
+  .status {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    background: var(--soft);
+    color: var(--accent);
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  @media (max-width: 980px) {
+    .layout,
+    .study-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

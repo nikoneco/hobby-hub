@@ -1,0 +1,135 @@
+<script>
+  const app = document.getElementById('app');
+  const bootstrap = JSON.parse(app.dataset.bootstrap || '{}');
+  let selectedQuestionId = '';
+
+  function unwrap(response) {
+    if (!response || !response.ok) {
+      const message = response && response.error ? response.error.message : 'Unknown error';
+      throw new Error(message);
+    }
+    return response.data;
+  }
+
+  function renderModules(modules) {
+    const root = document.getElementById('modules');
+    root.innerHTML = '';
+    modules.forEach((module) => {
+      const button = document.createElement('button');
+      button.className = 'module-card';
+      button.innerHTML = '<strong>' + escapeHtml(module.module_name) + '</strong><span>' + escapeHtml(module.description || '') + '</span>';
+      root.appendChild(button);
+    });
+  }
+
+  function loadQuestions() {
+    const ata = document.getElementById('ataFilter').value;
+    google.script.run
+      .withSuccessHandler((response) => renderQuestions(unwrap(response)))
+      .withFailureHandler(showError)
+      .apiGetQuestions({ ata });
+  }
+
+  function renderQuestions(questions) {
+    const root = document.getElementById('questionList');
+    root.innerHTML = '';
+    if (!questions.length) {
+      root.textContent = '問題がありません。';
+      return;
+    }
+    questions.forEach((question) => {
+      const button = document.createElement('button');
+      button.className = 'question-button';
+      button.innerHTML = '<strong>' + escapeHtml(question.question_text) + '</strong><span class="status">' + escapeHtml(question.check_status) + '</span>';
+      button.addEventListener('click', () => loadDetail(question.question_id));
+      root.appendChild(button);
+    });
+  }
+
+  function loadDetail(questionId) {
+    selectedQuestionId = questionId;
+    google.script.run
+      .withSuccessHandler((response) => renderDetail(unwrap(response)))
+      .withFailureHandler(showError)
+      .apiGetQuestionDetail(questionId);
+  }
+
+  function renderDetail(detail) {
+    const question = detail.question;
+    document.getElementById('questionDetail').innerHTML = [
+      '<p><span class="status">' + escapeHtml(question.check_status) + '</span></p>',
+      '<h3>' + escapeHtml(question.question_text) + '</h3>',
+      '<p class="muted">ATA ' + escapeHtml(question.ata) + ' / ' + escapeHtml(question.section_name || '') + '</p>'
+    ].join('');
+    renderCandidates(detail.candidates || {});
+  }
+
+  function renderCandidates(groups) {
+    const labels = {
+      best: '本命候補',
+      related_figure: '関連図',
+      general_reference: 'General参考',
+      neighbor: '近接ページ',
+      manual: '手動候補'
+    };
+    const root = document.getElementById('candidateList');
+    root.innerHTML = '';
+    Object.keys(groups).forEach((key) => {
+      const heading = document.createElement('h3');
+      heading.textContent = labels[key] || key;
+      root.appendChild(heading);
+      groups[key].forEach((candidate) => {
+        const item = document.createElement('div');
+        item.className = 'candidate';
+        item.innerHTML = [
+          '<div class="candidate-code">' + escapeHtml(candidate.page_code) + '</div>',
+          '<strong>' + escapeHtml(candidate.title || '') + '</strong>',
+          '<p class="muted">' + escapeHtml(candidate.excerpt || '') + '</p>'
+        ].join('');
+        root.appendChild(item);
+      });
+    });
+  }
+
+  function buildPrompt() {
+    if (!selectedQuestionId) {
+      showError(new Error('先に問題を選んでね。'));
+      return;
+    }
+    google.script.run
+      .withSuccessHandler((response) => {
+        document.getElementById('promptOutput').value = unwrap(response);
+      })
+      .withFailureHandler(showError)
+      .apiBuildReviewPrompt(selectedQuestionId);
+  }
+
+  function runSetup() {
+    google.script.run
+      .withSuccessHandler((response) => {
+        const data = unwrap(response);
+        alert('初期設定完了: ' + data.hobbyHubMaster.url + '\\n' + data.study737Db.url);
+        loadQuestions();
+      })
+      .withFailureHandler(showError)
+      .setupProject();
+  }
+
+  function showError(error) {
+    alert(error.message || String(error));
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  renderModules((bootstrap.data && bootstrap.data.modules) || []);
+  document.getElementById('setupButton').addEventListener('click', runSetup);
+  document.getElementById('loadQuestions').addEventListener('click', loadQuestions);
+  document.getElementById('promptButton').addEventListener('click', buildPrompt);
+</script>

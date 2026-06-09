@@ -1,0 +1,11 @@
+.clasprc.json
+node_modules/
+data/*.csv
+data/*.xlsx
+data/*.log
+*.tmp
+*.bak
+*.pdf
+__pycache__/
+.venv/
+venv/

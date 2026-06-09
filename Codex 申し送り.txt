@@ -1,0 +1,1213 @@
+Codex申し送り：趣味ログHUB + 737 Study Finder 開発
+
+0. 前提
+
+Google Apps Script Webアプリで「趣味ログHUB」を作る。
+サーバーは借りない。
+構成は以下。
+
+* Google Apps Script Web App
+* Google Spreadsheet
+* Google Drive
+* ローカルPythonによるPDF解析・CSV生成
+* 必要に応じてCodexによる手動レビュー
+
+最初に実装するモジュールは「737 Study Finder」。
+目的は、737-800のStudy Guideと標準問題集を使って、問題ごとの根拠ページ・回答案・確認済み回答を蓄積する勉強補助アプリを作ること。
+
+⸻
+
+1. 作りたいものの全体像
+
+1.1 趣味ログHUB
+
+将来的に複数の趣味/学習モジュールを入れる入口アプリ。
+
+将来想定モジュール：
+
+* 737 Study Finder
+* 趣味部屋図書館
+* 撮影ログ
+* ローストビーフ研究所
+* ワインログ
+* 機材管理
+* プラモ制作ログ
+
+ただし、MVPでは「737 Study Finder」｢趣味部屋図書館｣のみ実装する。
+
+⸻
+
+1.2 737 Study Finder
+
+737-800の標準問題集とStudy Guideを紐付ける勉強補助アプリ。
+
+ユーザーの理想イメージ：
+
+問題：
+BPCU の Function を８つ答えなさい。
+候補ページ：
+D01-06 BPCU - GENERAL DESCRIPTION
+D01-08 BPCU - EXT POWER CONT, PROTECTION, AND INDICATION
+AI回答案：
+...
+[採用] [修正] [保留] [別候補を探す]
+
+この画面を実現したい。
+
+⸻
+
+2. 最重要方針
+
+2.1 従量課金APIは使わない
+
+OpenAI API、Gemini APIなどの従量課金APIは使わない。
+GASから外部AI APIを呼ばない。
+
+理由：
+
+* 従量課金を避けたい
+* 社内/教材資料を自動で外部API送信したくない
+* AI回答はあくまで下書きで、最終正解はユーザー確認済みにしたい
+
+したがって、アプリ内に「AI回答案を自動生成するAPI機能」は作らない。
+
+代わりに以下を作る。
+
+* ChatGPT/Codex確認用プロンプト生成
+* 回答案の貼り付け保存
+* 回答案の採用/修正/保留
+* 不十分な回答をreview_queueへ送る
+* 定期的にCodexへ手動で見てもらう運用
+
+⸻
+
+2.2 AIは下書き係、正解はユーザー確認済みだけ
+
+AIやCodexが作った回答案を、そのまま正解扱いしない。
+正解扱いするのは、ユーザーが採用した confirmed_answers のみ。
+
+下書き・回答案は answer_notes に保存する。
+怪しいものは review_queue に送る。
+
+⸻
+
+2.3 Spreadsheetは分ける
+
+GAS Webアプリは1つでよい。
+ただしSpreadsheetは分ける。
+
+Spreadsheet 1: HobbyHub_Master
+
+趣味ログHUB本体の設定用。
+
+Spreadsheet 2: Study737_DB
+
+737 Study Finder専用DB。
+
+理由：
+
+* Study Guideの全文インデックスが巨大化しやすい
+* 趣味HUB本体を重くしたくない
+* Study DBだけバックアップ/再生成しやすい
+* 将来Study Finderだけ独立させやすい
+* 権限や共有範囲を分けやすい
+
+GASからは SpreadsheetApp.openById() で複数Spreadsheetを参照する。
+
+⸻
+
+3. 使用資料
+
+3.1 Study Guide
+
+ユーザーがCodexへStudy Guideの全ATAを渡す予定。
+
+Study Guideの特徴：
+
+* ATAごとにPDFがある想定
+* 最初にINDEXがある
+* その後、本文ページと図ページが並ぶ
+* ページコードがある
+    * D00-01, D01-06, D02-05 など：本文ページ
+    * F00-01, F01-06, F02-05 など：図・系統図・パネル図ページ
+* DページとFページが同番号で対応していることが多い
+    * 例：D01-06 ↔ F01-06
+* ただし必ずしも同番号だけ見れば答えになるとは限らない
+
+⸻
+
+3.2 標準問題集
+
+ユーザーがCodexへ標準問題集PDFを渡す予定。
+
+特徴：
+
+* ATAごとに問題がまとまっている
+* 記述式問題が中心
+* 選択肢式ではない
+* 「SG同様の英単語で回答できなければ不正解」という趣旨の注意がある
+* したがって回答案では、Component名、System名、Unit名、Light名、Panel名などの英語表記をできるだけ保持する
+
+⸻
+
+4. D00/F00 Generalページの扱い
+
+非常に重要。
+
+Study GuideのD00/F00系はGeneralページであり、概要説明が多い。
+問題文のキーワードがGeneralページに出ることはあるが、正式な回答に必要な詳細は後続の個別ページに書かれている場合がある。
+
+例：
+
+* General Descriptionには用語や概要だけ出る
+* 詳細な構造、Location、Function、作動条件、定格、Light点灯条件などは後続ページにある
+* F00系のGeneral図だけでなく、後続のF05などに詳細図がある場合がある
+* 逆に、後続ページに明確な詳細がない場合もある
+
+したがって、
+
+* D/F同番号ペアだけで答えを確定しない
+* D00/F00 Generalだけで答えを確定しない
+* Generalページは「参考候補」として扱う
+* 個別Component/Function/Location/Condition/Rating問題では、より具体的なページを優先する
+
+⸻
+
+5. 候補ページ表示の基本思想
+
+候補ページは、単なる上位スコア順だけではなく分類して表示する。
+
+画面例：
+
+問題：
+BPCU の Function を８つ答えなさい。
+候補ページ：
+[本命候補]
+D01-06 BPCU - GENERAL DESCRIPTION
+D01-08 BPCU - EXT POWER CONT, PROTECTION, AND INDICATION
+[関連図]
+F01-06 BPCU - GENERAL DESCRIPTION
+F01-08 BPCU - EXT POWER CONT, PROTECTION, AND INDICATION
+[General参考]
+D00-02 POWER AND CONTROL - GENERAL DESCRIPTION
+F00-02 POWER AND CONTROL - GENERAL DESCRIPTION
+[近接ページ]
+D01-07 BPCU - GENERAL DESCRIPTION
+F01-07 BPCU - GENERAL DESCRIPTION
+
+Generalページを本命扱いしすぎないこと。
+
+⸻
+
+6. MVPの画面イメージ
+
+6.1 HUBトップ
+
+カード型でモジュールを表示。
+
+* 737 Study Finder
+* 撮影ログ（準備中）
+* ローストビーフ研究所（準備中）
+* ワインログ（準備中）
+* 本棚/機材管理（準備中）
+
+MVPでは737 Study Finderだけ使えればよい。
+
+⸻
+
+6.2 737 Study Finder画面
+
+左ペイン
+
+* ATA選択
+* Section選択
+* 状態フィルタ
+    * 未リンク
+    * 候補あり
+    * 回答案あり
+    * 確定済み
+    * 保留
+    * 要レビュー
+* 問題一覧
+
+中央ペイン
+
+* 問題本文
+* 現在の状態
+* 確定回答
+* 回答案
+* ユーザーメモ
+* 操作ボタン
+    * 採用
+    * 修正して採用
+    * 保留
+    * review_queueへ送る
+
+右ペイン
+
+* 候補SGページ
+* 本命候補
+* 関連図
+* General参考
+* 近接ページ
+* PDFを開く
+* 候補として採用
+* 別候補を探す
+
+iPad/スマホではタブ切替にする。
+
+⸻
+
+7. ユーザー操作フロー
+
+7.1 基本フロー
+
+1. HUBを開く
+2. 737 Study Finderを開く
+3. ATAを選ぶ
+4. 問題一覧から問題を選ぶ or 指定ATAからランダム出題
+5. 候補SGページを見る
+6. 必要なら「回答作成用プロンプトを作る」
+7. ChatGPT/Codexへ手動で貼る
+8. 返ってきた回答案をアプリに貼り戻す
+9. answer_notesへ保存
+10. 内容を確認
+11. 採用 / 修正して採用 / 保留 / review_queue送り
+12. 採用したものだけconfirmed_answersへ保存
+ただし、解答は基本的には既にCodexが作った解答をみならが勉強するイメージ。
+
+⸻
+
+7.2 回答作成用プロンプト
+
+APIは使わない。
+アプリはプロンプトを作るだけ。
+
+ボタン名候補：
+
+* 回答作成用プロンプトを作る
+* ChatGPT/Codex確認用にまとめる
+
+プロンプト内容：
+
+* 問題文
+* ATA
+* Section
+* 問題タイプ
+* 本命候補ページ本文
+* 関連図ページ情報
+* General参考ページ
+* 近接ページ
+* 回答ルール
+* JSON出力スキーマ
+
+プロンプト内の重要指示：
+
+Generalページだけで回答を確定しないでください。
+個別Component、Function、Location、Condition、Ratingに関する問題では、
+候補ページの中から最も具体的なページを根拠にしてください。
+SG本文に根拠がない場合は、根拠不足と明記してください。
+推測で断定しないでください。
+英語のComponent名、Unit名、Light名、Panel名、System名は保持してください。
+試験回答として覚えやすい箇条書きにしてください。
+根拠ページコードを必ず付けてください。
+
+⸻
+
+8. Spreadsheet設計
+
+8.1 HobbyHub_Master
+
+sheet: hub_modules
+
+column	description
+module_id	モジュールID
+module_name	表示名
+description	説明
+enabled	TRUE/FALSE
+display_order	表示順
+icon	アイコン名
+route	画面ルート
+db_spreadsheet_id	対応DBのSpreadsheet ID
+created_at	作成日時
+updated_at	更新日時
+
+例：
+
+study737 / 737 Study Finder / 737-800 Study Guideと標準問題集の検索・回答補助 / TRUE / 1 / study / study737 / Study737_DBのID
+
+⸻
+
+sheet: hub_settings
+
+column	description
+key	設定キー
+value	値
+note	メモ
+updated_at	更新日時
+
+⸻
+
+8.2 Study737_DB
+
+sheet: source_files
+
+元PDF/CSVの管理。
+
+column	description
+source_id	ソースID
+source_type	study_guide_pdf / question_pdf / textbook_index_csv / question_bank_csv
+ata	ATA
+file_name	ファイル名
+drive_file_id	Google Drive file ID
+local_path	ローカルパス
+version	版数
+note	メモ
+imported_at	取り込み日時
+
+⸻
+
+sheet: textbook_pages
+
+Study Guideのページ単位インデックス。
+
+column	description
+page_id	一意ID
+ata	ATA
+source_id	source_files参照
+pdf_name	PDF名
+pdf_page	PDF上のページ番号
+page_code	D1-06 / F1-06等
+page_type	index / text / figure / blank / unknown
+section_code	セクションコード
+section_title	セクション名
+title	ページタイトル
+body_text	抽出本文
+normalized_text	検索用正規化テキスト
+keywords	キーワード
+related_page_code	対応D/Fページ
+related_page_id	対応ページID
+drive_url	PDFリンク
+created_at	作成日時
+updated_at	更新日時
+
+page_type判定：
+
+D始まり → text
+F始まり → figure
+INDEX → index
+BLANK → blank
+不明 → unknown
+
+related_page_code例：
+
+D1-06 → F1-06
+F1-06 → D1-06
+
+ただし、同番号ペアだけで完結すると決めつけない。
+
+⸻
+
+sheet: textbook_sections
+
+Study GuideのINDEXから抽出した章構成。
+
+column	description
+section_id	一意ID
+ata	ATA
+section_name	セクション名
+start_page_code	開始ページコード
+end_page_code	終了ページコード
+source_id	source_files参照
+display_order	表示順
+keywords	検索補助キーワード
+
+⸻
+
+sheet: question_bank
+
+問題集から抽出した問題DB。
+
+column	description
+question_id	一意ID
+ata	ATA
+source_id	source_files参照
+pdf_page	問題集PDFページ
+section_name	大分類
+subsection_name	小分類
+question_text	問題文
+normalized_question	検索用正規化問題文
+question_type	問題タイプ
+expected_answer_style	期待回答形式
+check_status	状態
+confirmed_answer_id	確定回答ID
+created_at	作成日時
+updated_at	更新日時
+
+question_type例：
+
+component_location_function
+function_list
+condition_list
+rating
+procedure
+explanation
+diagram_component
+unknown
+
+expected_answer_style例：
+
+list
+short_explanation
+detailed_explanation
+component_table
+procedure_steps
+
+check_status例：
+
+unlinked
+candidate_ready
+answer_note_ready
+confirmed
+hold
+needs_review
+
+⸻
+
+sheet: candidate_links
+
+問題ごとの候補SGページ。
+
+column	description
+candidate_id	一意ID
+question_id	question_bank参照
+page_id	textbook_pages参照
+ata	ATA
+candidate_group	best / related_figure / general_reference / neighbor / manual
+page_code	SGページコード
+pdf_page	PDFページ番号
+title	タイトル
+section_title	セクション名
+excerpt	抜粋
+score	スコア
+match_terms	一致語
+rank	表示順
+generated_by	keyword_search / manual / codex_review
+generated_at	生成日時
+user_status	none / useful / not_useful / adopted
+
+候補ページはAI回答案生成前に作る。
+基本は通常検索・スコアリングで出す。
+
+⸻
+
+sheet: answer_notes
+
+回答案・下書き保存用。
+AI、Codex、ユーザー手入力、SGからのコピペなどを保存する。
+
+column	description
+note_id	一意ID
+question_id	question_bank参照
+answer_text	回答案
+evidence_page_codes	根拠ページコード
+evidence_page_ids	根拠page_id
+evidence_excerpts	根拠抜粋
+source_type	manual_user / chatgpt_manual / codex_manual / copied_from_sg / unknown
+status	draft / needs_review / reviewed_ok / confirmed / rejected
+problem_reason	問題点
+created_at	作成日時
+updated_at	更新日時
+
+⸻
+
+sheet: confirmed_answers
+
+ユーザー確認済みの正回答。
+
+column	description
+answer_id	一意ID
+question_id	question_bank参照
+final_answer_text	確定回答
+evidence_page_codes	根拠ページコード
+evidence_page_ids	根拠page_id
+evidence_excerpts	根拠抜粋
+user_note	ユーザーメモ
+confidence_by_user	high / medium / low
+created_at	作成日時
+updated_at	更新日時
+
+このシートだけを正扱いする。
+
+⸻
+
+sheet: review_queue
+
+Codex手動レビュー用。
+
+column	description
+review_id	一意ID
+question_id	question_bank参照
+ata	ATA
+section_name	セクション
+question_text	問題文
+current_answer_text	現在の回答案
+candidate_page_codes	候補ページ
+candidate_excerpts	候補抜粋
+problem_reason	問題点
+priority	high / normal / low
+assigned_to	codex / user
+status	needs_review / in_progress / reviewed / hold
+created_at	作成日時
+updated_at	更新日時
+
+problem_reason例：
+
+candidate_page_unclear
+answer_too_vague
+missing_english_terms
+evidence_not_enough
+possible_wrong_page
+needs_component_location
+needs_function_list
+needs_condition_list
+diagram_question
+general_page_only
+
+⸻
+
+sheet: term_dictionary
+
+略語・正式名称・検索補助辞書。
+
+column	description
+term	略語
+full_name	正式名称
+japanese	日本語
+aliases	別名
+ata	ATA
+note	メモ
+
+例：
+
+IDG / Integrated Drive Generator
+GCU / Generator Control Unit
+AGCU / APU Generator Control Unit
+BPCU / Bus Power Control Unit
+SPCU / Standby Power Control Unit
+TRU / Transformer Rectifier Unit
+BTB / Bus Tie Breaker
+GCB / Generator Control Breaker
+APB / APU Power Breaker
+EPC / External Power Contactor
+RCCB / Remote Control Circuit Breaker
+SCU / Start Converter Unit
+PDP / Power Distribution Panel
+
+検索時に term, full_name, aliases を展開する。
+
+⸻
+
+sheet: search_log
+
+検索・操作ログ。
+
+column	description
+log_id	一意ID
+action	操作
+question_id	問題ID
+query	検索語
+result_count	結果数
+selected_candidate_id	選択候補
+status	結果
+message	メッセージ
+created_at	作成日時
+
+⸻
+
+9. 検索仕様
+
+9.1 正規化
+
+normalizeText() を作る。
+
+処理：
+
+* 全角英数字を半角へ
+* 大文字小文字の揺れを吸収
+* 余分な空白削除
+* 記号の揺れを吸収
+* 日本語助詞を過剰に削除しすぎない
+* 英語略語は保持
+* Unit名/Component名はなるべく原形保持
+* BPCU, Bus Power Control Unit のように略語と正式名称を紐付け
+
+⸻
+
+9.2 候補ページ生成
+
+候補ページは以下のレイヤーで生成する。
+
+1. Exact keyword match
+
+問題文内の英語Component名、Unit名、Light名、Panel名が本文/タイトルに一致するページ。
+
+2. Section match
+
+問題集のSection名とStudy GuideのINDEX上のSection名が近いページ。
+
+3. Neighbor pages
+
+ヒットしたDページの前後数ページ。
+同じStudy Guide section内の近接ページ。
+
+4. Related D/F pair
+
+D1-06 ↔ F1-06 のような対応図ページ。
+
+5. General fallback
+
+D0/F0などGeneralページ。
+候補には出すが、単独で高確信にしない。
+
+⸻
+
+9.3 スコアリング例
+
+exact term match in title: +40
+exact term match in body: +10
+section match: +30
+same section neighbor page: +15
+related D/F pair: +20
+acronym expanded match: +15
+page_type text: +10
+page_type figure: +5 only if paired with text page
+General page for broad system question: +10
+General page for specific component/function/rating/location question: -10
+
+⸻
+
+9.4 問題タイプ別の重み
+
+component_location_function
+
+重視：
+
+* Component名完全一致
+* AIRPLANE - COMPONENT LOCATION
+* 各Systemの COMPONENT LOCATION
+* Fページ図
+
+function_list
+
+重視：
+
+* GENERAL DESCRIPTION
+* FUNCTIONAL DESCRIPTION
+* Control
+* Protection
+* Indication
+
+condition_list
+
+重視：
+
+* OPERATION
+* FUNCTIONAL DESCRIPTION
+* Light
+* Switch
+* Protection
+* Indication
+
+rating
+
+重視：
+
+* 数値を含むページ
+* 定格値
+* KVA, V, Hz, Amp等
+
+procedure
+
+重視：
+
+* SERVICING
+* OPERATION
+* 手順系の箇条書き
+
+diagram_component
+
+重視：
+
+* Fページ
+* 図面番号問題
+* Component diagram
+* System schematic
+
+⸻
+
+10. 回答作成用プロンプト生成
+
+APIは呼ばない。
+フロントで「コピー用プロンプト」を作る。
+
+10.1 プロンプトに含めるもの
+
+* question_id
+* ATA
+* section_name
+* question_type
+* question_text
+* 本命候補ページ
+* 関連図ページ
+* General参考ページ
+* 近接ページ
+* 回答ルール
+* JSON出力スキーマ
+
+⸻
+
+10.2 JSON出力スキーマ
+
+ChatGPT/Codexから返してもらう想定。
+
+{
+  "question_id": "",
+  "answer_text": "",
+  "evidence": [
+    {
+      "page_code": "",
+      "pdf_page": "",
+      "title": "",
+      "excerpt": ""
+    }
+  ],
+  "terms_to_remember": [
+    {
+      "term": "",
+      "full_name": "",
+      "japanese": ""
+    }
+  ],
+  "confidence": "high|medium|low",
+  "needs_review": true,
+  "warnings": []
+}
+
+⸻
+
+11. GASファイル構成案
+
+Code.gs
+Config.gs
+HubService.gs
+StudyService.gs
+SearchService.gs
+PromptService.gs
+ImportService.gs
+SheetService.gs
+ReviewService.gs
+ErrorService.gs
+index.html
+style.html
+script.html
+study.html
+
+11.1 Code.gs
+
+* doGet()
+* include()
+* routing
+
+11.2 Config.gs
+
+* Spreadsheet IDs
+* constants
+* ScriptProperties
+
+11.3 HubService.gs
+
+* getModules()
+* getHubSettings()
+
+11.4 StudyService.gs
+
+* getQuestions()
+* getQuestionDetail()
+* updateQuestionStatus()
+* saveAnswerNote()
+* saveConfirmedAnswer()
+* holdQuestion()
+
+11.5 SearchService.gs
+
+* searchCandidatePages()
+* normalizeText()
+* extractTerms()
+* expandTermsByDictionary()
+* scorePage()
+* classifyCandidateGroup()
+* saveCandidates()
+* findNeighborPages()
+* findRelatedFigurePages()
+
+11.6 PromptService.gs
+
+* buildReviewPrompt()
+* buildQuestionContext()
+* buildJsonSchemaInstruction()
+
+11.7 ImportService.gs
+
+* importTextbookPagesFromCsv()
+* importQuestionsFromCsv()
+* rebuildRelatedPageLinks()
+* rebuildKeywordIndex()
+* importTermDictionary()
+
+11.8 SheetService.gs
+
+* getSheet()
+* readObjects()
+* appendObject()
+* updateObjectById()
+* ensureHeaders()
+* generateId()
+
+11.9 ReviewService.gs
+
+* addToReviewQueue()
+* getReviewQueue()
+* markReviewed()
+* applyReviewedAnswer()
+
+11.10 ErrorService.gs
+
+* safeRun()
+* logError()
+
+⸻
+
+12. PDF処理方針
+
+GASでPDFを毎回解析しない。
+PDF解析はローカルPC側のPythonスクリプトで行い、CSVを作ってスプレッドシートに取り込む。
+
+理由：
+
+* Study Guide全ATAは巨大になる可能性がある
+* Apps ScriptでPDF解析すると重い
+* 実行時間制限に当たりやすい
+* ローカルPythonの方が再現性とデバッグ性が高い
+
+⸻
+
+13. Pythonスクリプト案
+
+scripts/
+├─ extract_study_guide.py
+├─ extract_question_bank.py
+├─ build_term_dictionary.py
+├─ export_review_queue.py
+└─ README.md
+
+13.1 extract_study_guide.py
+
+目的：
+
+* Study Guide PDFをページ単位でテキスト抽出
+* page_code抽出
+* title抽出
+* D/Fページ種別判定
+* INDEX抽出
+* related_page_code生成
+* textbook_pages.csv出力
+* textbook_sections.csv出力
+
+出力：
+
+data/textbook_pages.csv
+data/textbook_sections.csv
+
+13.2 extract_question_bank.py
+
+目的：
+
+* 標準問題集PDFから問題文を抽出
+* ATA番号を抽出
+* section_nameを抽出
+* subsection_nameを抽出
+* question_typeを推定
+* question_bank.csv出力
+
+出力：
+
+data/question_bank.csv
+
+13.3 build_term_dictionary.py
+
+目的：
+
+* Study Guide本文と問題集から略語候補を抽出
+* 手動補正しやすいCSVを生成
+
+出力：
+
+data/term_dictionary.csv
+
+⸻
+
+14. MVP範囲
+
+MVPで作る
+
+* 趣味ログHUBトップ画面
+* 737 Study Finderカード
+* Study737_DBスキーマ作成
+* CSVインポート
+* 問題一覧表示
+* 問題詳細表示
+* 候補SGページ検索
+* 候補ページ分類表示
+* 回答作成用プロンプト生成
+* 回答案貼り付け保存
+* 採用
+* 修正して採用
+* 保留
+* review_queue送り
+* confirmed_answers表示
+
+⸻
+
+MVPでは後回し
+
+* OpenAI API/Gemini API連携
+* 自動AI回答生成
+* PDF本文のリアルタイム解析
+* PDFのDriveプレビュー埋め込み
+* 図ページのサムネイル化
+* 復習スケジューリング
+* 間隔反復
+* 全文検索の高度最適化
+* スマホ完全最適化
+
+⸻
+
+15. テスト観点
+
+15.1 Study Guide取り込み
+
+* INDEXページを取り込める
+* Dページがtext判定される
+* Fページがfigure判定される
+* D1-06とF1-06のようなrelated_page_codeが生成される
+* D0/F0 GeneralページをGeneral参考として扱える
+* 全ATAでCSV生成できる
+
+⸻
+
+15.2 問題集取り込み
+
+* ATA番号を抽出できる
+* Section名を抽出できる
+* 問題文を1問ずつ抽出できる
+* 図面番号問題をdiagram_componentとして扱える
+* 問題IDが安定生成される
+
+⸻
+
+15.3 候補ページ検索
+
+以下のような問題で候補が出ること。
+
+BPCU Function
+
+問題：
+
+Bus Power Control Unit (BPCU) の Function を８つ答えなさい。
+
+期待：
+
+* BPCU - GENERAL DESCRIPTION
+* BPCU - EXT POWER CONT, PROTECTION, AND INDICATION
+
+が本命候補に出ること。
+
+IDG
+
+問題：
+
+IDG の構造、機能、Oil System を説明しなさい。
+
+期待：
+
+* INTEGRATED DRIVE GENERATOR (IDG)
+* GENERATOR DRIVE - FUNCTIONAL DESCRIPTION
+* GENERATOR DRIVE - SERVICING
+
+が候補に出ること。
+
+GCU
+
+問題：
+
+Generator Control Unit (GCU) の Function を５つ答えなさい。
+
+期待：
+
+* GCU - GENERAL DESCRIPTION
+* GCU - GCB CONTROL
+* GCU - PROTECTION AND EXCITATION
+
+が候補に出ること。
+
+STANDBY PWR OFF Light
+
+問題：
+
+Generator Drive and Standby Power Module の３つのLightを説明しなさい。
+
+期待：
+
+* GENERATOR DRIVE AND STANDBY POWER MODULE
+* STANDBY POWER SYSTEM
+
+が候補に出ること。
+
+⸻
+
+15.4 回答案保存
+
+* 回答案はanswer_notesに保存される
+* answer_notesは正解扱いされない
+* 採用した場合のみconfirmed_answersへ入る
+* 修正して採用した場合、修正後の内容がconfirmed_answersへ入る
+* 保留した場合、question_bank.check_statusがholdになる
+* review_queue送りができる
+
+⸻
+
+15.5 プロンプト生成
+
+* 問題文が入る
+* 本命候補ページが入る
+* 関連図ページが入る
+* General参考ページが入る
+* Generalだけで確定しない指示が入る
+* 英語用語保持の指示が入る
+* JSONスキーマが入る
+
+⸻
+
+16. エラー方針
+
+* 候補0件なら「候補なし」と表示し、手動検索欄を出す
+* CSVインポートで必須列がなければエラー表示
+* 回答案JSON貼り付けが壊れていたらraw textとして保存できるようにする
+* Spreadsheet ID未設定なら設定エラーを出す
+* データ削除は原則しない
+* 状態変更で管理する
+* 失敗時はsearch_logまたはerror logに残す
+
+⸻
+
+17. 開発順序
+
+Step 1: プロジェクト初期化
+
+* GASプロジェクト作成
+* HobbyHub_Master作成
+* Study737_DB作成
+* 必要シートとヘッダー作成
+* Config.gs作成
+* HUBトップ画面作成
+
+Step 2: 手動サンプルで画面作成
+
+* Study737_DBにサンプル問題を数件手動投入
+* Study Guideページも数件手動投入
+* 問題一覧画面
+* 問題詳細画面
+* 候補ページ表示画面
+
+Step 3: 候補検索実装
+
+* normalizeText()
+* term_dictionary展開
+* scorePage()
+* candidate_group分類
+* candidate_links保存
+
+Step 4: プロンプト生成
+
+* 回答作成用プロンプト生成
+* クリップボードコピー
+* JSONスキーマ付きプロンプト
+
+Step 5: 回答案保存
+
+* 回答案貼り付け
+* answer_notes保存
+* 採用
+* 修正して採用
+* 保留
+* review_queue送り
+
+Step 6: CSVインポート
+
+* PythonでStudy Guide抽出
+* Pythonで問題集抽出
+* CSVをスプシへインポート
+* 全ATAの取り込み確認
+
+Step 7: 運用改善
+
+* search_log
+* review_queue一覧
+* Codexレビュー用エクスポート
+* 手動レビュー結果の反映
+
+⸻
+
+18. 完了条件
+
+MVP完了条件：
+
+* 趣味ログHUBから737 Study Finderを開ける
+* 問題一覧が表示できる
+* 問題を選ぶと候補SGページが表示される
+* 候補SGページが「本命候補」「関連図」「General参考」「近接ページ」に分類される
+* 「回答作成用プロンプトを作る」ボタンでChatGPT/Codex用プロンプトが作れる
+* 回答案を貼り付けてanswer_notesへ保存できる
+* 採用/修正して採用/保留/review_queue送りができる
+* 採用した回答だけconfirmed_answersへ保存される
+* 次回同じ問題を開いた時に確定回答と根拠ページが表示される
+
+⸻
+
+19. 最終的な思想
+
+このアプリは「AIが勝手に正解を決めるアプリ」ではない。
+
+目的は、
+
+問題を見る
+↓
+Study Guideの候補ページをすぐ出す
+↓
+必要ならChatGPT/Codex確認用プロンプトを作る
+↓
+回答案を貼り戻す
+↓
+ユーザーが採用/修正/保留する
+↓
+確認済み回答だけを蓄積する
+↓
+次回から根拠付き回答を即表示する
+
+という学習補助。
+
+AIは下書き係。
+最終確定はユーザー。
+
+APIなし、スプレッドシート保存、手動レビュー前提で設計すること。
