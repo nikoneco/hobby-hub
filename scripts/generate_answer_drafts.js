@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const DATA_DIR = path.resolve(__dirname, '..', 'data');
+const DATA_DIR = path.resolve(__dirname, '..', '737_Study_Finder', 'data');
 const ATA = process.argv[2] || '24';
 
 const QUESTION_INPUT = path.join(DATA_DIR, `question_bank_ata${ATA}.csv`);
@@ -183,12 +183,14 @@ function contextTerms(index) {
   return table[index] || [];
 }
 
-function scorePage(questionTerms, page) {
+function scorePage(question, questionTerms, page) {
   if (!page.page_code || normalize(page.title).includes('INDEX')) return { score: 0, matches: [] };
 
+  const questionText = normalize(question.question_text);
   const title = normalize(page.title);
   const section = normalize(page.section_title);
   const body = normalize(page.body_text);
+  const pageType = String(page.page_type);
   let score = 0;
   const matches = [];
 
@@ -209,8 +211,21 @@ function scorePage(questionTerms, page) {
     }
   });
 
-  if (String(page.page_type) === 'text') score += 8;
-  if (String(page.page_type) === 'figure') score += 4;
+  if (questionText.includes('FUNCTION') && body.includes('FUNCTION を持っている')) {
+    score += 140;
+    matches.push('explicit_function_list');
+  }
+  if (questionText.includes('MAIN BATTERY CHARGER') && body.includes('MAIN BATTERY CHARGER は、次の')) {
+    score += 160;
+    matches.push('exact_component_function');
+  }
+  if (questionText.includes('FUNCTION') && title.includes('FUNCTIONAL DESCRIPTION')) {
+    score += 35;
+    matches.push('functional_description');
+  }
+
+  if (pageType === 'text') score += 25;
+  if (pageType === 'figure') score -= 55;
   return { score, matches: uniq(matches) };
 }
 
@@ -233,24 +248,90 @@ function candidateGroup(page, rank) {
 }
 
 function buildAnswer(question, candidates) {
+  const directAnswer = extractDirectAnswer(question, candidates);
   const evidenceLines = candidates.slice(0, 3).map((candidate) => {
     return `- ${candidate.page_code}: ${candidate.title} / ${candidate.excerpt}`;
   });
-  const draftLines = candidates.slice(0, 3).map((candidate) => {
-    return `- ${candidate.page_code}: ${compact(candidate.excerpt, 260)}`;
-  });
+  const draftLines = directAnswer
+    ? directAnswer.items.map((item) => `- ${item}`)
+    : candidates.slice(0, 3).map((candidate) => `- ${candidate.page_code}: ${compact(candidate.excerpt, 260)}`);
+  const directEvidence = directAnswer
+    ? ['', `根拠: ${directAnswer.page_code} ${directAnswer.title}`]
+    : [];
   return [
     'AI下書き（要確認）',
     `質問: ${question.question_text}`,
     '',
     '暫定回答:',
     ...draftLines,
+    ...directEvidence,
     '',
     '根拠候補:',
     ...evidenceLines,
     '',
     'この下書きはStudy Guide抽出テキストから自動生成したため、確定前に本文ページで確認してください。'
   ].join('\n');
+}
+
+function extractDirectAnswer(question, candidates) {
+  const questionText = normalize(question.question_text);
+  if (!questionText.includes('FUNCTION')) return null;
+
+  for (const candidate of candidates) {
+    const body = String(candidate.body_text || candidate.excerpt || '').replace(/\s+/g, ' ').trim();
+    const segment = extractFunctionBulletSegment_(body);
+    if (!segment) continue;
+
+    const items = [];
+    const bulletPattern = /-\s*([^-]+?)(?=\s+-\s|$|\s+\()/g;
+    let bullet;
+    while ((bullet = bulletPattern.exec(segment)) !== null) {
+      const item = bullet[1].replace(/\s+/g, ' ').replace(/[。.]+$/, '').trim();
+      if (item && !/^INT\s*仕様機\)?$/i.test(item)) items.push(item);
+    }
+
+    if (items.length >= 2) {
+      return {
+        items: items.slice(0, expectedAnswerCount_(question) || 8),
+        page_code: candidate.page_code,
+        title: candidate.title
+      };
+    }
+  }
+  return null;
+}
+
+function extractFunctionBulletSegment_(body) {
+  const lower = body.toLowerCase();
+  let searchStart = 0;
+  while (searchStart < lower.length) {
+    const functionIndex = lower.indexOf('function', searchStart);
+    if (functionIndex === -1) return '';
+
+    const afterFunction = body.slice(functionIndex);
+    const bulletStart = afterFunction.indexOf(' - ');
+    if (bulletStart !== -1 && bulletStart < 120) {
+      let segment = afterFunction.slice(bulletStart);
+      [' B.', ' C.', ' D.', ' E.', ' MAIN BATT'].forEach((marker) => {
+        const markerIndex = segment.indexOf(marker);
+        if (markerIndex !== -1) {
+          segment = segment.slice(0, markerIndex);
+        }
+      });
+      return segment;
+    }
+    searchStart = functionIndex + 'function'.length;
+  }
+  return '';
+}
+
+function expectedAnswerCount_(question) {
+  const text = String(question.question_text || '');
+  if (/[２2]\s*つ/.test(text)) return 2;
+  if (/[３3]\s*つ/.test(text)) return 3;
+  if (/[５5]\s*つ/.test(text)) return 5;
+  if (/[８8]\s*つ/.test(text)) return 8;
+  return 0;
 }
 
 function compact(text, maxLength) {
@@ -271,7 +352,7 @@ function main() {
     const terms = termsForQuestion(question, questionIndex + 1);
     const scored = pages
       .map((page) => {
-        const result = scorePage(terms, page);
+        const result = scorePage(question, terms, page);
         return { page, score: result.score, matches: result.matches };
       })
       .filter((item) => item.score > 0)
@@ -291,6 +372,7 @@ function main() {
         title: page.title,
         section_title: page.section_title,
         excerpt: excerptFor(page, item.matches.length ? item.matches : terms),
+        body_text: page.body_text,
         score: item.score,
         match_terms: item.matches.join(','),
         rank: index + 1,

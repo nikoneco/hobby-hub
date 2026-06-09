@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.resolve(__dirname, '..');
-const dataDir = path.join(root, 'data');
+const dataDir = path.join(root, '737_Study_Finder', 'data');
 const output = path.join(root, '737_Study_Finder', 'gas', 'PreparedAta24Data.gs');
 const ata = process.argv[2] || '24';
 const chunkSize = 20000;

@@ -3,6 +3,9 @@ node_modules/
 data/*.csv
 data/*.xlsx
 data/*.log
+737_Study_Finder/data/*.csv
+737_Study_Finder/data/*.xlsx
+737_Study_Finder/data/*.log
 *.tmp
 *.bak
 *.pdf
