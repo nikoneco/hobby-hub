@@ -156,6 +156,9 @@ function clearRowsByAta_(sheet, schema, ata) {
 
 function normalizeAtaKey_(value) {
   const text = String(value || '').trim().toUpperCase();
+  if (/^5X$/.test(text)) {
+    return '5X';
+  }
   if (/^7X$/.test(text)) {
     return '7X';
   }

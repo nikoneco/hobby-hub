@@ -71,6 +71,19 @@ def compact_text(value: str) -> str:
     return re.sub(r"\s+", " ", value or "").strip()
 
 
+def repair_shifted_ascii_text(value: str) -> str:
+    repaired = []
+    for char in value or "":
+        code = ord(char)
+        if code == 0x20:
+            repaired.append(" ")
+        elif 0x02 <= code <= 0x60:
+            repaired.append(chr(code + 30))
+        else:
+            repaired.append(char)
+    return "".join(repaired)
+
+
 def canonical_page_code(match: re.Match[str]) -> str:
     letter = match.group(1)
     major = match.group(2)
@@ -81,6 +94,11 @@ def canonical_page_code(match: re.Match[str]) -> str:
 def related_page_code(page_code: str) -> str:
     if not page_code:
         return ""
+    prefixed = re.match(r"^(\d{2})-([DF].+)$", page_code)
+    if prefixed:
+        prefix, child_code = prefixed.groups()
+        child_related = related_page_code(child_code)
+        return f"{prefix}-{child_related}" if child_related else ""
     if page_code.startswith("D"):
         return "F" + page_code[1:]
     if page_code.startswith("F"):
@@ -89,6 +107,9 @@ def related_page_code(page_code: str) -> str:
 
 
 def page_type(page_code: str, text: str) -> str:
+    prefixed = re.match(r"^\d{2}-([DF].+)$", page_code or "")
+    if prefixed:
+        return page_type(prefixed.group(1), text)
     if not page_code:
         if "INDEX" in text[:100]:
             return "index"
@@ -141,6 +162,11 @@ def infer_page_code(text: str, ata: str) -> str:
 
 
 def extract_section_code(text: str, ata: str) -> str:
+    if ata.upper() == "5X":
+        matches_5x = re.findall(r"\b(5[1-7])-(\d{2})\b", text)
+        if matches_5x:
+            major, minor = matches_5x[-1]
+            return f"{major}-{minor}"
     section_re = re.compile(rf"\b{re.escape(ata)}-(\d{{2}})\b")
     matches = section_re.findall(text)
     if not matches:
@@ -239,11 +265,18 @@ def build_rows(
 
     for index in range(start_page, min(last_page, len(reader.pages)) + 1):
         page = reader.pages[index - 1]
-        body_text = compact_text(page.extract_text() or "")
+        raw_text = page.extract_text() or ""
+        body_text = compact_text(raw_text)
+        if ata.upper() == "5X":
+            repaired_text = compact_text(repair_shifted_ascii_text(raw_text))
+            if repaired_text and repaired_text != body_text:
+                body_text = compact_text(f"{body_text} {repaired_text}")
         is_index_page = index < start_page + 4
+        section_code = extract_section_code(body_text, ata)
         code = "" if is_index_page else infer_page_code(body_text, ata)
         title = "INDEX" if is_index_page else infer_title(body_text, code, title_map, ata)
-        section_code = extract_section_code(body_text, ata)
+        if ata.upper() == "5X" and code and section_code:
+            code = f"{section_code.split('-', 1)[0]}-{code}"
         row_page_id = page_id(ata, code, index)
         related_code = related_page_code(code)
         rows.append(

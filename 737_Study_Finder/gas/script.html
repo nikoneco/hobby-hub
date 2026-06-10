@@ -11,6 +11,7 @@
 
   function normalizeAtaKey(value) {
     const text = String(value || '').trim().toUpperCase();
+    if (/^5X$/.test(text)) return '5X';
     if (/^7X$/.test(text)) return '7X';
     return text.replace(/\D/g, '');
   }
@@ -53,6 +54,7 @@
 
   function ataSortValue(value) {
     const key = normalizeAtaKey(value);
+    if (key === '5X') return 59;
     if (key === '7X') return 79;
     return Number(String(key).replace(/\D/g, ''));
   }

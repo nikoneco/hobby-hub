@@ -19,7 +19,7 @@ function sourcesForAta(ata) {
 }
 
 function fallbackSourceFilesCsv(ata) {
-  const studyGuideName = ata === '24' ? '24_REF.pdf' : (ata === '28' || ata === '47') ? '28 47 REF.pdf' : `${ata} REF.pdf`;
+  const studyGuideName = ata === '24' ? '24_REF.pdf' : (ata === '28' || ata === '47') ? '28 47 REF.pdf' : ata === '5X' ? '5x REF.pdf' : `${ata} REF.pdf`;
   const now = new Date().toISOString();
   return [
     'source_id,source_type,ata,file_name,drive_file_id,local_path,version,note,imported_at',
@@ -100,6 +100,7 @@ function main() {
     '',
     'function normalizePreparedAtaKey_(ata) {',
     "  const text = String(ata || '').trim().toUpperCase();",
+    "  if (/^5X$/.test(text)) return '5X';",
     "  if (/^7X$/.test(text)) return '7X';",
     "  return text.replace(/\\D/g, '');",
     '}',

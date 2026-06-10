@@ -63,11 +63,18 @@ STOP_MARKERS_BY_ATA = {
         "5X STRUCTURES",
         "STRUCTURES",
     ],
+    "5X": [
+        "７X ENGINE",
+        "7X ENGINE",
+        "71 POWER PLANT",
+    ],
 }
 
 
 def normalize_ata_key(value: str) -> str:
     text = unicodedata.normalize("NFKC", value or "").strip().upper()
+    if text == "5X":
+        return "5X"
     if text == "7X":
         return "7X"
     return re.sub(r"\D", "", text)
@@ -283,6 +290,10 @@ def extract_rows(pdf_path: Path, target_ata: str, source_id: str) -> list[dict[s
             current_ata = normalize_ata_key(match.group("ata"))
             current_section_name = match.group("title").strip()
             body = match.group("body")
+        elif target_ata == "5X" and "5X STRUCTURES Check" in text:
+            current_ata = "5X"
+            current_section_name = "STRUCTURES"
+            body = text.split("5X STRUCTURES Check", 1)[1]
         elif target_ata == "30" and "Check WING THERMAL ANTI ICE SYSTEM" in text:
             current_ata = "30"
             current_section_name = "ICE AND RAIN PROTECTION SYSTEM"
