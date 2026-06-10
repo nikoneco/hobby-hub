@@ -13,8 +13,9 @@
   function renderModules(modules) {
     const root = document.getElementById('modules');
     root.innerHTML = '';
+    root.className = 'module-grid';
     if (!modules.length) {
-      root.textContent = '登録済みアプリがありません。初期設定を実行してね。';
+      root.textContent = '登録済みのアプリがありません。初期設定を実行してね。';
       root.className = 'muted';
       return;
     }
@@ -23,12 +24,14 @@
       const hasUrl = Boolean(module.target_url);
       button.className = hasUrl ? 'module-card' : 'module-card disabled';
       button.disabled = !hasUrl;
+      button.type = 'button';
+      button.setAttribute('aria-label', (module.module_name || 'アプリ') + 'を開く');
       button.innerHTML = [
-        '<span class="module-icon">' + escapeHtml(module.icon || 'app') + '</span>',
+        '<span class="module-icon">' + escapeHtml(getIconLabel(module)) + '</span>',
         '<span class="module-body">',
         '<strong>' + escapeHtml(module.module_name) + '</strong>',
         '<span>' + escapeHtml(module.description || '') + '</span>',
-        hasUrl ? '' : '<em>WebアプリURL未設定</em>',
+        hasUrl ? '<em>開く</em>' : '<em>WebアプリURL未設定</em>',
         '</span>'
       ].join('');
       if (hasUrl) {
@@ -38,6 +41,17 @@
       }
       root.appendChild(button);
     });
+  }
+
+  function getIconLabel(module) {
+    const id = String(module.module_id || '');
+    if (id === 'study737') {
+      return '737';
+    }
+    if (id === 'room_library') {
+      return 'LIB';
+    }
+    return String(module.icon || 'APP').slice(0, 3).toUpperCase();
   }
 
   function loadModules() {
@@ -51,7 +65,7 @@
     google.script.run
       .withSuccessHandler((response) => {
         const data = unwrap(response);
-        alert('初期設定完了: ' + data.hobbyHubMaster.url);
+        alert('初期設定が完了しました: ' + data.hobbyHubMaster.url);
         loadModules();
       })
       .withFailureHandler(showError)

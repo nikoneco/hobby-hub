@@ -6,21 +6,35 @@
   </head>
   <body>
     <div id="app" data-bootstrap='<?= bootstrapJson ?>'>
-      <header class="topbar">
-        <div>
-          <p class="eyebrow">HobbyHub</p>
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Private Hobby Archive</p>
           <h1>趣味HUB</h1>
+          <p class="lead">本棚、学習ノート、好きなものへの入口をひとつの夜の書斎に。</p>
+          <div class="hero-actions">
+            <button id="refreshButton" type="button">更新</button>
+            <button id="setupButton" class="primary" type="button">初期設定</button>
+          </div>
         </div>
-        <button id="setupButton" class="primary">初期設定</button>
+        <div class="shelf-visual" aria-hidden="true">
+          <span class="book tall"></span>
+          <span class="book brass"></span>
+          <span class="book slim"></span>
+          <span class="book wide"></span>
+          <span class="vase"></span>
+        </div>
       </header>
 
       <main class="layout">
-        <section class="module-list">
+        <section class="module-list" aria-labelledby="appsTitle">
           <div class="section-heading">
-            <h2>Apps</h2>
-            <button id="refreshButton">更新</button>
+            <div>
+              <p class="section-kicker">Collection</p>
+              <h2 id="appsTitle">アプリ一覧</h2>
+            </div>
+            <p class="section-note">使いたい棚を選んでね。</p>
           </div>
-          <div id="modules"></div>
+          <div id="modules" class="module-grid"></div>
         </section>
       </main>
     </div>
