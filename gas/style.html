@@ -162,15 +162,28 @@
   .shelf-visual::before {
     content: "";
     position: absolute;
-    inset: 11% 1% 7% 12%;
+    inset: 8% -7% 5% 2%;
     border-radius: 999px;
-    background: radial-gradient(circle, rgba(105, 165, 214, 0.22), transparent 64%);
-    filter: blur(18px);
-    opacity: 0.7;
+    background:
+      radial-gradient(circle at 72% 82%, rgba(75, 160, 240, 0.28), transparent 34%),
+      radial-gradient(circle at 50% 44%, rgba(122, 186, 244, 0.16), transparent 62%);
+    filter: blur(20px);
+    opacity: 0.78;
+  }
+
+  .shelf-visual::after {
+    content: "";
+    position: absolute;
+    inset: 57% 3% 4% 20%;
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(72, 164, 246, 0.16), transparent 68%);
+    filter: blur(12px);
+    opacity: 0.72;
   }
 
   .mascot-frame {
     position: relative;
+    z-index: 1;
     width: min(100%, 306px);
     aspect-ratio: 2 / 3;
     overflow: hidden;
@@ -181,6 +194,7 @@
       rgba(12, 9, 8, 0.44);
     box-shadow:
       0 24px 52px rgba(0, 0, 0, 0.48),
+      0 0 38px rgba(82, 161, 232, 0.12),
       0 0 32px rgba(203, 166, 98, 0.16),
       inset 0 0 0 1px rgba(255, 246, 220, 0.08);
   }
@@ -228,7 +242,7 @@
   }
 
   .section-note {
-    margin: 0;
+    margin: 8px 0 0;
     color: var(--muted);
     font-size: 13px;
   }
@@ -340,6 +354,18 @@
 
     .mascot-frame {
       width: min(58vw, 188px);
+    }
+
+    .shelf-visual::before {
+      inset: 10% 28% 8% 0;
+      filter: blur(16px);
+      opacity: 0.48;
+    }
+
+    .shelf-visual::after {
+      inset: 56% 36% 8% 4%;
+      filter: blur(10px);
+      opacity: 0.42;
     }
 
     .section-heading {
