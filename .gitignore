@@ -1,4 +1,5 @@
 .clasprc.json
+LOCAL_URLS.md
 node_modules/
 data/*.csv
 data/*.xlsx
