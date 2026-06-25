@@ -1,0 +1,810 @@
+<script>
+  const app = document.getElementById('app');
+  const bootstrap = JSON.parse(app.dataset.bootstrap || '{}');
+  let autoRefreshTimer = null;
+  let failureCount = 0;
+  let clockTimer = null;
+  let busCountdownTimer = null;
+  let refreshRequestId = 0;
+  let isRefreshing = false;
+
+  function unwrap(response) {
+    if (!response || !response.ok) {
+      const message = response && response.error ? response.error.message : 'Unknown error';
+      throw new Error(message);
+    }
+    return response.data;
+  }
+
+  function refreshLifeBoard() {
+    if (isRefreshing) {
+      updateAutoStatus('前回更新中');
+      return;
+    }
+    const requestId = refreshRequestId + 1;
+    refreshRequestId = requestId;
+    isRefreshing = true;
+    setLoading(true);
+    google.script.run
+      .withSuccessHandler((response) => {
+        if (requestId !== refreshRequestId) {
+          return;
+        }
+        try {
+          failureCount = 0;
+          renderLifeBoardData(unwrap(response));
+        } catch (error) {
+          handleRefreshError(error);
+        } finally {
+          isRefreshing = false;
+          setLoading(false);
+          scheduleNextAutoRefresh();
+        }
+      })
+      .withFailureHandler((error) => {
+        if (requestId === refreshRequestId) {
+          handleRefreshError(error);
+          isRefreshing = false;
+          setLoading(false);
+          scheduleNextAutoRefresh();
+        }
+      })
+      .apiGetLifeBoardData();
+  }
+
+  function handleRefreshError(error) {
+    failureCount += 1;
+    document.getElementById('lastUpdated').textContent = error && error.message ? error.message : String(error);
+    if (failureCount >= 3) {
+      clearAutoRefresh();
+    }
+  }
+
+  function renderLifeBoardData(data) {
+    renderDailyConclusion(data);
+    renderBusSnapshot(data.bus);
+    renderWeatherSnapshot(data.weather);
+    renderCalendarSnapshot(data.calendar, data.garbage);
+    renderRailSnapshot(data.rail);
+    document.getElementById('lastUpdated').textContent = '最終確認 ' + formatLocalTime(data.bus && data.bus.fetchedAt || data.weather && data.weather.fetchedAt || data.rail && data.rail.fetchedAt);
+  }
+
+  function renderDailyConclusion(data) {
+    const root = document.getElementById('dailyConclusion');
+    if (!root) {
+      return;
+    }
+    const parts = buildDailyConclusion(data || {});
+    root.innerHTML = parts.length
+      ? parts.map((part) => '<span class="conclusion-chip conclusion-' + normalizeClassName(part.tone || 'normal') + '">' + escapeHtml(part.label) + '</span>').join('')
+      : '<span class="conclusion-chip conclusion-normal">更新待ち</span>';
+  }
+
+  function buildDailyConclusion(data) {
+    const parts = [];
+    const weather = data.weather && data.weather.locations && data.weather.locations[0];
+    if (weather) {
+      parts.push(normalizeUmbrellaConclusion(weather.umbrellaText));
+      const apparent = extractNumber(weather.apparentText);
+      if (apparent >= 30) {
+        parts.push({ label: '暑さ注意', tone: 'weather-alert' });
+      } else if (apparent !== null && apparent <= 8) {
+        parts.push({ label: '寒さ注意', tone: 'weather-alert' });
+      }
+    }
+
+    const busRoutes = data.bus && data.bus.routes ? data.bus.routes : [];
+    const busItems = busRoutes.reduce((items, route) => items.concat(route.items || []), []);
+    if (busItems.some((item) => isDelayText(item.delayText))) {
+      parts.push({ label: 'バス遅れあり', tone: 'bus' });
+    }
+
+    const railRoutes = data.rail && data.rail.routes ? data.rail.routes : [];
+    const railIssue = railRoutes.some((route) => {
+      const severity = String(route.severity || '').toLowerCase();
+      const status = String(route.statusText || '');
+      return severity && severity !== 'normal' || (status && status !== '平常運転' && status !== '通常運転');
+    });
+    parts.push(railIssue ? { label: '電車確認', tone: 'rail-alert' } : { label: '電車平常', tone: 'rail-normal' });
+
+    const garbageDays = data.garbage && data.garbage.days ? data.garbage.days : [];
+    const garbageText = formatGarbageSummary(garbageDays[0]);
+    parts.push({ label: 'ゴミ: ' + (garbageText || 'なし'), tone: garbageText ? 'garbage' : 'normal' });
+
+    return parts.filter((part) => part && part.label).slice(0, 6);
+  }
+
+  function normalizeUmbrellaConclusion(text) {
+    const value = String(text || '');
+    if (value.indexOf('雨具不要') >= 0 || value.indexOf('傘なし') >= 0) {
+      return { label: '雨具不要', tone: 'weather-clear' };
+    }
+    if (value.indexOf('折りたたみ') >= 0) {
+      return { label: '折りたたみ推奨', tone: 'weather-alert' };
+    }
+    if (value.indexOf('確認不可') >= 0) {
+      return { label: '雨確認不可', tone: 'weather-alert' };
+    }
+    if (value.indexOf('傘') >= 0) {
+      return { label: value, tone: 'weather-alert' };
+    }
+    return { label: value || '天気確認', tone: 'weather-alert' };
+  }
+
+  function renderLifeTags(data) {
+    const root = document.getElementById('lifeTags');
+    if (!root) {
+      return;
+    }
+    const tags = buildLifeTags(data || {});
+    root.innerHTML = tags.map((tag) => [
+      '<span class="life-tag tag-' + normalizeClassName(tag.tone || 'normal') + '">',
+      escapeHtml(tag.label),
+      '</span>'
+    ].join('')).join('');
+  }
+
+  function buildLifeTags(data) {
+    const tags = [];
+    addWeatherTags(tags, data.weather);
+    addBusTags(tags, data.bus);
+    addRailTags(tags, data.rail);
+    addCalendarTags(tags, data.calendar);
+    addGarbageTags(tags, data.garbage);
+    return tags.length ? tags.slice(0, 8) : [{ label: '平常', tone: 'normal' }];
+  }
+
+  function addWeatherTags(tags, weather) {
+    const location = weather && weather.locations && weather.locations[0];
+    if (!location) {
+      return;
+    }
+    const apparent = extractNumber(location.apparentText);
+    const wind = extractNumber(location.windText);
+    if (String(location.umbrellaText || '').indexOf('不要') < 0 && String(location.umbrellaText || '').indexOf('-') < 0) {
+      addUniqueTag(tags, '雨注意', 'weather');
+    }
+    if (apparent >= 30) {
+      addUniqueTag(tags, '暑さ注意', 'weather');
+    } else if (apparent <= 8 && apparent !== null) {
+      addUniqueTag(tags, '寒さ注意', 'weather');
+    }
+    if (wind >= 18) {
+      addUniqueTag(tags, '強風', 'weather');
+    }
+  }
+
+  function addBusTags(tags, bus) {
+    const routes = bus && bus.routes ? bus.routes : [];
+    if (!routes.length) {
+      return;
+    }
+    const hasEmptyRoute = routes.some((route) => !route.items || !route.items.length);
+    const allItems = routes.reduce((items, route) => items.concat(route.items || []), []);
+    const hasDelay = allItems.some((item) => isDelayText(item.delayText));
+    if (hasDelay) {
+      addUniqueTag(tags, 'バス遅れあり', 'bus');
+    }
+    if (hasEmptyRoute) {
+      addUniqueTag(tags, '接近情報なし', 'bus');
+    }
+  }
+
+  function addRailTags(tags, rail) {
+    const routes = rail && rail.routes ? rail.routes : [];
+    const hasIssue = routes.some((route) => {
+      const severity = String(route.severity || '').toLowerCase();
+      const status = String(route.statusText || '');
+      return severity && severity !== 'normal' || (status && status !== '平常運転' && status !== '通常運転');
+    });
+    if (hasIssue) {
+      addUniqueTag(tags, '電車確認', 'rail');
+    }
+  }
+
+  function addCalendarTags(tags, calendar) {
+    const events = calendar && calendar.headerEvents ? calendar.headerEvents : [];
+    const today = formatLocalDateKey(new Date());
+    const todayCount = events.filter((event) => event.date === today).length;
+    if (todayCount >= 3) {
+      addUniqueTag(tags, '予定多め', 'calendar');
+    }
+  }
+
+  function addGarbageTags(tags, garbage) {
+    const days = garbage && garbage.days ? garbage.days : [];
+    if (days[0] && days[0].items && days[0].items.length) {
+      addUniqueTag(tags, '今日ゴミ', 'garbage');
+    }
+    if (days[1] && days[1].items && days[1].items.length) {
+      addUniqueTag(tags, '明日ゴミ', 'garbage');
+    }
+  }
+
+  function addUniqueTag(tags, label, tone) {
+    if (!tags.some((tag) => tag.label === label)) {
+      tags.push({ label: label, tone: tone });
+    }
+  }
+
+  function isDelayText(text) {
+    const value = String(text || '');
+    return value && value !== '遅れなし' && value !== '-' && (value.indexOf('+') >= 0 || value.indexOf('遅') >= 0);
+  }
+
+  function extractNumber(value) {
+    const match = String(value || '').match(/-?\d+(?:\.\d+)?/);
+    return match ? Number(match[0]) : null;
+  }
+
+  function formatLocalDateKey(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + d;
+  }
+
+  function renderBusSnapshot(snapshot) {
+    const root = document.getElementById('busRoutes');
+    root.innerHTML = '';
+    snapshot.routes.forEach((route) => {
+      const card = document.createElement('article');
+      card.className = 'route-card bus-route-' + normalizeClassName(route.routeId || route.route_id || '');
+      const first = route.items[0];
+      card.innerHTML = [
+        '<div class="route-head">',
+        '<h2>' + escapeHtml(route.label) + '</h2>',
+        '<a href="' + escapeHtml(route.officialUrl) + '" target="_blank" rel="noopener">情報元</a>',
+        '</div>',
+        first ? renderPrimaryBus(first, snapshot.fetchedAt) : '<p class="empty">接近情報なし</p>',
+        renderNextBuses(route.items.slice(1), snapshot.fetchedAt),
+        '<p class="source-time">情報元更新 ' + escapeHtml(route.sourceUpdatedAtText || '-') + '</p>'
+      ].join('');
+      root.appendChild(card);
+    });
+    startBusCountdown();
+  }
+
+  function renderRailSnapshot(snapshot) {
+    const root = document.getElementById('railRoutes');
+    root.innerHTML = '';
+    snapshot.routes.forEach((route) => {
+      const card = document.createElement('article');
+      card.className = 'rail-card status-' + normalizeClassName(route.severity || 'unknown');
+      card.innerHTML = [
+        '<div class="route-head">',
+        '<h2>' + escapeHtml(route.displayName) + '</h2>',
+        '<a href="' + escapeHtml(route.officialUrl) + '" target="_blank" rel="noopener">情報元</a>',
+        '</div>',
+        '<div class="rail-status">' + escapeHtml(route.statusText || '-') + '</div>',
+        route.directionText ? '<div class="rail-direction">' + escapeHtml(route.directionText) + '</div>' : '',
+        route.detailText ? '<p class="rail-detail">' + escapeHtml(route.detailText) + '</p>' : '<p class="rail-detail muted">詳細情報なし</p>',
+        '<p class="source-time">情報元更新 ' + escapeHtml(route.sourceUpdatedAtText || '-') + '</p>'
+      ].join('');
+      root.appendChild(card);
+    });
+    document.getElementById('railSourceNote').textContent = snapshot.sourceNote || '';
+  }
+
+  function renderWeatherSnapshot(snapshot) {
+    const root = document.getElementById('weatherLocations');
+    root.innerHTML = '';
+    snapshot.locations.forEach((location) => {
+      const card = document.createElement('article');
+      card.className = 'weather-card weather-' + normalizeClassName(location.weatherClass || 'unknown');
+      card.innerHTML = [
+        '<div class="route-head">',
+        '<h2>' + escapeHtml(location.displayName) + '</h2>',
+        '<a href="' + escapeHtml(location.sourceUrl || 'https://open-meteo.com/') + '" target="_blank" rel="noopener">情報元</a>',
+        '</div>',
+        '<div class="weather-card-body">',
+        '<div class="weather-copy">',
+        '<div class="weather-main">',
+        '<span class="weather-temp">' + escapeHtml(location.temperatureText || '-') + '</span>',
+        '<span class="weather-status">' + escapeHtml(location.statusText || '-') + '</span>',
+        '</div>',
+        '<div class="advice-row">',
+        '<strong>' + escapeHtml(location.umbrellaText || '-') + '</strong>',
+        '<strong>' + escapeHtml(location.clothingText || '-') + '</strong>',
+        '</div>',
+        '<div class="weather-metrics">',
+        '<span>体感 ' + escapeHtml(location.apparentText || '-') + '</span>',
+        '<span>湿度 ' + escapeHtml(location.humidityText || '-') + '</span>',
+        location.rainNowcast && location.rainNowcast.rainNowcastText ? '<span>雨雲 ' + escapeHtml(location.rainNowcast.rainNowcastText) + '</span>' : '',
+        location.rainOutlook && location.rainOutlook.outlookText ? '<span>雨予報 ' + escapeHtml(location.rainOutlook.outlookText) + '</span>' : '',
+        '<span>降水 ' + escapeHtml(location.precipitationText || '-') + '</span>',
+        '<span>風 ' + escapeHtml(location.windText || '-') + '</span>',
+        '<span>最低/最高 ' + escapeHtml(location.highLowText || '-') + '</span>',
+        '</div>',
+        renderAstronomyLine(location.astronomy),
+        location.detailText ? '<p class="weather-detail">' + escapeHtml(location.detailText) + '</p>' : '',
+        '</div>',
+        renderTempGraph(location.hourly || []),
+        '</div>',
+        '<p class="source-time">情報元更新 ' + escapeHtml(location.sourceUpdatedAtText || '-') + '</p>'
+      ].join('');
+      root.appendChild(card);
+    });
+    document.getElementById('weatherSourceNote').textContent = snapshot.sourceNote || '';
+  }
+
+  function renderAstronomyLine(astronomy) {
+    if (!astronomy) {
+      return '';
+    }
+    const parts = [];
+    if (astronomy.sunText) {
+      parts.push('☀ ' + astronomy.sunText);
+    }
+    if (astronomy.moonAgeText) {
+      parts.push('☾ ' + astronomy.moonAgeText);
+    }
+    if (astronomy.moonText) {
+      parts.push('☾ ' + astronomy.moonText);
+    }
+    if (!parts.length) {
+      return '';
+    }
+    return '<div class="astronomy-line">' + parts.map((part) => '<span>' + escapeHtml(part) + '</span>').join('') + '</div>';
+  }
+
+  function renderCalendarSnapshot(snapshot, garbageSnapshot) {
+    renderTopCalendarEvents(snapshot, garbageSnapshot);
+    renderDetailCalendarEvents(snapshot);
+  }
+
+  function renderTopCalendarEvents(snapshot, garbageSnapshot) {
+    const root = document.getElementById('calendarTopEvents');
+    root.innerHTML = '';
+    const events = snapshot && snapshot.headerEvents ? snapshot.headerEvents : [];
+    document.getElementById('calendarSourceNote').textContent = [
+      snapshot && snapshot.sourceNote ? snapshot.sourceNote : 'TimeTree',
+      snapshot && snapshot.importedAt ? '取込 ' + formatLocalDateTime(snapshot.importedAt) : ''
+    ].filter(Boolean).join(' / ');
+    const days = buildTopCalendarDays(events, garbageSnapshot);
+    if (!days.length) {
+      root.innerHTML = '<p class="top-calendar-empty">' + escapeHtml(snapshot && snapshot.errorText ? snapshot.errorText : '直近の予定なし') + '</p>';
+      return;
+    }
+    root.innerHTML = days.map(renderTopCalendarDay).join('');
+  }
+
+  function renderDetailCalendarEvents(snapshot) {
+    const root = document.getElementById('calendarDetailEvents');
+    root.innerHTML = '';
+    const events = snapshot && snapshot.events ? snapshot.events : [];
+    document.getElementById('calendarDetailSourceNote').textContent = [
+      snapshot && snapshot.sourceNote ? snapshot.sourceNote : 'TimeTree',
+      snapshot && snapshot.importedAt ? '取込 ' + formatLocalDateTime(snapshot.importedAt) : ''
+    ].filter(Boolean).join(' / ');
+    if (!events.length) {
+      root.innerHTML = '<article class="calendar-detail-card"><p class="empty">' + escapeHtml(snapshot && snapshot.errorText ? snapshot.errorText : '予定なし') + '</p></article>';
+      return;
+    }
+    root.innerHTML = groupCalendarEvents(events).map(renderDetailCalendarDay).join('');
+  }
+
+  function groupCalendarEvents(events) {
+    const map = new Map();
+    events.forEach((event) => {
+      const key = event.date || '';
+      if (!map.has(key)) {
+        map.set(key, {
+          dateText: event.dateText || key || '-',
+          items: []
+        });
+      }
+      map.get(key).items.push(event);
+    });
+    return Array.from(map.values());
+  }
+
+  function buildTopCalendarDays(events, garbageSnapshot) {
+    const eventGroups = groupCalendarEvents(events);
+    const byDateText = new Map();
+    eventGroups.forEach((day) => {
+      byDateText.set(day.dateText, day);
+    });
+    const garbageDays = garbageSnapshot && garbageSnapshot.days ? garbageSnapshot.days : [];
+    garbageDays.forEach((garbageDay) => {
+      const dateText = garbageDay.dateText || garbageDay.label || '-';
+      if (!byDateText.has(dateText)) {
+        byDateText.set(dateText, {
+          dateText: dateText,
+          items: []
+        });
+      }
+      byDateText.get(dateText).garbageText = formatGarbageSummary(garbageDay);
+    });
+    return Array.from(byDateText.values());
+  }
+
+  function formatGarbageSummary(day) {
+    const items = day && day.items ? day.items : [];
+    const labels = items.map((item) => normalizeGarbageLabel(item.label)).filter(Boolean);
+    return Array.from(new Set(labels)).join('・');
+  }
+
+  function normalizeGarbageLabel(label) {
+    const text = String(label || '');
+    if (!text) return '';
+    if (text.indexOf('資源') >= 0) return '資源';
+    if (text.indexOf('燃やさない') >= 0 || text.indexOf('燃えない') >= 0) return '燃えない';
+    if (text.indexOf('燃やす') >= 0 || text.indexOf('燃える') >= 0) return '燃える';
+    return text;
+  }
+
+  function renderTopCalendarDay(day) {
+    return [
+      '<section class="top-calendar-day">',
+      '<h3><span>' + escapeHtml(day.dateText) + '</span>' + renderGarbageBadge(day.garbageText) + '</h3>',
+      '<ul>',
+      day.items.map(renderTopCalendarEvent).join(''),
+      '</ul>',
+      '</section>'
+    ].join('');
+  }
+
+  function renderGarbageBadge(text) {
+    return text ? '<span class="calendar-garbage">🗑️ ' + escapeHtml(text) + '</span>' : '';
+  }
+
+  function renderDetailCalendarDay(day) {
+    return [
+      '<article class="calendar-detail-card">',
+      '<div class="route-head">',
+      '<h2>' + escapeHtml(day.dateText) + '</h2>',
+      '<span class="date-badge">' + escapeHtml(day.items.length + '件') + '</span>',
+      '</div>',
+      '<ul class="calendar-detail-list">',
+      day.items.map(renderCalendarEvent).join(''),
+      '</ul>',
+      '</article>'
+    ].join('');
+  }
+
+  function renderTopCalendarEvent(event) {
+    const eventColor = normalizeEventColor(event.color);
+    const color = eventColor ? ' style="--event-color:' + escapeHtml(eventColor) + '"' : '';
+    return [
+      '<li class="calendar-item top-calendar-item"' + color + '>',
+      '<span class="calendar-time">' + escapeHtml(event.timeText || '-') + '</span>',
+      '<span class="calendar-title">' + escapeHtml(event.title || '(無題)') + '</span>',
+      '</li>'
+    ].join('');
+  }
+
+  function renderCalendarEvent(event) {
+    const eventColor = normalizeEventColor(event.color);
+    const color = eventColor ? ' style="--event-color:' + escapeHtml(eventColor) + '"' : '';
+    return [
+      '<li class="calendar-item"' + color + '>',
+      '<span class="calendar-date">' + escapeHtml(event.dateText || event.date || '-') + '</span>',
+      '<span class="calendar-time">' + escapeHtml(event.timeText || '-') + '</span>',
+      '<span class="calendar-title">' + escapeHtml(event.title || '(無題)') + '</span>',
+      event.category ? '<span class="calendar-category">' + escapeHtml(event.category) + '</span>' : '',
+      event.location ? '<span class="calendar-location">' + escapeHtml(event.location) + '</span>' : '',
+      '</li>'
+    ].join('');
+  }
+
+  function normalizeEventColor(value) {
+    const text = String(value || '').trim();
+    return /^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(text) ? text : '';
+  }
+
+  function renderTempGraph(hourly) {
+    if (!hourly.length) {
+      return '';
+    }
+    const limited = hourly.slice(0, 24).filter((item) => !Number.isNaN(Number(item.temperature)));
+    if (!limited.length) {
+      return '';
+    }
+    const temps = limited.map((item) => Number(item.temperature));
+    const min = Math.min(...temps);
+    const max = Math.max(...temps);
+    const range = Math.max(1, max - min);
+    const width = 340;
+    const height = 120;
+    const left = 34;
+    const right = 14;
+    const top = 14;
+    const bottom = 28;
+    const graphWidth = width - left - right;
+    const graphHeight = height - top - bottom;
+    const baseline = top + graphHeight;
+    const pointsArray = limited.map((item, index) => {
+      const x = left + (limited.length === 1 ? 0 : (graphWidth * index / (limited.length - 1)));
+      const y = top + graphHeight - ((Number(item.temperature) - min) / range * graphHeight);
+      return {
+        x: x,
+        y: y,
+        temperature: Number(item.temperature),
+        timeText: item.timeText
+      };
+    });
+    const points = pointsArray.map((point) => point.x.toFixed(1) + ',' + point.y.toFixed(1)).join(' ');
+    const areaPoints = [
+      pointsArray[0].x.toFixed(1) + ',' + baseline.toFixed(1),
+      points,
+      pointsArray[pointsArray.length - 1].x.toFixed(1) + ',' + baseline.toFixed(1)
+    ].join(' ');
+    const gridValues = [max, Math.round((min + max) / 2), min];
+    const grid = gridValues.map((value) => {
+      const y = top + graphHeight - ((value - min) / range * graphHeight);
+      return [
+        '<line class="temp-grid-line" x1="' + left + '" x2="' + (width - right) + '" y1="' + y.toFixed(1) + '" y2="' + y.toFixed(1) + '"></line>',
+        '<text class="temp-axis-label" x="4" y="' + (y + 3).toFixed(1) + '">' + escapeHtml(value) + '℃</text>'
+      ].join('');
+    }).join('');
+    const labelIndexes = [0, 6, 12, 18, 23].filter((index) => index < pointsArray.length);
+    const labels = labelIndexes.map((index) => {
+      const point = pointsArray[index];
+      return '<text class="temp-time-label" x="' + point.x.toFixed(1) + '" y="114">' + escapeHtml(point.timeText) + '</text>';
+    }).join('');
+    const dots = labelIndexes.map((index) => {
+      const point = pointsArray[index];
+      return '<circle class="temp-dot" cx="' + point.x.toFixed(1) + '" cy="' + point.y.toFixed(1) + '" r="3"></circle>';
+    }).join('');
+    return [
+      '<div class="temp-graph" aria-label="24時間の気温グラフ">',
+      '<div class="temp-graph-head"><span>24時間気温</span><span>雨判定</span></div>',
+      '<svg viewBox="0 0 ' + width + ' ' + height + '" role="img" focusable="false">',
+      grid,
+      '<polygon class="temp-area" points="' + areaPoints + '"></polygon>',
+      '<polyline points="' + points + '"></polyline>',
+      dots,
+      labels,
+      '</svg>',
+      '</div>'
+    ].join('');
+  }
+
+  function renderPrimaryBus(bus, fetchedAt) {
+    return [
+      '<div class="primary-bus">',
+      '<div class="remain">' + renderRemainingSpan(bus, fetchedAt) + '</div>',
+      '<p class="countdown-hint">前回取得からの経過分を差し引いた目安</p>',
+      '<div class="meta">',
+      '<span>定刻 ' + escapeHtml(bus.scheduledDepartureText || '-') + '</span>',
+      '<span>' + escapeHtml(bus.delayText) + '</span>',
+      '<span>' + escapeHtml(bus.locationText) + '</span>',
+      '</div>',
+      '<div class="subline">' + escapeHtml([bus.courseName, bus.destination + '行', bus.via ? bus.via + '経由' : ''].filter(Boolean).join(' / ')) + '</div>',
+      '</div>'
+    ].join('');
+  }
+
+  function renderNextBuses(items, fetchedAt) {
+    if (!items.length) {
+      return '';
+    }
+    return '<ul class="next-list">' + items.map((bus) => [
+      '<li>',
+      '<span>' + escapeHtml(bus.scheduledDepartureText || '-') + '</span>',
+      '<span>' + renderRemainingSpan(bus, fetchedAt) + '</span>',
+      '<span>' + escapeHtml(bus.delayText) + '</span>',
+      '</li>'
+    ].join('')).join('') + '</ul>';
+  }
+
+  function renderRemainingSpan(bus, fetchedAt) {
+    const remaining = Number(bus.remainingMinutes);
+    if (!Number.isFinite(remaining)) {
+      return '<span>' + escapeHtml(bus.remainingText || '-') + '</span>';
+    }
+    return [
+      '<span class="countdown-remain"',
+      ' data-base-minutes="' + escapeHtml(remaining) + '"',
+      ' data-fetched-at="' + escapeHtml(fetchedAt || '') + '">',
+      escapeHtml(formatCountdownRemaining(remaining, fetchedAt)),
+      '</span>'
+    ].join('');
+  }
+
+  function startBusCountdown() {
+    updateBusCountdowns();
+    if (busCountdownTimer) {
+      clearInterval(busCountdownTimer);
+    }
+    busCountdownTimer = setInterval(updateBusCountdowns, 30 * 1000);
+  }
+
+  function updateBusCountdowns() {
+    document.querySelectorAll('.countdown-remain').forEach((element) => {
+      const remaining = Number(element.dataset.baseMinutes);
+      element.textContent = formatCountdownRemaining(remaining, element.dataset.fetchedAt);
+    });
+  }
+
+  function formatCountdownRemaining(baseMinutes, fetchedAt) {
+    const fetchedMs = Date.parse(fetchedAt || '');
+    const elapsedMinutes = Number.isFinite(fetchedMs) ? Math.max(0, Math.floor((Date.now() - fetchedMs) / 60000)) : 0;
+    const remaining = Math.round(baseMinutes - elapsedMinutes);
+    if (remaining <= 0) {
+      return 'まもなく';
+    }
+    return 'あと約' + remaining + '分';
+  }
+
+  function clearAutoRefresh() {
+    if (autoRefreshTimer) {
+      clearTimeout(autoRefreshTimer);
+    }
+    autoRefreshTimer = null;
+  }
+
+  function scheduleNextAutoRefresh() {
+    clearAutoRefresh();
+    const intervalMs = getAutoRefreshIntervalMs(new Date());
+    updateAutoStatus('次回 ' + formatDuration(intervalMs) + '後');
+    autoRefreshTimer = setTimeout(() => {
+      if (document.hidden) {
+        scheduleNextAutoRefresh();
+        return;
+      }
+      refreshLifeBoard();
+    }, intervalMs);
+  }
+
+  function getAutoRefreshIntervalMs(date) {
+    if (isWeekdayMorningRush(date)) {
+      return 60 * 1000;
+    }
+    return 5 * 60 * 1000;
+  }
+
+  function isWeekdayMorningRush(date) {
+    const day = date.getDay();
+    const hour = date.getHours();
+    return day >= 1 && day <= 5 && hour >= 6 && hour < 7;
+  }
+
+  function updateAutoStatus(suffix) {
+    const mode = isWeekdayMorningRush(new Date()) ? '平日朝 1分ごと' : '5分ごと';
+    document.getElementById('autoStatus').textContent = '自動更新 ' + mode + (suffix ? ' / ' + suffix : '');
+  }
+
+  function formatDuration(ms) {
+    const minutes = Math.max(1, Math.round(ms / 60000));
+    return minutes + '分';
+  }
+
+  function handleVisibilityChange() {
+    if (document.hidden) {
+      clearAutoRefresh();
+      updateAutoStatus('タブ非表示中は停止');
+      return;
+    }
+    refreshLifeBoard();
+  }
+
+  function setLoading(isLoading) {
+    const button = document.getElementById('refreshButton');
+    button.disabled = false;
+    button.textContent = isLoading ? '更新中...' : '更新';
+    button.setAttribute('aria-busy', isLoading ? 'true' : 'false');
+  }
+
+  function startClock() {
+    updateClock();
+    if (clockTimer) {
+      clearInterval(clockTimer);
+    }
+    clockTimer = setInterval(updateClock, 1000);
+  }
+
+  function updateClock() {
+    document.getElementById('currentClock').textContent = new Intl.DateTimeFormat('ja-JP', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    }).format(new Date());
+  }
+
+  function formatLocalTime(isoText) {
+    if (!isoText) {
+      return '-';
+    }
+    return new Intl.DateTimeFormat('ja-JP', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    }).format(new Date(isoText));
+  }
+
+  function formatLocalDateTime(isoText) {
+    if (!isoText) {
+      return '-';
+    }
+    return new Intl.DateTimeFormat('ja-JP', {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(new Date(isoText));
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function normalizeClassName(value) {
+    return String(value || '').replace(/[^a-z0-9_-]/gi, '') || 'unknown';
+  }
+
+  renderDailyConclusion({});
+  renderBusSnapshot({
+    fetchedAt: '',
+    routes: (bootstrap.data && bootstrap.data.busRoutes || []).map((route) => ({
+      routeId: route.route_id,
+      label: route.label,
+      officialUrl: route.official_url,
+      sourceUpdatedAtText: '-',
+      items: []
+    }))
+  });
+  renderWeatherSnapshot({
+    fetchedAt: '',
+    sourceNote: '天気はOpen-Meteo、雨はYahoo!/JMAから取得',
+    locations: (bootstrap.data && bootstrap.data.weatherLocations || []).map((location) => ({
+      displayName: location.display_name,
+      sourceUrl: 'https://open-meteo.com/',
+      statusText: '未取得',
+      weatherClass: 'unknown',
+      temperatureText: '-',
+      apparentText: '-',
+      humidityText: '-',
+      precipitationText: '-',
+      windText: '-',
+      highLowText: '-',
+      rainChanceText: '-',
+      umbrellaText: '-',
+      clothingText: '-',
+      rainNowcast: null,
+      rainOutlook: null,
+      astronomy: null,
+      hourly: [],
+      detailText: '',
+      sourceUpdatedAtText: '-'
+    }))
+  });
+  renderCalendarSnapshot({
+    fetchedAt: '',
+    sourceNote: 'TimeTree',
+    importedAt: '',
+    headerEvents: [],
+    events: []
+  }, {
+    fetchedAt: '',
+    sourceNote: 'スプレッドシートのgarbage_rulesから取得',
+    days: [
+      { label: '今日', dateText: '-', items: [] },
+      { label: '明日', dateText: '-', items: [] },
+      { label: '明後日', dateText: '-', items: [] }
+    ]
+  });
+  renderRailSnapshot({
+    fetchedAt: '',
+    sourceNote: 'Yahoo!路線情報（レスキューナウ）から取得',
+    routes: (bootstrap.data && bootstrap.data.railRoutes || []).map((route) => ({
+      displayName: route.display_name,
+      officialUrl: route.source_url || route.official_url,
+      statusText: '未取得',
+      severity: 'unknown',
+      directionText: '',
+      detailText: '',
+      sourceUpdatedAtText: '-'
+    }))
+  });
+  document.getElementById('refreshButton').addEventListener('click', refreshLifeBoard);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  startClock();
+  refreshLifeBoard();
+</script>

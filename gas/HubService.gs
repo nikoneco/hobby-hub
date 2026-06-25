@@ -46,7 +46,8 @@ function applyDefaultModuleConfig_(modules) {
 function buildDefaultModules_() {
   return [
     buildStudyModule_(),
-    buildRoomLibraryModule_()
+    buildRoomLibraryModule_(),
+    buildLifeBoardModule_()
   ];
 }
 
@@ -68,6 +69,22 @@ function buildStudyModule_() {
 
 function buildRoomLibraryModule_() {
   const app = CONFIG.APPS.ROOM_LIBRARY;
+  return {
+    module_id: app.MODULE_ID,
+    module_name: app.NAME,
+    description: app.DESCRIPTION,
+    enabled: true,
+    display_order: app.DISPLAY_ORDER,
+    icon: app.ICON,
+    target_url: app.WEB_APP_URL,
+    app_folder_id: '',
+    script_id: '',
+    db_spreadsheet_id: ''
+  };
+}
+
+function buildLifeBoardModule_() {
+  const app = CONFIG.APPS.LIFEBOARD;
   return {
     module_id: app.MODULE_ID,
     module_name: app.NAME,

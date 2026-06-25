@@ -12,3 +12,6 @@ data/*.log
 __pycache__/
 .venv/
 venv/
+LifeBoard/tools/*.local.bat
+LifeBoard/data/*.json
+LifeBoard/logs/

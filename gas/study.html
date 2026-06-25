@@ -1,0 +1,75 @@
+<section class="study-grid" aria-label="737 Study Finder">
+  <section>
+    <h2>737 Study Finder</h2>
+    <div class="toolbar">
+      <select id="ataFilter">
+        <option value="">ATA All</option>
+        <option value="24">ATA 24</option>
+      </select>
+      <button id="loadQuestions">読込</button>
+    </div>
+    <div id="questionList" class="muted">初期設定後に問題を読み込めます。</div>
+    <div class="import-panel">
+      <h3>CSV Import</h3>
+      <label>
+        Target
+        <select id="csvTarget">
+          <option value="question_bank">question_bank</option>
+          <option value="textbook_pages">textbook_pages</option>
+          <option value="textbook_sections">textbook_sections</option>
+          <option value="term_dictionary">term_dictionary</option>
+          <option value="source_files">source_files</option>
+        </select>
+      </label>
+      <label>
+        CSV File
+        <input id="csvFile" type="file" accept=".csv,text/csv">
+      </label>
+      <label class="check-label">
+        <input id="csvReplace" type="checkbox" checked>
+        既存行を置き換え
+      </label>
+      <button id="importCsvButton">CSV取込</button>
+      <p id="importStatus" class="muted"></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Question</h2>
+    <div id="questionDetail" class="muted">問題を選択してね。</div>
+    <div id="confirmedAnswers"></div>
+    <div id="answerNotes"></div>
+    <div class="answer-editor">
+      <h3>Answer Draft</h3>
+      <input id="activeNoteId" type="hidden">
+      <label>
+        Source
+        <select id="answerSource">
+          <option value="chatgpt_manual">ChatGPT/Codex</option>
+          <option value="manual_user">手入力</option>
+          <option value="copied_from_sg">SGから転記</option>
+          <option value="unknown">不明</option>
+        </select>
+      </label>
+      <label>
+        根拠ページ
+        <input id="answerEvidencePages" placeholder="D0-09, F0-09">
+      </label>
+      <textarea id="answerText" placeholder="AI回答や修正後の回答をここに貼る"></textarea>
+      <div class="toolbar">
+        <button id="saveDraftButton">下書き保存</button>
+        <button id="adoptButton" class="primary">採用</button>
+        <button id="clearDraftButton">クリア</button>
+      </div>
+    </div>
+    <div class="toolbar">
+      <button id="promptButton">回答作成用プロンプト</button>
+    </div>
+    <textarea id="promptOutput" placeholder="ここにプロンプトが出ます"></textarea>
+  </section>
+
+  <section>
+    <h2>Candidate Pages</h2>
+    <div id="candidateList" class="muted">候補ページはここに表示します。</div>
+  </section>
+</section>

@@ -28,6 +28,14 @@ const CONFIG = {
       WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbza7tfhqVYgNv_9N1WGj6hlE_8dBaMZCwuBuQKa4yfDrSeFODZTL63GE4R3g27eQAb_/exec',
       ICON: 'library',
       DISPLAY_ORDER: 2
+    },
+    LIFEBOARD: {
+      MODULE_ID: 'lifeboard',
+      NAME: 'LifeBoard',
+      DESCRIPTION: '朝のバス、天気、電車状況をまとめて確認',
+      WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbxgGdT-E3xm8XKNklnKwzPDxkE4kXHt-xh1n0eOlTST6APtbbZ4jOAJ_kw_BIGLbg_jxg/exec',
+      ICON: 'morning',
+      DISPLAY_ORDER: 3
     }
   }
 };

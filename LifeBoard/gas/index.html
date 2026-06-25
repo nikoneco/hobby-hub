@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+  <head>
+    <base target="_top">
+    <?!= include('style'); ?>
+  </head>
+  <body>
+    <div id="app" data-bootstrap='<?= bootstrapJson ?>'>
+      <header class="topbar">
+        <div class="brand-clock">
+          <h1>LifeBoard</h1>
+          <time id="currentClock" class="current-clock">--:--:--</time>
+          <p id="dailyConclusion" class="daily-conclusion">更新待ち</p>
+        </div>
+        <section class="top-calendar" aria-label="TimeTree">
+          <div class="top-calendar-head">
+            <h2>予定</h2>
+            <p id="calendarSourceNote">TimeTree</p>
+          </div>
+          <div id="calendarTopEvents" class="top-calendar-list"></div>
+        </section>
+        <div class="actions">
+          <div class="header-status" aria-live="polite">
+            <span id="lastUpdated">未取得</span>
+            <span id="autoStatus">自動更新 準備中</span>
+          </div>
+          <button id="refreshButton" type="button">更新</button>
+        </div>
+      </header>
+
+      <main>
+        <section class="section-title">
+          <h2>バス</h2>
+          <p>京成バス接近情報</p>
+        </section>
+        <section id="busRoutes" class="bus-grid"></section>
+        <section class="section-title">
+          <h2>天気</h2>
+          <p id="weatherSourceNote">Open-Meteo</p>
+        </section>
+        <section id="weatherLocations" class="weather-grid"></section>
+        <section class="section-title">
+          <h2>電車</h2>
+          <p id="railSourceNote">Yahoo!路線情報</p>
+        </section>
+        <section id="railRoutes" class="rail-grid"></section>
+        <section class="section-title">
+          <h2>予定</h2>
+          <p id="calendarDetailSourceNote">TimeTree</p>
+        </section>
+        <section id="calendarDetailEvents" class="calendar-detail-grid"></section>
+      </main>
+    </div>
+    <?!= include('script'); ?>
+  </body>
+</html>
