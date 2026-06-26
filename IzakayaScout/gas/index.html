@@ -10,14 +10,7 @@
         <div>
           <p class="eyebrow">Izakaya Scout</p>
           <h1>居酒屋Scout</h1>
-          <p class="lead">現在地か駅名から、今すぐ使えるGoogle Maps検索を作る。</p>
-        </div>
-        <div class="status-panel" aria-live="polite">
-          <span id="locationStatus">現在地未取得</span>
-          <button id="locateButton" type="button" class="secondary-button">
-            <span aria-hidden="true">◎</span>
-            現在地
-          </button>
+          <p class="lead">駅名や地名から、今すぐ使えるGoogle Maps検索を作る。</p>
         </div>
       </header>
 
@@ -30,7 +23,8 @@
 
           <label class="field">
             <span>駅名・地名</span>
-            <input id="areaInput" type="text" autocomplete="off" placeholder="例: 上野駅、秋葉原、現在地の近く">
+            <input id="areaInput" type="text" autocomplete="off" placeholder="例: 上野駅、秋葉原">
+            <em>空欄時は現在地周辺で検索します。</em>
           </label>
 
           <div class="control-grid">

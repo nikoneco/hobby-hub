@@ -3,7 +3,6 @@
   const bootstrap = JSON.parse(app.dataset.bootstrap || '{}');
   const storageKey = 'izakayaScout.preferences.v1';
   const state = {
-    coords: null,
     preferences: loadPreferences()
   };
 
@@ -11,8 +10,6 @@
     areaInput: document.getElementById('areaInput'),
     venueSelect: document.getElementById('venueSelect'),
     sceneSelect: document.getElementById('sceneSelect'),
-    locateButton: document.getElementById('locateButton'),
-    locationStatus: document.getElementById('locationStatus'),
     queryPreview: document.getElementById('queryPreview'),
     resultButtons: document.getElementById('resultButtons')
   };
@@ -38,7 +35,6 @@
     document.querySelectorAll('.chip-field input[type="checkbox"]').forEach((input) => {
       input.addEventListener('change', handlePreferenceChange);
     });
-    elements.locateButton.addEventListener('click', requestLocation);
   }
 
   function applySavedPreferences() {
@@ -56,30 +52,6 @@
     state.preferences = collectPreferences();
     savePreferences(state.preferences);
     render();
-  }
-
-  function requestLocation() {
-    if (!navigator.geolocation) {
-      elements.locationStatus.textContent = 'このブラウザは現在地に非対応';
-      return;
-    }
-    elements.locationStatus.textContent = '現在地を取得中';
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        state.coords = {
-          latitude: Number(position.coords.latitude.toFixed(6)),
-          longitude: Number(position.coords.longitude.toFixed(6))
-        };
-        elements.locationStatus.textContent = '現在地取得済み';
-        render();
-      },
-      () => {
-        state.coords = null;
-        elements.locationStatus.textContent = '現在地を使わず検索';
-        render();
-      },
-      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
-    );
   }
 
   function collectPreferences() {
@@ -130,10 +102,7 @@
     if (preferences.areaText) {
       return preferences.areaText;
     }
-    if (state.coords) {
-      return state.coords.latitude + ',' + state.coords.longitude + ' 周辺';
-    }
-    return '現在地 周辺';
+    return '現在地周辺';
   }
 
   function buildQuery(baseParts, preset) {
