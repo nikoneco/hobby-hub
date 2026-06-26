@@ -35,6 +35,15 @@
 
           <div class="control-grid">
             <label class="field">
+              <span>店タイプ</span>
+              <select id="venueSelect" required>
+                <option value="大衆居酒屋" selected>大衆居酒屋</option>
+                <option value="バー">バー</option>
+                <option value="立ち飲み">立ち飲み</option>
+              </select>
+            </label>
+
+            <label class="field">
               <span>徒歩目安</span>
               <select id="walkSelect">
                 <option value="5">5分以内</option>
@@ -54,13 +63,10 @@
           </div>
 
           <fieldset class="chip-field">
-            <legend>店タイプ</legend>
-            <label><input type="checkbox" value="大衆居酒屋">大衆居酒屋</label>
-            <label><input type="checkbox" value="バー">バー</label>
-            <label><input type="checkbox" value="立ち飲み">立ち飲み</label>
+            <legend>食べ物の種類</legend>
             <label><input type="checkbox" value="焼き鳥">焼き鳥</label>
             <label><input type="checkbox" value="海鮮">海鮮</label>
-            <label><input type="checkbox" value="個室">個室</label>
+            <label><input type="checkbox" value="肉">肉</label>
           </fieldset>
 
           <fieldset class="chip-field">
@@ -79,6 +85,7 @@
             <label><input type="checkbox" value="喫煙可">喫煙可</label>
             <label><input type="checkbox" value="深夜営業">深夜営業</label>
             <label><input type="checkbox" value="カウンター">カウンター</label>
+            <label><input type="checkbox" value="個室">個室</label>
             <label><input type="checkbox" value="営業中以外も可">営業中以外も可</label>
           </fieldset>
         </section>

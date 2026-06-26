@@ -9,6 +9,7 @@
 
   const elements = {
     areaInput: document.getElementById('areaInput'),
+    venueSelect: document.getElementById('venueSelect'),
     walkSelect: document.getElementById('walkSelect'),
     sceneSelect: document.getElementById('sceneSelect'),
     locateButton: document.getElementById('locateButton'),
@@ -18,10 +19,10 @@
   };
 
   const presets = [
-    { label: '無難に探す', icon: '□', terms: ['居酒屋', '評価高い'] },
-    { label: '安め', icon: '¥', terms: ['安い', '居酒屋'] },
-    { label: '落ち着いた', icon: '♪', terms: ['落ち着いた', '雰囲気の良い', '居酒屋'] },
-    { label: '二軒目', icon: '2', terms: ['二軒目', 'バー', '居酒屋'] }
+    { label: '無難に探す', icon: '□', terms: ['評価高い'] },
+    { label: '安め', icon: '¥', terms: ['安い'] },
+    { label: '落ち着いた', icon: '♪', terms: ['落ち着いた', '雰囲気の良い'] },
+    { label: '二軒目', icon: '2', terms: ['二軒目'] }
   ];
 
   function init() {
@@ -31,7 +32,7 @@
   }
 
   function bindEvents() {
-    [elements.areaInput, elements.walkSelect, elements.sceneSelect].forEach((element) => {
+    [elements.areaInput, elements.venueSelect, elements.walkSelect, elements.sceneSelect].forEach((element) => {
       element.addEventListener('input', handlePreferenceChange);
       element.addEventListener('change', handlePreferenceChange);
     });
@@ -44,6 +45,7 @@
   function applySavedPreferences() {
     const defaults = bootstrap.defaults || {};
     elements.areaInput.value = state.preferences.areaText || defaults.AREA_TEXT || '';
+    elements.venueSelect.value = state.preferences.venueType || defaults.VENUE_TYPE || '大衆居酒屋';
     elements.walkSelect.value = String(state.preferences.walkMinutes || defaults.WALK_MINUTES || 10);
     elements.sceneSelect.value = state.preferences.scene || defaults.SCENE || '';
     const checked = new Set(state.preferences.extraTerms || []);
@@ -85,6 +87,7 @@
   function collectPreferences() {
     return {
       areaText: elements.areaInput.value.trim(),
+      venueType: elements.venueSelect.value,
       walkMinutes: Number(elements.walkSelect.value),
       scene: elements.sceneSelect.value,
       extraTerms: Array.from(document.querySelectorAll('.chip-field input[type="checkbox"]:checked'))
@@ -119,6 +122,7 @@
     const searchableExtraTerms = preferences.extraTerms.filter((term) => term !== '営業中以外も可');
     return [
       locationText,
+      preferences.venueType,
       '徒歩' + preferences.walkMinutes + '分',
       openTerm,
       preferences.scene,
