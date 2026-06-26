@@ -64,6 +64,7 @@ function buildHotPepperParams_(apiKey, payload) {
 
   const features = payload.features || {};
   if (features.privateRoom) params.private_room = 1;
+  if (features.nonSmoking) params.non_smoking = 1;
   if (features.midnight) params.midnight = 1;
   if (features.sake) params.sake = 1;
   if (features.shochu) params.shochu = 1;
@@ -83,6 +84,7 @@ function normalizeShop_(shop) {
     catchText: shop.catch || '',
     access: shop.access || '',
     address: shop.address || '',
+    mapsUrl: buildMapsUrl_(shop),
     budget: shop.budget ? shop.budget.average || shop.budget.name || '' : '',
     open: shop.open || '',
     close: shop.close || '',
@@ -92,6 +94,11 @@ function normalizeShop_(shop) {
       mobile: shop.urls && shop.urls.mobile ? shop.urls.mobile : ''
     }
   };
+}
+
+function buildMapsUrl_(shop) {
+  const query = [shop.name, shop.address].filter(Boolean).join(' ');
+  return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(query);
 }
 
 function getHotPepperApiKey_() {
