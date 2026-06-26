@@ -45,7 +45,7 @@
   function applySavedPreferences() {
     const defaults = bootstrap.defaults || {};
     elements.areaInput.value = state.preferences.areaText || defaults.AREA_TEXT || '';
-    elements.venueSelect.value = state.preferences.venueType || defaults.VENUE_TYPE || '大衆居酒屋';
+    elements.venueSelect.value = state.preferences.venueType || defaults.VENUE_TYPE || '居酒屋';
     elements.walkSelect.value = String(state.preferences.walkMinutes || defaults.WALK_MINUTES || 10);
     elements.sceneSelect.value = state.preferences.scene || defaults.SCENE || '';
     const checked = new Set(state.preferences.extraTerms || []);
