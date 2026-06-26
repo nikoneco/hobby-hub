@@ -36,6 +36,16 @@ const CONFIG = {
       WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbxgGdT-E3xm8XKNklnKwzPDxkE4kXHt-xh1n0eOlTST6APtbbZ4jOAJ_kw_BIGLbg_jxg/exec',
       ICON: 'morning',
       DISPLAY_ORDER: 3
+    },
+    IZAKAYA_SCOUT: {
+      MODULE_ID: 'izakaya_scout',
+      NAME: '居酒屋Scout',
+      DESCRIPTION: '現在地や駅から、今すぐ行ける居酒屋検索を開く',
+      WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbz6JdN9R-WSetCdw4XDlPOTgwWPS8WpqfdlPXKsNEFosEK5pK5suDaJU4v7jLj8H0sE/exec',
+      FOLDER_ID: '1RD2Hbp3n4C1f9HgDTPbRyuHCEmqscjvY',
+      SCRIPT_ID: '1jOmEUFlVEWq57qdYTWNDXdL5znnQXTaKPyytIbPqAsE_wZ74Uk-NBXuC',
+      ICON: 'map',
+      DISPLAY_ORDER: 4
     }
   }
 };

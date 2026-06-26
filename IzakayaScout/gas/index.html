@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+  <head>
+    <base target="_top">
+    <?!= include('style'); ?>
+  </head>
+  <body>
+    <div id="app" data-bootstrap='<?= bootstrapJson ?>'>
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Izakaya Scout</p>
+          <h1>居酒屋Scout</h1>
+          <p class="lead">現在地か駅名から、今すぐ使えるGoogle Maps検索を作る。</p>
+        </div>
+        <div class="status-panel" aria-live="polite">
+          <span id="locationStatus">現在地未取得</span>
+          <button id="locateButton" type="button" class="secondary-button">
+            <span aria-hidden="true">◎</span>
+            現在地
+          </button>
+        </div>
+      </header>
+
+      <main class="app-shell">
+        <section class="search-builder" aria-labelledby="builderTitle">
+          <div class="section-heading">
+            <p class="eyebrow">Search Builder</p>
+            <h2 id="builderTitle">条件</h2>
+          </div>
+
+          <label class="field">
+            <span>駅名・地名</span>
+            <input id="areaInput" type="text" autocomplete="off" placeholder="例: 上野駅、秋葉原、現在地の近く">
+          </label>
+
+          <div class="control-grid">
+            <label class="field">
+              <span>徒歩目安</span>
+              <select id="walkSelect">
+                <option value="5">5分以内</option>
+                <option value="10" selected>10分以内</option>
+                <option value="15">15分以内</option>
+                <option value="20">20分以内</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>予算</span>
+              <select id="budgetSelect">
+                <option value="安い">安め</option>
+                <option value="ほどほど" selected>ほどほど</option>
+                <option value="少し良い">少し良い</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>用途</span>
+              <select id="sceneSelect">
+                <option value="今すぐ" selected>今すぐ</option>
+                <option value="ひとり飲み">ひとり飲み</option>
+                <option value="二軒目">二軒目</option>
+                <option value="静か">静かめ</option>
+              </select>
+            </label>
+          </div>
+
+          <fieldset class="chip-field">
+            <legend>足したい条件</legend>
+            <label><input type="checkbox" value="喫煙可">喫煙可</label>
+            <label><input type="checkbox" value="個室">個室</label>
+            <label><input type="checkbox" value="海鮮">海鮮</label>
+            <label><input type="checkbox" value="焼き鳥">焼き鳥</label>
+            <label><input type="checkbox" value="日本酒">日本酒</label>
+            <label><input type="checkbox" value="深夜営業">深夜営業</label>
+          </fieldset>
+        </section>
+
+        <section class="result-panel" aria-labelledby="resultsTitle">
+          <div class="section-heading">
+            <p class="eyebrow">Map Links</p>
+            <h2 id="resultsTitle">検索ボタン</h2>
+          </div>
+          <div id="queryPreview" class="query-preview">条件を入れると検索候補を作ります。</div>
+          <div id="resultButtons" class="result-grid"></div>
+        </section>
+      </main>
+    </div>
+    <?!= include('script'); ?>
+  </body>
+</html>

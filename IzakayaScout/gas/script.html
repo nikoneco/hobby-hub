@@ -1,0 +1,171 @@
+<script>
+  const app = document.getElementById('app');
+  const bootstrap = JSON.parse(app.dataset.bootstrap || '{}');
+  const storageKey = 'izakayaScout.preferences.v1';
+  const state = {
+    coords: null,
+    preferences: loadPreferences()
+  };
+
+  const elements = {
+    areaInput: document.getElementById('areaInput'),
+    walkSelect: document.getElementById('walkSelect'),
+    budgetSelect: document.getElementById('budgetSelect'),
+    sceneSelect: document.getElementById('sceneSelect'),
+    locateButton: document.getElementById('locateButton'),
+    locationStatus: document.getElementById('locationStatus'),
+    queryPreview: document.getElementById('queryPreview'),
+    resultButtons: document.getElementById('resultButtons')
+  };
+
+  const presets = [
+    { label: '無難に探す', icon: '□', terms: ['居酒屋', '評価高い'] },
+    { label: '安め', icon: '¥', terms: ['安い', '居酒屋'] },
+    { label: '静かめ', icon: '♪', terms: ['静か', '居酒屋'] },
+    { label: '二軒目', icon: '2', terms: ['二軒目', 'バー', '居酒屋'] },
+    { label: '駅近', icon: '⌖', terms: ['駅近', '居酒屋'] }
+  ];
+
+  function init() {
+    applySavedPreferences();
+    bindEvents();
+    render();
+  }
+
+  function bindEvents() {
+    [elements.areaInput, elements.walkSelect, elements.budgetSelect, elements.sceneSelect].forEach((element) => {
+      element.addEventListener('input', handlePreferenceChange);
+      element.addEventListener('change', handlePreferenceChange);
+    });
+    document.querySelectorAll('.chip-field input[type="checkbox"]').forEach((input) => {
+      input.addEventListener('change', handlePreferenceChange);
+    });
+    elements.locateButton.addEventListener('click', requestLocation);
+  }
+
+  function applySavedPreferences() {
+    const defaults = bootstrap.defaults || {};
+    elements.areaInput.value = state.preferences.areaText || defaults.AREA_TEXT || '';
+    elements.walkSelect.value = String(state.preferences.walkMinutes || defaults.WALK_MINUTES || 10);
+    elements.budgetSelect.value = state.preferences.budget || defaults.BUDGET || 'ほどほど';
+    elements.sceneSelect.value = state.preferences.scene || defaults.SCENE || '今すぐ';
+    const checked = new Set(state.preferences.extraTerms || []);
+    document.querySelectorAll('.chip-field input[type="checkbox"]').forEach((input) => {
+      input.checked = checked.has(input.value);
+    });
+  }
+
+  function handlePreferenceChange() {
+    state.preferences = collectPreferences();
+    savePreferences(state.preferences);
+    render();
+  }
+
+  function requestLocation() {
+    if (!navigator.geolocation) {
+      elements.locationStatus.textContent = 'このブラウザは現在地に非対応';
+      return;
+    }
+    elements.locationStatus.textContent = '現在地を取得中';
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        state.coords = {
+          latitude: Number(position.coords.latitude.toFixed(6)),
+          longitude: Number(position.coords.longitude.toFixed(6))
+        };
+        elements.locationStatus.textContent = '現在地取得済み';
+        render();
+      },
+      () => {
+        state.coords = null;
+        elements.locationStatus.textContent = '現在地を使わず検索';
+        render();
+      },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
+    );
+  }
+
+  function collectPreferences() {
+    return {
+      areaText: elements.areaInput.value.trim(),
+      walkMinutes: Number(elements.walkSelect.value),
+      budget: elements.budgetSelect.value,
+      scene: elements.sceneSelect.value,
+      extraTerms: Array.from(document.querySelectorAll('.chip-field input[type="checkbox"]:checked'))
+        .map((input) => input.value)
+    };
+  }
+
+  function render() {
+    const preferences = collectPreferences();
+    const baseParts = buildBaseParts(preferences);
+    elements.queryPreview.textContent = baseParts.join(' ');
+    elements.resultButtons.innerHTML = '';
+    presets.forEach((preset) => {
+      const query = buildQuery(baseParts, preset);
+      const link = document.createElement('a');
+      link.className = 'map-button';
+      link.href = buildMapsUrl(query);
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.innerHTML = [
+        '<span class="button-icon" aria-hidden="true">' + escapeHtml(preset.icon) + '</span>',
+        '<span><strong>' + escapeHtml(preset.label) + '</strong><em>' + escapeHtml(query) + '</em></span>'
+      ].join('');
+      elements.resultButtons.appendChild(link);
+    });
+  }
+
+  function buildBaseParts(preferences) {
+    const locationText = getLocationText(preferences);
+    return [
+      locationText,
+      '徒歩' + preferences.walkMinutes + '分',
+      preferences.budget,
+      preferences.scene === '今すぐ' ? '営業中' : preferences.scene,
+      ...preferences.extraTerms
+    ].filter(Boolean);
+  }
+
+  function getLocationText(preferences) {
+    if (preferences.areaText) {
+      return preferences.areaText;
+    }
+    if (state.coords) {
+      return state.coords.latitude + ',' + state.coords.longitude + ' 周辺';
+    }
+    return '現在地 周辺';
+  }
+
+  function buildQuery(baseParts, preset) {
+    return [...baseParts, ...preset.terms].join(' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function buildMapsUrl(query) {
+    const baseUrl = bootstrap.mapsSearchBaseUrl || 'https://www.google.com/maps/search/?api=1&query=';
+    return baseUrl + encodeURIComponent(query).slice(0, 1800);
+  }
+
+  function loadPreferences() {
+    try {
+      return JSON.parse(localStorage.getItem(storageKey) || '{}');
+    } catch (error) {
+      return {};
+    }
+  }
+
+  function savePreferences(preferences) {
+    localStorage.setItem(storageKey, JSON.stringify(preferences));
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  init();
+</script>
