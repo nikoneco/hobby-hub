@@ -36,11 +36,14 @@ function searchHotPepperShops_(payload) {
 
   const results = json.results || {};
   const shops = Array.isArray(results.shop) ? results.shop : [];
+  const normalizedShops = shops.map(normalizeShop_);
+  const filteredShops = filterShopsByWalkMinutes_(normalizedShops, payload);
   return {
     query: buildSearchSummary_(payload, params),
     resultsAvailable: Number(results.results_available || 0),
-    resultsReturned: Number(results.results_returned || shops.length),
-    shops: shops.map(normalizeShop_)
+    resultsReturned: filteredShops.length,
+    resultsFetched: normalizedShops.length,
+    shops: filteredShops
   };
 }
 
@@ -94,7 +97,8 @@ function normalizeGenreCode_(payload) {
 function buildSearchSummary_(payload, params) {
   return [
     payload.areaText,
-    payload.genreName
+    payload.genreName,
+    formatWalkLimitSummary_(payload.walkMinutesLimit)
   ].concat(payload.foodTerms || [])
     .map(function (term) {
       return String(term || '').trim();
@@ -112,6 +116,7 @@ function normalizeShop_(shop) {
     genre: shop.genre ? shop.genre.name || '' : '',
     catchText: shop.catch || '',
     access: shop.access || '',
+    walkMinutes: extractWalkMinutes_(shop.access || ''),
     address: shop.address || '',
     mapsUrl: buildMapsUrl_(shop),
     budget: shop.budget ? shop.budget.average || shop.budget.name || '' : '',
@@ -125,6 +130,69 @@ function normalizeShop_(shop) {
       mobile: shop.urls && shop.urls.mobile ? shop.urls.mobile : ''
     }
   };
+}
+
+function filterShopsByWalkMinutes_(shops, payload) {
+  const limit = parseWalkMinutesLimit_(payload.walkMinutesLimit);
+  if (!limit) {
+    return shops;
+  }
+  return shops.filter(function (shop) {
+    return shop.walkMinutes != null && shop.walkMinutes <= limit;
+  });
+}
+
+function parseWalkMinutesLimit_(value) {
+  const minutes = Number(normalizeDigits_(String(value || '').trim()));
+  return Number.isFinite(minutes) && minutes > 0 ? minutes : 0;
+}
+
+function formatWalkLimitSummary_(value) {
+  const minutes = parseWalkMinutesLimit_(value);
+  return minutes ? '徒歩' + minutes + '分以内' : '';
+}
+
+function extractWalkMinutes_(accessText) {
+  const text = normalizeAccessText_(accessText);
+  if (!text) {
+    return null;
+  }
+
+  const minutes = [];
+  if (/徒歩\s*(?:すぐ|直ぐ|すぐ近く|すぐそば|目の前|目前)/.test(text)) {
+    minutes.push(0);
+  }
+
+  collectWalkMatches_(text, /徒歩\s*(?:[:：])?\s*(?:約|およそ|凡そ)?\s*(?:で)?\s*(\d+(?:\.\d+)?)\s*分/g, minutes, false);
+  collectWalkMatches_(text, /徒歩\s*(?:[:：])?\s*(?:約|およそ|凡そ)?\s*(?:で)?\s*(\d+(?:\.\d+)?)\s*秒/g, minutes, true);
+
+  if (!minutes.length) {
+    return null;
+  }
+  return Math.min.apply(null, minutes);
+}
+
+function collectWalkMatches_(text, pattern, minutes, isSeconds) {
+  let match;
+  while ((match = pattern.exec(text)) !== null) {
+    const value = Number(match[1]);
+    if (Number.isFinite(value)) {
+      minutes.push(isSeconds ? 0 : value);
+    }
+  }
+}
+
+function normalizeAccessText_(value) {
+  return normalizeDigits_(String(value || ''))
+    .replace(/[　\t\r\n]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeDigits_(value) {
+  return String(value || '').replace(/[０-９]/g, function (char) {
+    return String.fromCharCode(char.charCodeAt(0) - 0xFEE0);
+  });
 }
 
 function normalizeCreditCards_(creditCards) {

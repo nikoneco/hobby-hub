@@ -7,6 +7,7 @@ const CONFIG = {
   },
   DEFAULTS: {
     GENRE_CODE: 'G001',
+    WALK_MINUTES: '',
     AREA_TEXT: ''
   }
 };

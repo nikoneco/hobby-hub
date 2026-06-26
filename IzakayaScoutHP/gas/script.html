@@ -10,6 +10,7 @@
   const elements = {
     areaInput: document.getElementById('areaInput'),
     venueSelect: document.getElementById('venueSelect'),
+    walkSelect: document.getElementById('walkSelect'),
     setupNotice: document.getElementById('setupNotice'),
     searchButton: document.getElementById('searchButton'),
     queryPreview: document.getElementById('queryPreview'),
@@ -25,7 +26,7 @@
   }
 
   function bindEvents() {
-    [elements.areaInput, elements.venueSelect].forEach((element) => {
+    [elements.areaInput, elements.venueSelect, elements.walkSelect].forEach((element) => {
       element.addEventListener('input', handlePreferenceChange);
       element.addEventListener('change', handlePreferenceChange);
     });
@@ -42,6 +43,7 @@
     if (!elements.venueSelect.value) {
       elements.venueSelect.value = defaults.GENRE_CODE || 'G001';
     }
+    elements.walkSelect.value = state.preferences.walkMinutesLimit || defaults.WALK_MINUTES || '';
 
     const checked = new Set(state.preferences.checkedValues || []);
     document.querySelectorAll('.chip-field input[type="checkbox"]').forEach((input) => {
@@ -74,6 +76,8 @@
       areaText: elements.areaInput.value.trim(),
       genreCode: elements.venueSelect.value,
       genreName: getSelectedGenreName(),
+      walkMinutesLimit: elements.walkSelect.value,
+      walkLabel: getSelectedWalkLabel(),
       foodTerms,
       features,
       checkedValues: checkedInputs.map((input) => input.value)
@@ -100,8 +104,17 @@
     return [
       preferences.areaText,
       preferences.genreName,
+      preferences.walkLabel,
       ...preferences.foodTerms
     ].filter(Boolean).join(' ');
+  }
+
+  function getSelectedWalkLabel() {
+    if (!elements.walkSelect.value) {
+      return '';
+    }
+    const option = elements.walkSelect.options[elements.walkSelect.selectedIndex];
+    return option ? option.textContent.trim() : '';
   }
 
   function getSelectedGenreName() {
@@ -155,7 +168,7 @@
 
   function renderResults(data) {
     const shops = data.shops || [];
-    elements.resultCount.textContent = shops.length + '件表示 / ' + data.resultsAvailable + '件';
+    elements.resultCount.textContent = formatResultCount(data, shops.length);
     elements.queryPreview.textContent = data.query || buildPreviewQuery(collectPreferences());
     elements.resultList.innerHTML = '';
 
@@ -180,6 +193,7 @@
         '<dl>',
         detailRow('最寄り', shop.station || ''),
         detailRow('アクセス', shop.access || ''),
+        detailRow('徒歩目安', formatWalkMinutes(shop.walkMinutes)),
         detailRow('住所', shop.address || '', shop.mapsUrl || ''),
         detailRow('カード', shop.card || ''),
         detailRow('対応カード', formatCreditCards(shop.creditCards)),
@@ -203,8 +217,23 @@
     return '<div><dt>' + escapeHtml(label) + '</dt><dd>' + body + '</dd></div>';
   }
 
+  function formatResultCount(data, visibleCount) {
+    const fetchedCount = Number(data.resultsFetched || visibleCount);
+    if (fetchedCount !== visibleCount) {
+      return visibleCount + '件表示 / 取得' + fetchedCount + '件 / 全' + data.resultsAvailable + '件';
+    }
+    return visibleCount + '件表示 / ' + data.resultsAvailable + '件';
+  }
+
   function formatCreditCards(creditCards) {
     return Array.isArray(creditCards) ? creditCards.join('、') : '';
+  }
+
+  function formatWalkMinutes(walkMinutes) {
+    if (walkMinutes == null || walkMinutes === '') {
+      return '';
+    }
+    return Number(walkMinutes) === 0 ? '1分未満' : '徒歩' + walkMinutes + '分';
   }
 
   function setSearching(searching) {
