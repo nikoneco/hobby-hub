@@ -1,0 +1,98 @@
+<!doctype html>
+<html>
+  <head>
+    <base target="_top">
+    <?!= include('style'); ?>
+  </head>
+  <body>
+    <div id="app" data-bootstrap='<?= bootstrapJson ?>'>
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Hot Pepper Prototype</p>
+          <h1>居酒屋ScoutHP</h1>
+          <p class="lead">ホットペッパーの候補をアプリ内で並べる試作版。</p>
+        </div>
+      </header>
+
+      <main class="app-shell">
+        <section class="search-builder" aria-labelledby="builderTitle">
+          <div class="section-heading">
+            <p class="eyebrow">Search Builder</p>
+            <h2 id="builderTitle">条件</h2>
+          </div>
+
+          <div id="setupNotice" class="notice hidden"></div>
+
+          <label class="field">
+            <span>駅名・地名</span>
+            <input id="areaInput" type="text" autocomplete="off" placeholder="例: 上野駅、秋葉原">
+            <em>ホットペッパー版では駅名・地名が必要です。</em>
+          </label>
+
+          <div class="control-grid">
+            <label class="field">
+              <span>店タイプ</span>
+              <select id="venueSelect" required>
+                <option value="居酒屋" selected>居酒屋</option>
+                <option value="大衆居酒屋">大衆居酒屋</option>
+                <option value="バー">バー</option>
+                <option value="立ち飲み">立ち飲み</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>用途</span>
+              <select id="sceneSelect">
+                <option value="" selected>指定なし</option>
+                <option value="ひとり飲み">ひとり飲み</option>
+              </select>
+            </label>
+          </div>
+
+          <fieldset class="chip-field">
+            <legend>食べ物の種類</legend>
+            <label><input type="checkbox" data-kind="food" value="焼き鳥">焼き鳥</label>
+            <label><input type="checkbox" data-kind="food" value="海鮮">海鮮</label>
+            <label><input type="checkbox" data-kind="food" value="肉">肉</label>
+            <label><input type="checkbox" data-kind="food" value="串揚げ">串揚げ</label>
+            <label><input type="checkbox" data-kind="food" value="おでん">おでん</label>
+          </fieldset>
+
+          <fieldset class="chip-field">
+            <legend>酒の種類</legend>
+            <label><input type="checkbox" data-kind="feature" value="sake">日本酒</label>
+            <label><input type="checkbox" data-kind="feature" value="shochu">焼酎</label>
+            <label><input type="checkbox" data-kind="keyword" value="ビール">ビール</label>
+            <label><input type="checkbox" data-kind="keyword" value="クラフトビール">クラフトビール</label>
+            <label><input type="checkbox" data-kind="feature" value="wine">ワイン</label>
+            <label><input type="checkbox" data-kind="keyword" value="ウイスキー">ウイスキー</label>
+            <label><input type="checkbox" data-kind="feature" value="cocktail">カクテル</label>
+          </fieldset>
+
+          <fieldset class="chip-field">
+            <legend>こだわり</legend>
+            <label><input type="checkbox" data-kind="keyword" value="喫煙可">喫煙可</label>
+            <label><input type="checkbox" data-kind="feature" value="midnight">深夜営業</label>
+            <label><input type="checkbox" data-kind="keyword" value="カウンター">カウンター</label>
+            <label><input type="checkbox" data-kind="feature" value="privateRoom">個室</label>
+          </fieldset>
+
+          <button id="searchButton" class="primary-button" type="button">候補を表示</button>
+        </section>
+
+        <section class="result-panel" aria-labelledby="resultsTitle">
+          <div class="section-heading result-heading">
+            <div>
+              <p class="eyebrow">Shop Cards</p>
+              <h2 id="resultsTitle">候補</h2>
+            </div>
+            <span id="resultCount" class="result-count">未検索</span>
+          </div>
+          <div id="queryPreview" class="query-preview">条件を入れて検索します。</div>
+          <div id="resultList" class="shop-list"></div>
+        </section>
+      </main>
+    </div>
+    <?!= include('script'); ?>
+  </body>
+</html>

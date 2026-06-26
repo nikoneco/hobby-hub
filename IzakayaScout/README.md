@@ -1,13 +1,13 @@
 # 居酒屋Scout
 
-現在地または駅名から、Google Maps の居酒屋検索URLを作る無課金MVPです。
+駅名・地名やGoogle Maps側の現在地解釈を使って、居酒屋検索URLを作る無課金MVPです。
 
 ## 方針
 
 - Google Places API は使いません。
 - Google Cloud の課金設定は不要です。
 - 店一覧、営業時間、評価、予約可否は Google Maps 側で確認します。
-- 位置情報はブラウザ内で検索語生成に使うだけで、GASやSheetへ保存しません。
+- ブラウザのGPS取得は使いません。
 
 ## Local root
 
