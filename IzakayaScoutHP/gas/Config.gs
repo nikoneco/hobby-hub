@@ -7,7 +7,6 @@ const CONFIG = {
   },
   DEFAULTS: {
     VENUE_TYPE: '居酒屋',
-    SCENE: '',
     AREA_TEXT: ''
   }
 };

@@ -133,12 +133,6 @@
     outline: 2px solid rgba(79, 177, 168, 0.22);
   }
 
-  .control-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-  }
-
   .chip-field {
     display: flex;
     flex-wrap: wrap;
@@ -347,13 +341,6 @@
     .app-shell,
     .shop-card {
       grid-template-columns: 1fr;
-    }
-  }
-
-  @media (max-width: 540px) {
-    .control-grid {
-      grid-template-columns: 1fr;
-      gap: 0;
     }
   }
 </style>

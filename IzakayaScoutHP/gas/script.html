@@ -10,7 +10,6 @@
   const elements = {
     areaInput: document.getElementById('areaInput'),
     venueSelect: document.getElementById('venueSelect'),
-    sceneSelect: document.getElementById('sceneSelect'),
     setupNotice: document.getElementById('setupNotice'),
     searchButton: document.getElementById('searchButton'),
     queryPreview: document.getElementById('queryPreview'),
@@ -26,7 +25,7 @@
   }
 
   function bindEvents() {
-    [elements.areaInput, elements.venueSelect, elements.sceneSelect].forEach((element) => {
+    [elements.areaInput, elements.venueSelect].forEach((element) => {
       element.addEventListener('input', handlePreferenceChange);
       element.addEventListener('change', handlePreferenceChange);
     });
@@ -40,7 +39,6 @@
     const defaults = bootstrap.defaults || {};
     elements.areaInput.value = state.preferences.areaText || defaults.AREA_TEXT || '';
     elements.venueSelect.value = state.preferences.venueType || defaults.VENUE_TYPE || '居酒屋';
-    elements.sceneSelect.value = state.preferences.scene || defaults.SCENE || '';
 
     const checked = new Set(state.preferences.checkedValues || []);
     document.querySelectorAll('.chip-field input[type="checkbox"]').forEach((input) => {
@@ -58,7 +56,6 @@
     const checkedInputs = Array.from(document.querySelectorAll('.chip-field input[type="checkbox"]:checked'));
     const features = {};
     const foodTerms = [];
-    const keywordTerms = [];
 
     checkedInputs.forEach((input) => {
       if (input.dataset.kind === 'feature') {
@@ -67,17 +64,13 @@
       }
       if (input.dataset.kind === 'food') {
         foodTerms.push(input.value);
-        return;
       }
-      keywordTerms.push(input.value);
     });
 
     return {
       areaText: elements.areaInput.value.trim(),
       venueType: elements.venueSelect.value,
-      scene: elements.sceneSelect.value,
       foodTerms,
-      keywordTerms,
       features,
       checkedValues: checkedInputs.map((input) => input.value)
     };
@@ -103,9 +96,7 @@
     return [
       preferences.areaText,
       preferences.venueType,
-      preferences.scene,
-      ...preferences.foodTerms,
-      ...preferences.keywordTerms
+      ...preferences.foodTerms
     ].filter(Boolean).join(' ');
   }
 
@@ -158,6 +149,8 @@
         detailRow('最寄り', shop.station || ''),
         detailRow('アクセス', shop.access || ''),
         detailRow('住所', shop.address || '', shop.mapsUrl || ''),
+        detailRow('カード', shop.card || ''),
+        detailRow('対応カード', formatCreditCards(shop.creditCards)),
         detailRow('営業時間', shop.open || ''),
         detailRow('定休日', shop.close || ''),
         '</dl>',
@@ -176,6 +169,10 @@
       ? '<a href="' + escapeHtml(href) + '" target="_blank" rel="noopener">' + escapeHtml(value) + '</a>'
       : escapeHtml(value);
     return '<div><dt>' + escapeHtml(label) + '</dt><dd>' + body + '</dd></div>';
+  }
+
+  function formatCreditCards(creditCards) {
+    return Array.isArray(creditCards) ? creditCards.join('、') : '';
   }
 
   function setSearching(searching) {

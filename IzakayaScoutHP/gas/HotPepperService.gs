@@ -47,9 +47,8 @@ function searchHotPepperShops_(payload) {
 function buildHotPepperParams_(apiKey, payload) {
   const terms = [
     payload.areaText,
-    payload.venueType,
-    payload.scene
-  ].concat(payload.foodTerms || [], payload.keywordTerms || [])
+    payload.venueType
+  ].concat(payload.foodTerms || [])
     .map(function (term) {
       return String(term || '').trim();
     })
@@ -59,10 +58,12 @@ function buildHotPepperParams_(apiKey, payload) {
     key: apiKey,
     format: 'json',
     count: CONFIG.HOTPEPPER.RESULT_COUNT,
+    type: 'credit_card',
     keyword: terms.join(' ')
   };
 
   const features = payload.features || {};
+  if (features.card) params.card = 1;
   if (features.privateRoom) params.private_room = 1;
   if (features.nonSmoking) params.non_smoking = 1;
   if (features.midnight) params.midnight = 1;
@@ -86,6 +87,8 @@ function normalizeShop_(shop) {
     address: shop.address || '',
     mapsUrl: buildMapsUrl_(shop),
     budget: shop.budget ? shop.budget.average || shop.budget.name || '' : '',
+    card: shop.card || '',
+    creditCards: normalizeCreditCards_(shop.credit_card),
     open: shop.open || '',
     close: shop.close || '',
     station: shop.station_name || '',
@@ -94,6 +97,18 @@ function normalizeShop_(shop) {
       mobile: shop.urls && shop.urls.mobile ? shop.urls.mobile : ''
     }
   };
+}
+
+function normalizeCreditCards_(creditCards) {
+  if (!creditCards) {
+    return [];
+  }
+  const cards = Array.isArray(creditCards) ? creditCards : [creditCards];
+  return cards
+    .map(function (card) {
+      return card && card.name ? card.name : String(card || '').trim();
+    })
+    .filter(Boolean);
 }
 
 function buildMapsUrl_(shop) {

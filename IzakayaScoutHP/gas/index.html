@@ -29,25 +29,15 @@
             <em>ホットペッパー版では駅名・地名が必要です。</em>
           </label>
 
-          <div class="control-grid">
-            <label class="field">
-              <span>店タイプ</span>
-              <select id="venueSelect" required>
-                <option value="居酒屋" selected>居酒屋</option>
-                <option value="大衆居酒屋">大衆居酒屋</option>
-                <option value="バー">バー</option>
-                <option value="立ち飲み">立ち飲み</option>
-              </select>
-            </label>
-
-            <label class="field">
-              <span>用途</span>
-              <select id="sceneSelect">
-                <option value="" selected>指定なし</option>
-                <option value="ひとり飲み">ひとり飲み</option>
-              </select>
-            </label>
-          </div>
+          <label class="field">
+            <span>店タイプ</span>
+            <select id="venueSelect" required>
+              <option value="居酒屋" selected>居酒屋</option>
+              <option value="大衆居酒屋">大衆居酒屋</option>
+              <option value="バー">バー</option>
+              <option value="立ち飲み">立ち飲み</option>
+            </select>
+          </label>
 
           <fieldset class="chip-field">
             <legend>食べ物の種類</legend>
@@ -62,18 +52,15 @@
             <legend>酒の種類</legend>
             <label><input type="checkbox" data-kind="feature" value="sake">日本酒</label>
             <label><input type="checkbox" data-kind="feature" value="shochu">焼酎</label>
-            <label><input type="checkbox" data-kind="keyword" value="ビール">ビール</label>
-            <label><input type="checkbox" data-kind="keyword" value="クラフトビール">クラフトビール</label>
             <label><input type="checkbox" data-kind="feature" value="wine">ワイン</label>
-            <label><input type="checkbox" data-kind="keyword" value="ウイスキー">ウイスキー</label>
             <label><input type="checkbox" data-kind="feature" value="cocktail">カクテル</label>
           </fieldset>
 
           <fieldset class="chip-field">
             <legend>こだわり</legend>
+            <label><input type="checkbox" data-kind="feature" value="card">カード可</label>
             <label><input type="checkbox" data-kind="feature" value="nonSmoking">禁煙席</label>
             <label><input type="checkbox" data-kind="feature" value="midnight">深夜営業</label>
-            <label><input type="checkbox" data-kind="keyword" value="カウンター">カウンター</label>
             <label><input type="checkbox" data-kind="feature" value="privateRoom">個室</label>
           </fieldset>
 
