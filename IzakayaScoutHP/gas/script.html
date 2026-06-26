@@ -38,7 +38,10 @@
   function applySavedPreferences() {
     const defaults = bootstrap.defaults || {};
     elements.areaInput.value = state.preferences.areaText || defaults.AREA_TEXT || '';
-    elements.venueSelect.value = state.preferences.venueType || defaults.VENUE_TYPE || '居酒屋';
+    elements.venueSelect.value = resolveSavedGenreCode(defaults);
+    if (!elements.venueSelect.value) {
+      elements.venueSelect.value = defaults.GENRE_CODE || 'G001';
+    }
 
     const checked = new Set(state.preferences.checkedValues || []);
     document.querySelectorAll('.chip-field input[type="checkbox"]').forEach((input) => {
@@ -69,7 +72,8 @@
 
     return {
       areaText: elements.areaInput.value.trim(),
-      venueType: elements.venueSelect.value,
+      genreCode: elements.venueSelect.value,
+      genreName: getSelectedGenreName(),
       foodTerms,
       features,
       checkedValues: checkedInputs.map((input) => input.value)
@@ -95,9 +99,37 @@
   function buildPreviewQuery(preferences) {
     return [
       preferences.areaText,
-      preferences.venueType,
+      preferences.genreName,
       ...preferences.foodTerms
     ].filter(Boolean).join(' ');
+  }
+
+  function getSelectedGenreName() {
+    const option = elements.venueSelect.options[elements.venueSelect.selectedIndex];
+    return option ? option.textContent.trim() : '';
+  }
+
+  function resolveSavedGenreCode(defaults) {
+    if (state.preferences.genreCode) {
+      return state.preferences.genreCode;
+    }
+    if (state.preferences.venueGenreCode) {
+      return state.preferences.venueGenreCode;
+    }
+    if (state.preferences.venueType) {
+      return legacyGenreCode(state.preferences.venueType);
+    }
+    return defaults.GENRE_CODE || 'G001';
+  }
+
+  function legacyGenreCode(value) {
+    const legacyMap = {
+      '居酒屋': 'G001',
+      '大衆居酒屋': 'G001',
+      'バー': 'G012',
+      '立ち飲み': 'G001'
+    };
+    return legacyMap[value] || '';
   }
 
   function search() {

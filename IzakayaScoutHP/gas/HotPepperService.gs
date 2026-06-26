@@ -37,7 +37,7 @@ function searchHotPepperShops_(payload) {
   const results = json.results || {};
   const shops = Array.isArray(results.shop) ? results.shop : [];
   return {
-    query: params.keyword,
+    query: buildSearchSummary_(payload, params),
     resultsAvailable: Number(results.results_available || 0),
     resultsReturned: Number(results.results_returned || shops.length),
     shops: shops.map(normalizeShop_)
@@ -46,8 +46,7 @@ function searchHotPepperShops_(payload) {
 
 function buildHotPepperParams_(apiKey, payload) {
   const terms = [
-    payload.areaText,
-    payload.venueType
+    payload.areaText
   ].concat(payload.foodTerms || [])
     .map(function (term) {
       return String(term || '').trim();
@@ -62,6 +61,8 @@ function buildHotPepperParams_(apiKey, payload) {
     keyword: terms.join(' ')
   };
 
+  params.genre = normalizeGenreCode_(payload);
+
   const features = payload.features || {};
   if (features.card) params.card = 1;
   if (features.privateRoom) params.private_room = 1;
@@ -73,6 +74,33 @@ function buildHotPepperParams_(apiKey, payload) {
   if (features.cocktail) params.cocktail = 1;
 
   return params;
+}
+
+function normalizeGenreCode_(payload) {
+  const code = String(payload.genreCode || '').trim();
+  if (code) {
+    return code;
+  }
+
+  const legacyMap = {
+    '居酒屋': 'G001',
+    '大衆居酒屋': 'G001',
+    'バー': 'G012',
+    '立ち飲み': 'G001'
+  };
+  return legacyMap[payload.venueType] || CONFIG.DEFAULTS.GENRE_CODE || 'G001';
+}
+
+function buildSearchSummary_(payload, params) {
+  return [
+    payload.areaText,
+    payload.genreName
+  ].concat(payload.foodTerms || [])
+    .map(function (term) {
+      return String(term || '').trim();
+    })
+    .filter(Boolean)
+    .join(' ');
 }
 
 function normalizeShop_(shop) {

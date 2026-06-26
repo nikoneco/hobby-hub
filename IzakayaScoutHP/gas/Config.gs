@@ -6,7 +6,7 @@ const CONFIG = {
     RESULT_COUNT: 20
   },
   DEFAULTS: {
-    VENUE_TYPE: '居酒屋',
+    GENRE_CODE: 'G001',
     AREA_TEXT: ''
   }
 };
