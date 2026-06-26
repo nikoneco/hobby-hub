@@ -45,7 +45,7 @@
     const defaults = bootstrap.defaults || {};
     elements.areaInput.value = state.preferences.areaText || defaults.AREA_TEXT || '';
     elements.walkSelect.value = String(state.preferences.walkMinutes || defaults.WALK_MINUTES || 10);
-    elements.sceneSelect.value = state.preferences.scene || defaults.SCENE || '今すぐ';
+    elements.sceneSelect.value = state.preferences.scene || defaults.SCENE || '';
     const checked = new Set(state.preferences.extraTerms || []);
     document.querySelectorAll('.chip-field input[type="checkbox"]').forEach((input) => {
       input.checked = checked.has(input.value);
@@ -115,14 +115,13 @@
   function buildBaseParts(preferences) {
     const locationText = getLocationText(preferences);
     const includeClosed = preferences.extraTerms.includes('営業中以外も可');
-    const sceneTerm = preferences.scene === '今すぐ'
-      ? (includeClosed ? '' : '営業中')
-      : preferences.scene;
+    const openTerm = includeClosed ? '' : '営業中';
     const searchableExtraTerms = preferences.extraTerms.filter((term) => term !== '営業中以外も可');
     return [
       locationText,
       '徒歩' + preferences.walkMinutes + '分',
-      sceneTerm,
+      openTerm,
+      preferences.scene,
       ...searchableExtraTerms
     ].filter(Boolean);
   }

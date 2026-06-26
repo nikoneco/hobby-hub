@@ -5,7 +5,7 @@ const CONFIG = {
   },
   DEFAULTS: {
     WALK_MINUTES: 10,
-    SCENE: '今すぐ',
+    SCENE: '',
     AREA_TEXT: ''
   }
 };
