@@ -5,7 +5,6 @@ const CONFIG = {
   },
   DEFAULTS: {
     WALK_MINUTES: 10,
-    BUDGET: 'ほどほど',
     SCENE: '今すぐ',
     AREA_TEXT: ''
   }

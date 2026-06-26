@@ -10,7 +10,6 @@
   const elements = {
     areaInput: document.getElementById('areaInput'),
     walkSelect: document.getElementById('walkSelect'),
-    budgetSelect: document.getElementById('budgetSelect'),
     sceneSelect: document.getElementById('sceneSelect'),
     locateButton: document.getElementById('locateButton'),
     locationStatus: document.getElementById('locationStatus'),
@@ -21,7 +20,7 @@
   const presets = [
     { label: '無難に探す', icon: '□', terms: ['居酒屋', '評価高い'] },
     { label: '安め', icon: '¥', terms: ['安い', '居酒屋'] },
-    { label: '静かめ', icon: '♪', terms: ['静か', '居酒屋'] },
+    { label: '落ち着いた', icon: '♪', terms: ['落ち着いた', '雰囲気の良い', '居酒屋'] },
     { label: '二軒目', icon: '2', terms: ['二軒目', 'バー', '居酒屋'] }
   ];
 
@@ -32,7 +31,7 @@
   }
 
   function bindEvents() {
-    [elements.areaInput, elements.walkSelect, elements.budgetSelect, elements.sceneSelect].forEach((element) => {
+    [elements.areaInput, elements.walkSelect, elements.sceneSelect].forEach((element) => {
       element.addEventListener('input', handlePreferenceChange);
       element.addEventListener('change', handlePreferenceChange);
     });
@@ -46,7 +45,6 @@
     const defaults = bootstrap.defaults || {};
     elements.areaInput.value = state.preferences.areaText || defaults.AREA_TEXT || '';
     elements.walkSelect.value = String(state.preferences.walkMinutes || defaults.WALK_MINUTES || 10);
-    elements.budgetSelect.value = state.preferences.budget || defaults.BUDGET || 'ほどほど';
     elements.sceneSelect.value = state.preferences.scene || defaults.SCENE || '今すぐ';
     const checked = new Set(state.preferences.extraTerms || []);
     document.querySelectorAll('.chip-field input[type="checkbox"]').forEach((input) => {
@@ -88,7 +86,6 @@
     return {
       areaText: elements.areaInput.value.trim(),
       walkMinutes: Number(elements.walkSelect.value),
-      budget: elements.budgetSelect.value,
       scene: elements.sceneSelect.value,
       extraTerms: Array.from(document.querySelectorAll('.chip-field input[type="checkbox"]:checked'))
         .map((input) => input.value)
@@ -125,7 +122,6 @@
     return [
       locationText,
       '徒歩' + preferences.walkMinutes + '分',
-      preferences.budget,
       sceneTerm,
       ...searchableExtraTerms
     ].filter(Boolean);
