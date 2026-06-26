@@ -10,7 +10,6 @@
   const elements = {
     areaInput: document.getElementById('areaInput'),
     venueSelect: document.getElementById('venueSelect'),
-    walkSelect: document.getElementById('walkSelect'),
     sceneSelect: document.getElementById('sceneSelect'),
     locateButton: document.getElementById('locateButton'),
     locationStatus: document.getElementById('locationStatus'),
@@ -32,7 +31,7 @@
   }
 
   function bindEvents() {
-    [elements.areaInput, elements.venueSelect, elements.walkSelect, elements.sceneSelect].forEach((element) => {
+    [elements.areaInput, elements.venueSelect, elements.sceneSelect].forEach((element) => {
       element.addEventListener('input', handlePreferenceChange);
       element.addEventListener('change', handlePreferenceChange);
     });
@@ -46,7 +45,6 @@
     const defaults = bootstrap.defaults || {};
     elements.areaInput.value = state.preferences.areaText || defaults.AREA_TEXT || '';
     elements.venueSelect.value = state.preferences.venueType || defaults.VENUE_TYPE || '居酒屋';
-    elements.walkSelect.value = String(state.preferences.walkMinutes || defaults.WALK_MINUTES || 10);
     elements.sceneSelect.value = state.preferences.scene || defaults.SCENE || '';
     const checked = new Set(state.preferences.extraTerms || []);
     document.querySelectorAll('.chip-field input[type="checkbox"]').forEach((input) => {
@@ -88,7 +86,6 @@
     return {
       areaText: elements.areaInput.value.trim(),
       venueType: elements.venueSelect.value,
-      walkMinutes: Number(elements.walkSelect.value),
       scene: elements.sceneSelect.value,
       extraTerms: Array.from(document.querySelectorAll('.chip-field input[type="checkbox"]:checked'))
         .map((input) => input.value)
@@ -123,7 +120,6 @@
     return [
       locationText,
       preferences.venueType,
-      '徒歩' + preferences.walkMinutes + '分',
       openTerm,
       preferences.scene,
       ...searchableExtraTerms

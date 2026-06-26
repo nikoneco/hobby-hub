@@ -5,7 +5,6 @@ const CONFIG = {
   },
   DEFAULTS: {
     VENUE_TYPE: '居酒屋',
-    WALK_MINUTES: 10,
     SCENE: '',
     AREA_TEXT: ''
   }
