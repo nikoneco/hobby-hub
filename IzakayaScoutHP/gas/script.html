@@ -11,6 +11,7 @@
     areaInput: document.getElementById('areaInput'),
     venueSelect: document.getElementById('venueSelect'),
     walkSelect: document.getElementById('walkSelect'),
+    smokingSelect: document.getElementById('smokingSelect'),
     setupNotice: document.getElementById('setupNotice'),
     searchButton: document.getElementById('searchButton'),
     queryPreview: document.getElementById('queryPreview'),
@@ -26,7 +27,7 @@
   }
 
   function bindEvents() {
-    [elements.areaInput, elements.venueSelect, elements.walkSelect].forEach((element) => {
+    [elements.areaInput, elements.venueSelect, elements.walkSelect, elements.smokingSelect].forEach((element) => {
       element.addEventListener('input', handlePreferenceChange);
       element.addEventListener('change', handlePreferenceChange);
     });
@@ -44,6 +45,7 @@
       elements.venueSelect.value = defaults.GENRE_CODE || 'G001';
     }
     elements.walkSelect.value = state.preferences.walkMinutesLimit || defaults.WALK_MINUTES || '';
+    elements.smokingSelect.value = state.preferences.smokingPreference || defaults.SMOKING_PREFERENCE || '';
 
     const checked = new Set(state.preferences.checkedValues || []);
     document.querySelectorAll('.chip-field input[type="checkbox"]').forEach((input) => {
@@ -78,6 +80,8 @@
       genreName: getSelectedGenreName(),
       walkMinutesLimit: elements.walkSelect.value,
       walkLabel: getSelectedWalkLabel(),
+      smokingPreference: elements.smokingSelect.value,
+      smokingLabel: getSelectedSmokingLabel(),
       foodTerms,
       features,
       checkedValues: checkedInputs.map((input) => input.value)
@@ -105,8 +109,17 @@
       preferences.areaText,
       preferences.genreName,
       preferences.walkLabel,
+      preferences.smokingLabel,
       ...preferences.foodTerms
     ].filter(Boolean).join(' ');
+  }
+
+  function getSelectedSmokingLabel() {
+    if (!elements.smokingSelect.value) {
+      return '';
+    }
+    const option = elements.smokingSelect.options[elements.smokingSelect.selectedIndex];
+    return option ? option.textContent.trim() : '';
   }
 
   function getSelectedWalkLabel() {
@@ -195,6 +208,7 @@
         detailRow('アクセス', shop.access || ''),
         detailRow('徒歩目安', formatWalkMinutes(shop.walkMinutes)),
         detailRow('住所', shop.address || '', shop.mapsUrl || ''),
+        detailRow('禁煙・喫煙', shop.nonSmoking || ''),
         detailRow('カード', shop.card || ''),
         detailRow('対応カード', formatCreditCards(shop.creditCards)),
         detailRow('営業時間', shop.open || ''),

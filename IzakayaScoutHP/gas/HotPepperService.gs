@@ -37,7 +37,8 @@ function searchHotPepperShops_(payload) {
   const results = json.results || {};
   const shops = Array.isArray(results.shop) ? results.shop : [];
   const normalizedShops = shops.map(normalizeShop_);
-  const filteredShops = filterShopsByWalkMinutes_(normalizedShops, payload);
+  const walkFilteredShops = filterShopsByWalkMinutes_(normalizedShops, payload);
+  const filteredShops = filterShopsBySmokingPreference_(walkFilteredShops, payload);
   return {
     query: buildSearchSummary_(payload, params),
     resultsAvailable: Number(results.results_available || 0),
@@ -69,7 +70,7 @@ function buildHotPepperParams_(apiKey, payload) {
   const features = payload.features || {};
   if (features.card) params.card = 1;
   if (features.privateRoom) params.private_room = 1;
-  if (features.nonSmoking) params.non_smoking = 1;
+  if (features.nonSmoking || payload.smokingPreference === 'non_smoking') params.non_smoking = 1;
   if (features.midnight) params.midnight = 1;
   if (features.sake) params.sake = 1;
   if (features.shochu) params.shochu = 1;
@@ -98,7 +99,8 @@ function buildSearchSummary_(payload, params) {
   return [
     payload.areaText,
     payload.genreName,
-    formatWalkLimitSummary_(payload.walkMinutesLimit)
+    formatWalkLimitSummary_(payload.walkMinutesLimit),
+    formatSmokingSummary_(payload.smokingPreference)
   ].concat(payload.foodTerms || [])
     .map(function (term) {
       return String(term || '').trim();
@@ -120,6 +122,7 @@ function normalizeShop_(shop) {
     address: shop.address || '',
     mapsUrl: buildMapsUrl_(shop),
     budget: shop.budget ? shop.budget.average || shop.budget.name || '' : '',
+    nonSmoking: shop.non_smoking || '',
     card: shop.card || '',
     creditCards: normalizeCreditCards_(shop.credit_card),
     open: shop.open || '',
@@ -130,6 +133,68 @@ function normalizeShop_(shop) {
       mobile: shop.urls && shop.urls.mobile ? shop.urls.mobile : ''
     }
   };
+}
+
+function filterShopsBySmokingPreference_(shops, payload) {
+  const preference = String(payload.smokingPreference || '').trim();
+  if (!preference) {
+    return shops;
+  }
+
+  return shops.filter(function (shop) {
+    const text = normalizeSmokingText_(shop.nonSmoking || '');
+    if (!text) {
+      return false;
+    }
+    if (preference === 'non_smoking') {
+      return hasNonSmokingSeats_(text);
+    }
+    if (preference === 'smoking_allowed') {
+      return allowsSmoking_(text);
+    }
+    if (preference === 'all_smoking') {
+      return isAllSmoking_(text);
+    }
+    if (preference === 'heated_tobacco') {
+      return allowsHeatedTobacco_(text);
+    }
+    return true;
+  });
+}
+
+function formatSmokingSummary_(preference) {
+  const labels = {
+    non_smoking: '禁煙席あり',
+    smoking_allowed: '喫煙可',
+    all_smoking: '全席喫煙可',
+    heated_tobacco: '加熱式たばこ可'
+  };
+  return labels[preference] || '';
+}
+
+function normalizeSmokingText_(value) {
+  return normalizeDigits_(String(value || ''))
+    .replace(/[　\t\r\n]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function hasNonSmokingSeats_(text) {
+  return /禁煙/.test(text) && !/禁煙席なし|禁煙なし/.test(text);
+}
+
+function allowsSmoking_(text) {
+  return isAllSmoking_(text)
+    || /喫煙可|喫煙可能|喫煙席あり|喫煙席有|喫煙専用室あり|一部禁煙|分煙/.test(text)
+    || /禁煙席なし/.test(text);
+}
+
+function isAllSmoking_(text) {
+  return /全席喫煙可|全面喫煙可|全席喫煙可能|全面喫煙可能/.test(text);
+}
+
+function allowsHeatedTobacco_(text) {
+  return /加熱式|加熱式タバコ|電子たばこ|電子タバコ/.test(text);
 }
 
 function filterShopsByWalkMinutes_(shops, payload) {

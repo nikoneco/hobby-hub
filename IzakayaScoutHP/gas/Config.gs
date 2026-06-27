@@ -8,6 +8,7 @@ const CONFIG = {
   DEFAULTS: {
     GENRE_CODE: 'G001',
     WALK_MINUTES: '',
+    SMOKING_PREFERENCE: '',
     AREA_TEXT: ''
   }
 };
