@@ -7,10 +7,15 @@
   <body>
     <div id="app" data-bootstrap='<?= bootstrapJson ?>'>
       <header class="topbar">
-        <div>
+        <div class="topbar-copy">
           <p class="eyebrow">Izakaya Scout</p>
           <h1>居酒屋Scout</h1>
           <p class="lead">場所と気分から、今夜の候補を3つに絞ります。</p>
+        </div>
+        <div class="scout-visual" aria-hidden="true">
+          <div class="scout-mascot-frame">
+            <img class="scout-mascot-image" src="<?!= include('hero_mascot'); ?>" alt="">
+          </div>
         </div>
       </header>
 
