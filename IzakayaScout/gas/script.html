@@ -71,6 +71,7 @@
     if (mustValues.includes('card')) features.card = true;
     if (mustValues.includes('privateRoom')) features.privateRoom = true;
     if (mustValues.includes('midnight')) features.midnight = true;
+    if (mustValues.includes('openNow')) features.openNow = true;
 
     const mood = getSelectedMood();
     const smokingPreference = elements.smokingSelect.value;
@@ -127,7 +128,8 @@
     const labels = {
       card: 'カード可',
       privateRoom: '個室',
-      midnight: '深夜'
+      midnight: '深夜',
+      openNow: '営業中'
     };
     return values.filter((value) => value !== 'walk5').map((value) => labels[value] || '');
   }
@@ -187,6 +189,7 @@
         detailRow('禁煙・喫煙', shop.nonSmoking || ''),
         detailRow('カード', shop.card || ''),
         detailRow('対応カード', formatCreditCards(shop.creditCards)),
+        detailRow('営業状態', shop.openNow ? '営業中' : ''),
         detailRow('営業時間', shop.open || ''),
         detailRow('定休日', shop.close || ''),
         '</dl>',

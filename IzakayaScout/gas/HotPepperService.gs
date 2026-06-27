@@ -39,13 +39,14 @@ function searchHotPepperShops_(payload) {
   const normalizedShops = shops.map(normalizeShop_);
   const walkFilteredShops = filterShopsByWalkMinutes_(normalizedShops, payload);
   const smokingFilteredShops = filterShopsBySmokingPreference_(walkFilteredShops, payload);
-  const rankedShops = selectTopCandidates_(smokingFilteredShops, payload);
+  const openTaggedShops = markOpenNowFiltered_(smokingFilteredShops, payload);
+  const rankedShops = selectTopCandidates_(openTaggedShops, payload);
   return {
     query: buildSearchSummary_(payload, params),
     resultsAvailable: Number(results.results_available || 0),
     resultsReturned: rankedShops.length,
     resultsFetched: normalizedShops.length,
-    resultsMatched: smokingFilteredShops.length,
+    resultsMatched: openTaggedShops.length,
     shops: rankedShops
   };
 }
@@ -75,6 +76,7 @@ function buildHotPepperParams_(apiKey, payload) {
   if (features.privateRoom) params.private_room = 1;
   if (features.nonSmoking || payload.smokingPreference === 'non_smoking') params.non_smoking = 1;
   if (features.midnight) params.midnight = 1;
+  if (features.openNow) params.is_open_time = 'now';
   if (features.sake) params.sake = 1;
   if (features.shochu) params.shochu = 1;
   if (features.wine) params.wine = 1;
@@ -181,6 +183,10 @@ function scoreShop_(shop, payload, mood) {
   if (hasMidnight_(shop.midnight)) {
     score += payload.features && payload.features.midnight ? 12 : 2;
     tags.push('深夜');
+  }
+  if (shop.openNow) {
+    score += payload.features && payload.features.openNow ? 10 : 0;
+    tags.push('営業中');
   }
   if (shop.nonSmoking) {
     tags.push(shop.nonSmoking);
@@ -310,6 +316,7 @@ function buildSearchSummary_(payload, params) {
     payload.areaText,
     getMoodConfig_(payload).label,
     formatWalkLimitSummary_(payload.walkMinutesLimit),
+    formatOpenNowSummary_(payload),
     formatSmokingSummary_(payload.smokingPreference)
   ].concat(payload.foodTerms || [])
     .map(function (term) {
@@ -372,6 +379,23 @@ function filterShopsBySmokingPreference_(shops, payload) {
     }
     return true;
   });
+}
+
+function markOpenNowFiltered_(shops, payload) {
+  const features = payload.features || {};
+  if (!features.openNow) {
+    return shops;
+  }
+  return shops.map(function (shop) {
+    return Object.assign({}, shop, {
+      openNow: true
+    });
+  });
+}
+
+function formatOpenNowSummary_(payload) {
+  const features = payload.features || {};
+  return features.openNow ? '営業中' : '';
 }
 
 function formatSmokingSummary_(preference) {
