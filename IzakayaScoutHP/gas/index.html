@@ -8,54 +8,46 @@
     <div id="app" data-bootstrap='<?= bootstrapJson ?>'>
       <header class="topbar">
         <div>
-          <p class="eyebrow">Hot Pepper Prototype</p>
-          <h1>居酒屋ScoutHP</h1>
-          <p class="lead">ホットペッパーの候補をアプリ内で並べる試作版。</p>
+          <p class="eyebrow">Izakaya Scout</p>
+          <h1>居酒屋Scout</h1>
+          <p class="lead">場所と気分から、今夜の候補を3つに絞ります。</p>
         </div>
       </header>
 
       <main class="app-shell">
         <section class="search-builder" aria-labelledby="builderTitle">
           <div class="section-heading">
-            <p class="eyebrow">Search Builder</p>
-            <h2 id="builderTitle">条件</h2>
+            <p class="eyebrow">Scout Board</p>
+            <h2 id="builderTitle">どこで飲む？</h2>
           </div>
 
           <div id="setupNotice" class="notice hidden"></div>
 
           <label class="field">
             <span>駅名・地名</span>
-            <input id="areaInput" type="text" autocomplete="off" placeholder="例: 上野駅、秋葉原">
+            <input id="areaInput" type="text" autocomplete="off" placeholder="例: 上野、秋葉原、新宿三丁目">
             <em>ホットペッパー版では駅名・地名が必要です。</em>
           </label>
 
-          <label class="field">
-            <span>ジャンル</span>
-            <select id="venueSelect" required>
-              <option value="G001" selected>居酒屋</option>
-              <option value="G002">ダイニングバー・バル</option>
-              <option value="G003">創作料理</option>
-              <option value="G004">和食</option>
-              <option value="G008">焼肉・ホルモン</option>
-              <option value="G012">バー・カクテル</option>
-              <option value="G016">お好み焼き・もんじゃ</option>
-            </select>
-          </label>
+          <fieldset class="choice-field">
+            <legend>今日の気分</legend>
+            <label><input type="radio" name="mood" value="safe" checked>無難にうまい</label>
+            <label><input type="radio" name="mood" value="cheap">安く飲む</label>
+            <label><input type="radio" name="mood" value="second">二軒目</label>
+            <label><input type="radio" name="mood" value="quiet">静かめ</label>
+            <label><input type="radio" name="mood" value="bar">バー寄り</label>
+          </fieldset>
 
-          <label class="field">
-            <span>徒歩目安</span>
-            <select id="walkSelect">
-              <option value="" selected>指定なし</option>
-              <option value="3">3分以内</option>
-              <option value="5">5分以内</option>
-              <option value="10">10分以内</option>
-              <option value="15">15分以内</option>
-            </select>
-            <em>アクセス欄から読み取れる候補だけを絞り込みます。</em>
-          </label>
+          <fieldset class="chip-field">
+            <legend>ゆずれない条件</legend>
+            <label><input type="checkbox" data-kind="must" value="walk5">徒歩5分以内</label>
+            <label><input type="checkbox" data-kind="must" value="card">カード可</label>
+            <label><input type="checkbox" data-kind="must" value="privateRoom">個室</label>
+            <label><input type="checkbox" data-kind="must" value="midnight">深夜</label>
+          </fieldset>
 
-          <label class="field">
-            <span>たばこ</span>
+          <label class="field compact-field">
+            <span>禁煙/喫煙</span>
             <select id="smokingSelect">
               <option value="" selected>指定なし</option>
               <option value="non_smoking">禁煙席あり</option>
@@ -63,45 +55,20 @@
               <option value="all_smoking">全席喫煙可</option>
               <option value="heated_tobacco">加熱式たばこ可</option>
             </select>
-            <em>禁煙席あり以外は、返ってきた禁煙・喫煙情報から絞り込みます。</em>
           </label>
 
-          <fieldset class="chip-field">
-            <legend>食べ物の種類</legend>
-            <label><input type="checkbox" data-kind="food" value="焼き鳥">焼き鳥</label>
-            <label><input type="checkbox" data-kind="food" value="海鮮">海鮮</label>
-            <label><input type="checkbox" data-kind="food" value="肉">肉</label>
-            <label><input type="checkbox" data-kind="food" value="串揚げ">串揚げ</label>
-            <label><input type="checkbox" data-kind="food" value="おでん">おでん</label>
-          </fieldset>
-
-          <fieldset class="chip-field">
-            <legend>酒の種類</legend>
-            <label><input type="checkbox" data-kind="feature" value="sake">日本酒</label>
-            <label><input type="checkbox" data-kind="feature" value="shochu">焼酎</label>
-            <label><input type="checkbox" data-kind="feature" value="wine">ワイン</label>
-            <label><input type="checkbox" data-kind="feature" value="cocktail">カクテル</label>
-          </fieldset>
-
-          <fieldset class="chip-field">
-            <legend>こだわり</legend>
-            <label><input type="checkbox" data-kind="feature" value="card">カード可</label>
-            <label><input type="checkbox" data-kind="feature" value="midnight">深夜営業</label>
-            <label><input type="checkbox" data-kind="feature" value="privateRoom">個室</label>
-          </fieldset>
-
-          <button id="searchButton" class="primary-button" type="button">候補を表示</button>
+          <button id="searchButton" class="primary-button" type="button">候補を3つ出す</button>
         </section>
 
         <section class="result-panel" aria-labelledby="resultsTitle">
           <div class="section-heading result-heading">
             <div>
-              <p class="eyebrow">Shop Cards</p>
+              <p class="eyebrow">Tonight Picks</p>
               <h2 id="resultsTitle">候補</h2>
             </div>
             <span id="resultCount" class="result-count">未検索</span>
           </div>
-          <div id="queryPreview" class="query-preview">条件を入れて検索します。</div>
+          <div id="queryPreview" class="query-preview">場所と気分を入れて候補を出します。</div>
           <div id="resultList" class="shop-list"></div>
         </section>
       </main>

@@ -1,14 +1,14 @@
 <style>
   :root {
     color-scheme: dark;
-    --bg: #121212;
-    --surface: #1e2320;
-    --line: rgba(244, 214, 150, 0.26);
-    --text: #f7f0e4;
-    --muted: #c9c0b2;
-    --accent: #f0b45a;
-    --accent-2: #4fb1a8;
-    --red: #9f3e44;
+    --bg: #160f0d;
+    --surface: #241816;
+    --line: rgba(255, 219, 166, 0.24);
+    --text: #fff6e9;
+    --muted: #d8c7b4;
+    --accent: #f6b04c;
+    --accent-2: #e85d4f;
+    --red: #b9413b;
     --shadow: 0 18px 44px rgba(0, 0, 0, 0.32);
   }
 
@@ -20,8 +20,8 @@
     margin: 0;
     min-height: 100vh;
     background:
-      linear-gradient(90deg, rgba(159, 62, 68, 0.18), transparent 28%, rgba(79, 177, 168, 0.14)),
-      linear-gradient(180deg, #101111 0%, #151715 56%, #111312 100%);
+      radial-gradient(circle at 10% 0%, rgba(232, 93, 79, 0.28), transparent 34%),
+      linear-gradient(180deg, #170d0b 0%, #211512 48%, #140f0d 100%);
     color: var(--text);
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
@@ -36,13 +36,13 @@
     padding: 34px clamp(18px, 5vw, 64px) 26px;
     border-bottom: 1px solid var(--line);
     background:
-      linear-gradient(135deg, rgba(18, 18, 18, 0.96), rgba(44, 32, 29, 0.92)),
+      linear-gradient(135deg, rgba(31, 15, 12, 0.96), rgba(70, 35, 25, 0.9)),
       var(--surface);
   }
 
   .eyebrow {
     margin: 0 0 8px;
-    color: var(--accent-2);
+    color: var(--accent);
     font-size: 12px;
     font-weight: 800;
     letter-spacing: 0;
@@ -87,7 +87,7 @@
   .result-panel {
     border: 1px solid var(--line);
     border-radius: 8px;
-    background: linear-gradient(180deg, rgba(40, 36, 32, 0.94), rgba(26, 30, 27, 0.96));
+    background: linear-gradient(180deg, rgba(45, 28, 23, 0.96), rgba(29, 22, 19, 0.98));
     box-shadow: var(--shadow);
   }
 
@@ -133,7 +133,8 @@
     outline: 2px solid rgba(79, 177, 168, 0.22);
   }
 
-  .chip-field {
+  .chip-field,
+  .choice-field {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
@@ -142,11 +143,13 @@
     border: 0;
   }
 
-  .chip-field:last-of-type {
+  .chip-field:last-of-type,
+  .choice-field:last-of-type {
     margin-bottom: 16px;
   }
 
-  .chip-field legend {
+  .chip-field legend,
+  .choice-field legend {
     width: 100%;
     margin-bottom: 8px;
     color: var(--muted);
@@ -154,7 +157,8 @@
     font-weight: 700;
   }
 
-  .chip-field label {
+  .chip-field label,
+  .choice-field label {
     display: inline-flex;
     align-items: center;
     gap: 7px;
@@ -167,7 +171,8 @@
     font-size: 13px;
   }
 
-  .chip-field input {
+  .chip-field input,
+  .choice-field input {
     width: 15px;
     min-height: 15px;
     accent-color: var(--accent);
@@ -178,7 +183,7 @@
     min-height: 46px;
     border: 1px solid rgba(240, 180, 90, 0.72);
     border-radius: 6px;
-    background: linear-gradient(180deg, #e4b866, #a86938);
+    background: linear-gradient(180deg, #ffbf60, #c6533c);
     color: #1a120d;
     cursor: pointer;
     font-weight: 800;
@@ -232,7 +237,7 @@
     gap: 14px;
     border: 1px solid rgba(247, 240, 228, 0.14);
     border-radius: 8px;
-    background: linear-gradient(180deg, rgba(55, 48, 42, 0.98), rgba(29, 34, 31, 0.98));
+    background: linear-gradient(180deg, rgba(61, 39, 30, 0.98), rgba(28, 22, 19, 0.98));
     padding: 14px;
   }
 
@@ -269,6 +274,29 @@
     margin-bottom: 8px;
   }
 
+  .pick-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .pick-line span {
+    border-radius: 4px;
+    background: var(--accent-2);
+    color: #fff7ef;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: 900;
+  }
+
+  .pick-line em {
+    color: var(--muted);
+    font-size: 12px;
+    font-style: normal;
+  }
+
   .shop-meta span {
     border: 1px solid rgba(247, 240, 228, 0.14);
     border-radius: 999px;
@@ -287,6 +315,22 @@
     margin-bottom: 10px;
     color: var(--accent);
     line-height: 1.5;
+  }
+
+  .reason-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .reason-tags span {
+    border: 1px solid rgba(246, 176, 76, 0.26);
+    border-radius: 4px;
+    background: rgba(246, 176, 76, 0.1);
+    color: var(--text);
+    padding: 4px 7px;
+    font-size: 12px;
   }
 
   dl {

@@ -38,20 +38,23 @@ function searchHotPepperShops_(payload) {
   const shops = Array.isArray(results.shop) ? results.shop : [];
   const normalizedShops = shops.map(normalizeShop_);
   const walkFilteredShops = filterShopsByWalkMinutes_(normalizedShops, payload);
-  const filteredShops = filterShopsBySmokingPreference_(walkFilteredShops, payload);
+  const smokingFilteredShops = filterShopsBySmokingPreference_(walkFilteredShops, payload);
+  const rankedShops = selectTopCandidates_(smokingFilteredShops, payload);
   return {
     query: buildSearchSummary_(payload, params),
     resultsAvailable: Number(results.results_available || 0),
-    resultsReturned: filteredShops.length,
+    resultsReturned: rankedShops.length,
     resultsFetched: normalizedShops.length,
-    shops: filteredShops
+    resultsMatched: smokingFilteredShops.length,
+    shops: rankedShops
   };
 }
 
 function buildHotPepperParams_(apiKey, payload) {
+  const mood = getMoodConfig_(payload);
   const terms = [
     payload.areaText
-  ].concat(payload.foodTerms || [])
+  ].concat(mood.keywordTerms || [], payload.foodTerms || [])
     .map(function (term) {
       return String(term || '').trim();
     })
@@ -65,7 +68,7 @@ function buildHotPepperParams_(apiKey, payload) {
     keyword: terms.join(' ')
   };
 
-  params.genre = normalizeGenreCode_(payload);
+  params.genre = mood.genreCode || normalizeGenreCode_(payload);
 
   const features = payload.features || {};
   if (features.card) params.card = 1;
@@ -95,10 +98,217 @@ function normalizeGenreCode_(payload) {
   return legacyMap[payload.venueType] || CONFIG.DEFAULTS.GENRE_CODE || 'G001';
 }
 
+function getMoodConfig_(payload) {
+  const mood = String(payload.mood || CONFIG.DEFAULTS.MOOD || 'safe');
+  const configs = {
+    safe: {
+      code: 'safe',
+      label: '無難にうまい',
+      genreCode: 'G001',
+      keywordTerms: []
+    },
+    cheap: {
+      code: 'cheap',
+      label: '安く飲む',
+      genreCode: 'G001',
+      keywordTerms: ['安い']
+    },
+    second: {
+      code: 'second',
+      label: '二軒目',
+      genreCode: 'G012',
+      keywordTerms: ['二次会']
+    },
+    quiet: {
+      code: 'quiet',
+      label: '静かめ',
+      genreCode: 'G001',
+      keywordTerms: ['落ち着いた']
+    },
+    bar: {
+      code: 'bar',
+      label: 'バー寄り',
+      genreCode: 'G012',
+      keywordTerms: []
+    }
+  };
+  return configs[mood] || configs.safe;
+}
+
+function selectTopCandidates_(shops, payload) {
+  const mood = getMoodConfig_(payload);
+  return shops
+    .map(function (shop) {
+      const scored = Object.assign({}, shop);
+      const score = scoreShop_(shop, payload, mood);
+      scored.score = score.value;
+      scored.reasonTags = score.tags;
+      return scored;
+    })
+    .sort(function (a, b) {
+      return b.score - a.score;
+    })
+    .slice(0, CONFIG.HOTPEPPER.RETURN_COUNT)
+    .map(function (shop, index) {
+      const labels = ['本命', '対抗', '穴場'];
+      return Object.assign({}, shop, {
+        pickLabel: labels[index] || '候補',
+        pickReason: buildPickReason_(shop, mood)
+      });
+    });
+}
+
+function scoreShop_(shop, payload, mood) {
+  let score = 0;
+  const tags = [];
+
+  score += scoreAreaFit_(shop, payload);
+
+  if (shop.walkMinutes != null) {
+    const walkScore = Math.max(0, 14 - Number(shop.walkMinutes));
+    score += walkScore;
+    tags.push(Number(shop.walkMinutes) === 0 ? '徒歩1分未満' : '徒歩' + shop.walkMinutes + '分');
+  }
+
+  if (isCardUsable_(shop.card)) {
+    score += payload.features && payload.features.card ? 14 : 4;
+    tags.push('カード可');
+  }
+  if (hasPrivateRoom_(shop.privateRoom)) {
+    score += payload.features && payload.features.privateRoom ? 14 : 3;
+    tags.push('個室');
+  }
+  if (hasMidnight_(shop.midnight)) {
+    score += payload.features && payload.features.midnight ? 12 : 2;
+    tags.push('深夜');
+  }
+  if (shop.nonSmoking) {
+    tags.push(shop.nonSmoking);
+  }
+
+  score += scoreMoodFit_(shop, mood, tags);
+  if (shop.photo) score += 1;
+  if (shop.catchText) score += 1;
+
+  return {
+    value: score,
+    tags: tags.slice(0, 5)
+  };
+}
+
+function scoreAreaFit_(shop, payload) {
+  const anchor = extractAreaAnchor_(payload.areaText);
+  if (!anchor) {
+    return 0;
+  }
+
+  const station = normalizeAreaText_(shop.station).replace(/駅$/, '');
+  const address = normalizeAreaText_(shop.address);
+  const access = normalizeAreaText_(shop.access);
+  const text = [station, address, access].join(' ');
+
+  if (station === anchor) {
+    return 18;
+  }
+  if (isDifferentPrefixedArea_(station, anchor) || isDifferentPrefixedArea_(text, anchor)) {
+    return -18;
+  }
+  if (address.indexOf(anchor) !== -1 || access.indexOf(anchor + '駅') !== -1) {
+    return 8;
+  }
+  if (station.indexOf(anchor) !== -1) {
+    return 3;
+  }
+  return 0;
+}
+
+function extractAreaAnchor_(areaText) {
+  const text = normalizeAreaText_(areaText).replace(/駅$/, '');
+  if (!text || text.length < 2) {
+    return '';
+  }
+  return text;
+}
+
+function normalizeAreaText_(value) {
+  return normalizeDigits_(String(value || ''))
+    .replace(/[　\s]+/g, '')
+    .trim();
+}
+
+function isDifferentPrefixedArea_(text, anchor) {
+  if (!text || !anchor || anchor.charAt(0) === '新') {
+    return false;
+  }
+  return text.indexOf('新' + anchor) !== -1;
+}
+
+function scoreMoodFit_(shop, mood, tags) {
+  const haystack = [
+    shop.genre,
+    shop.catchText,
+    shop.budget,
+    shop.name,
+    shop.access
+  ].join(' ');
+  if (mood.code === 'cheap') {
+    if (/安|リーズナブル|せんべろ|コスパ|お得|飲み放題/.test(haystack)) {
+      tags.push('安め');
+      return 8;
+    }
+    return 2;
+  }
+  if (mood.code === 'second') {
+    if (/バー|カクテル|二次会|2次会|深夜|駅近/.test(haystack)) {
+      tags.push('二軒目向き');
+      return 8;
+    }
+    return 2;
+  }
+  if (mood.code === 'quiet') {
+    if (/落ち着|隠れ家|個室|静|大人|ゆったり/.test(haystack)) {
+      tags.push('落ち着き');
+      return 8;
+    }
+    return 2;
+  }
+  if (mood.code === 'bar') {
+    if (/バー|カクテル|ワイン|ダイニングバー/.test(haystack)) {
+      tags.push('バー寄り');
+      return 9;
+    }
+    return 2;
+  }
+  tags.push('無難');
+  return 5;
+}
+
+function buildPickReason_(shop, mood) {
+  const bits = [];
+  if (shop.walkMinutes != null) {
+    bits.push(Number(shop.walkMinutes) === 0 ? '駅すぐ' : '徒歩' + shop.walkMinutes + '分');
+  }
+  if (isCardUsable_(shop.card)) bits.push('カード可');
+  if (mood.label) bits.push(mood.label);
+  return bits.slice(0, 3).join(' / ');
+}
+
+function isCardUsable_(cardText) {
+  return /利用可|可|VISA|JCB|マスター|Master|AMEX|アメックス|DINERS/i.test(String(cardText || ''));
+}
+
+function hasPrivateRoom_(text) {
+  return /あり|有|個室/.test(String(text || '')) && !/なし|無し|無/.test(String(text || ''));
+}
+
+function hasMidnight_(text) {
+  return /営業|可|あり|有/.test(String(text || '')) && !/なし|無し|無/.test(String(text || ''));
+}
+
 function buildSearchSummary_(payload, params) {
   return [
     payload.areaText,
-    payload.genreName,
+    getMoodConfig_(payload).label,
     formatWalkLimitSummary_(payload.walkMinutesLimit),
     formatSmokingSummary_(payload.smokingPreference)
   ].concat(payload.foodTerms || [])
@@ -122,6 +332,8 @@ function normalizeShop_(shop) {
     address: shop.address || '',
     mapsUrl: buildMapsUrl_(shop),
     budget: shop.budget ? shop.budget.average || shop.budget.name || '' : '',
+    privateRoom: shop.private_room || '',
+    midnight: shop.midnight || '',
     nonSmoking: shop.non_smoking || '',
     card: shop.card || '',
     creditCards: normalizeCreditCards_(shop.credit_card),

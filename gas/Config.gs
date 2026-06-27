@@ -40,10 +40,10 @@ const CONFIG = {
     IZAKAYA_SCOUT: {
       MODULE_ID: 'izakaya_scout',
       NAME: '居酒屋Scout',
-      DESCRIPTION: '現在地や駅から、今すぐ行ける居酒屋検索を開く',
-      WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbz6JdN9R-WSetCdw4XDlPOTgwWPS8WpqfdlPXKsNEFosEK5pK5suDaJU4v7jLj8H0sE/exec',
-      FOLDER_ID: '1RD2Hbp3n4C1f9HgDTPbRyuHCEmqscjvY',
-      SCRIPT_ID: '1jOmEUFlVEWq57qdYTWNDXdL5znnQXTaKPyytIbPqAsE_wZ74Uk-NBXuC',
+      DESCRIPTION: '場所と気分から、今夜の居酒屋候補を3つに絞る',
+      WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbwzeUjS7KakeQJbJNE83WupMhVT9Qid2gWHh-9jw0hepywdAE5Y5RIgPEUcCnEFEOE/exec',
+      FOLDER_ID: '1o5UTjEEwogCUxdVL7vEL0bqdBaeAHFwz',
+      SCRIPT_ID: '1Q_h7s1zPIiyC7vSq5o9_a_5H1giDsmLzGQTYYrD8QR4R7BkOaPWMw9NP',
       ICON: 'map',
       DISPLAY_ORDER: 4
     },
