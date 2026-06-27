@@ -14,7 +14,34 @@ function include(filename) {
 function getClientBootstrap_() {
   return {
     appName: CONFIG.APP_NAME,
-    mapsSearchBaseUrl: CONFIG.MAPS.SEARCH_BASE_URL,
+    setup: getSetupStatus_(),
     defaults: CONFIG.DEFAULTS
   };
+}
+
+function apiSearchShops(payload) {
+  return safeRun_('apiSearchShops', function () {
+    return searchHotPepperShops_(payload || {});
+  });
+}
+
+function apiGetSetupStatus() {
+  return safeRun_('apiGetSetupStatus', getSetupStatus_);
+}
+
+function safeRun_(label, callback) {
+  try {
+    return {
+      ok: true,
+      data: callback()
+    };
+  } catch (error) {
+    console.error(label + ': ' + (error && error.stack ? error.stack : error));
+    return {
+      ok: false,
+      error: {
+        message: error && error.message ? error.message : String(error)
+      }
+    };
+  }
 }

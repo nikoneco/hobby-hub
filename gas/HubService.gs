@@ -10,12 +10,20 @@ function getModules() {
     .filter(function (module) {
       return module.enabled === true || module.enabled === 'TRUE' || module.enabled === 'true';
     })
-    .filter(function (module) {
-      return String(module.module_id) !== CONFIG.APPS.IZAKAYA_SCOUT_HP.MODULE_ID;
-    })
     .sort(function (a, b) {
       return Number(a.display_order || 0) - Number(b.display_order || 0);
-    });
+    })
+    .filter(uniqueByTargetUrl_);
+}
+
+function uniqueByTargetUrl_(module, index, modules) {
+  const targetUrl = String(module.target_url || '').trim();
+  if (!targetUrl) {
+    return true;
+  }
+  return modules.findIndex(function (candidate) {
+    return String(candidate.target_url || '').trim() === targetUrl;
+  }) === index;
 }
 
 function applyDefaultModuleConfig_(modules) {

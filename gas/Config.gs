@@ -46,16 +46,6 @@ const CONFIG = {
       SCRIPT_ID: '1Q_h7s1zPIiyC7vSq5o9_a_5H1giDsmLzGQTYYrD8QR4R7BkOaPWMw9NP',
       ICON: 'map',
       DISPLAY_ORDER: 4
-    },
-    IZAKAYA_SCOUT_HP: {
-      MODULE_ID: 'izakaya_scout_hp',
-      NAME: '居酒屋ScoutHP',
-      DESCRIPTION: 'ホットペッパーAPIで店候補をアプリ内に表示',
-      WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbwzeUjS7KakeQJbJNE83WupMhVT9Qid2gWHh-9jw0hepywdAE5Y5RIgPEUcCnEFEOE/exec',
-      FOLDER_ID: '1o5UTjEEwogCUxdVL7vEL0bqdBaeAHFwz',
-      SCRIPT_ID: '1Q_h7s1zPIiyC7vSq5o9_a_5H1giDsmLzGQTYYrD8QR4R7BkOaPWMw9NP',
-      ICON: 'hotpepper',
-      DISPLAY_ORDER: 5
     }
   }
 };
