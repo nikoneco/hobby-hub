@@ -214,7 +214,10 @@
       '<div class="shop-meta"><span>' + escapeHtml(shop.genre || 'ジャンル未設定') + '</span><span>' + escapeHtml(shop.budget || '予算未設定') + '</span></div>',
       '<h3>' + escapeHtml(shop.name || '名称未設定') + '</h3>',
       renderReasonTags(shop.reasonTags),
+      renderGlanceItems(shop),
       shop.catchText ? '<p class="catch">' + escapeHtml(shop.catchText) + '</p>' : '',
+      '<details class="shop-details">',
+      '<summary>詳しく見る</summary>',
       '<dl>',
       detailRow('最寄り', shop.station || ''),
       detailRow('アクセス', shop.access || ''),
@@ -227,6 +230,7 @@
       detailRow('営業時間', shop.open || ''),
       detailRow('定休日', shop.close || ''),
       '</dl>',
+      '</details>',
       '<div class="shop-actions">',
       '<button class="card-action decide-action" type="button">ここにする</button>',
       '<button class="card-action keep-action" type="button">' + escapeHtml(isKept(shop.id) ? 'キープ中' : 'キープ') + '</button>',
@@ -247,7 +251,7 @@
     let dragging = false;
 
     card.addEventListener('pointerdown', (event) => {
-      if (event.target.closest('a, button')) {
+      if (event.target.closest('a, button, summary')) {
         return;
       }
       startX = event.clientX;
@@ -522,6 +526,24 @@
       return '';
     }
     return '<div class="reason-tags">' + tags.map((tag) => '<span>' + escapeHtml(tag) + '</span>').join('') + '</div>';
+  }
+
+  function renderGlanceItems(shop) {
+    const items = [
+      formatWalkMinutes(shop.walkMinutes),
+      isCardUsableText(shop.card) ? 'カード可' : '',
+      shop.nonSmoking || '',
+      shop.openNow ? '営業中' : '',
+      shop.station ? shop.station + '駅' : ''
+    ].filter(Boolean).slice(0, 4);
+    if (!items.length) {
+      return '';
+    }
+    return '<div class="glance-row">' + items.map((item) => '<span>' + escapeHtml(item) + '</span>').join('') + '</div>';
+  }
+
+  function isCardUsableText(cardText) {
+    return /利用可|可|VISA|JCB|マスター|Master|AMEX|アメックス|DINERS/i.test(String(cardText || ''));
   }
 
   function detailRow(label, value, href) {

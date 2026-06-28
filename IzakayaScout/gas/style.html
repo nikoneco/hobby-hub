@@ -477,6 +477,7 @@
 
   .shop-photo {
     min-height: 126px;
+    aspect-ratio: 1 / 1;
     overflow: hidden;
     border-radius: 6px;
     background: rgba(247, 240, 228, 0.06);
@@ -546,9 +547,13 @@
   }
 
   .catch {
+    display: -webkit-box;
     margin-bottom: 10px;
     color: var(--accent);
     line-height: 1.5;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
   }
 
   .reason-tags {
@@ -567,10 +572,55 @@
     font-size: 12px;
   }
 
+  .glance-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .glance-row span {
+    border: 1px solid rgba(79, 177, 168, 0.28);
+    border-radius: 999px;
+    background: rgba(79, 177, 168, 0.1);
+    color: var(--text);
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .shop-details {
+    margin-bottom: 12px;
+  }
+
+  .shop-details summary {
+    display: inline-flex;
+    min-height: 32px;
+    align-items: center;
+    border: 1px solid rgba(247, 240, 228, 0.14);
+    border-radius: 999px;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 800;
+    list-style: none;
+  }
+
+  .shop-details summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .shop-details[open] summary {
+    margin-bottom: 10px;
+    border-color: rgba(246, 176, 76, 0.38);
+    color: var(--accent);
+  }
+
   dl {
     display: grid;
     gap: 6px;
-    margin: 0 0 12px;
+    margin: 0;
   }
 
   dl div {
@@ -667,9 +717,41 @@
       width: min(58vw, 190px);
     }
 
-    .app-shell,
-    .shop-card {
+    .app-shell {
       grid-template-columns: 1fr;
+    }
+
+    .shop-card {
+      grid-template-columns: 96px minmax(0, 1fr);
+      gap: 12px;
+      padding: 12px;
+    }
+
+    .shop-photo,
+    .photo-placeholder {
+      min-height: 96px;
+    }
+
+    .shop-card h3 {
+      font-size: 18px;
+    }
+
+    .pick-line,
+    .shop-meta,
+    .reason-tags,
+    .glance-row {
+      gap: 5px;
+    }
+
+    .shop-actions {
+      gap: 7px;
+    }
+
+    .decision-actions a,
+    .decision-actions button,
+    .card-action,
+    .shop-link {
+      flex: 1 1 calc(50% - 7px);
     }
   }
 </style>
