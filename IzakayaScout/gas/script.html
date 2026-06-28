@@ -4,7 +4,10 @@
   const storageKey = 'izakayaScout.preferences.v2';
   const state = {
     preferences: loadPreferences(),
-    searching: false
+    searching: false,
+    visibleShops: [],
+    backupShops: [],
+    lastResultMeta: null
   };
 
   const moodLabels = {
@@ -156,9 +159,16 @@
   }
 
   function renderResults(data) {
-    const shops = data.shops || [];
-    elements.resultCount.textContent = formatResultCount(data, shops.length);
+    state.lastResultMeta = data;
+    state.visibleShops = (data.shops || []).slice();
+    state.backupShops = (data.backupShops || []).slice();
     elements.queryPreview.textContent = data.query || '';
+    renderShopList();
+    refreshResultCount();
+  }
+
+  function renderShopList() {
+    const shops = state.visibleShops;
     elements.resultList.innerHTML = '';
 
     if (!shops.length) {
@@ -166,38 +176,132 @@
       return;
     }
 
-    shops.forEach((shop) => {
-      const card = document.createElement('article');
-      card.className = 'shop-card';
-      const photo = shop.photo
-        ? '<img src="' + escapeHtml(shop.photo) + '" alt="">'
-        : '<div class="photo-placeholder">HP</div>';
-      const url = shop.urls && shop.urls.pc ? shop.urls.pc : '';
-      card.innerHTML = [
-        '<div class="shop-photo">' + photo + '</div>',
-        '<div class="shop-body">',
-        '<div class="pick-line"><span>' + escapeHtml(shop.pickLabel || '') + '</span><em>' + escapeHtml(shop.pickReason || '') + '</em></div>',
-        '<div class="shop-meta"><span>' + escapeHtml(shop.genre || 'ジャンル未設定') + '</span><span>' + escapeHtml(shop.budget || '予算未設定') + '</span></div>',
-        '<h3>' + escapeHtml(shop.name || '名称未設定') + '</h3>',
-        renderReasonTags(shop.reasonTags),
-        shop.catchText ? '<p class="catch">' + escapeHtml(shop.catchText) + '</p>' : '',
-        '<dl>',
-        detailRow('最寄り', shop.station || ''),
-        detailRow('アクセス', shop.access || ''),
-        detailRow('徒歩目安', formatWalkMinutes(shop.walkMinutes)),
-        detailRow('住所', shop.address || '', shop.mapsUrl || ''),
-        detailRow('禁煙・喫煙', shop.nonSmoking || ''),
-        detailRow('カード', shop.card || ''),
-        detailRow('対応カード', formatCreditCards(shop.creditCards)),
-        detailRow('営業状態', shop.openNow ? '営業中' : ''),
-        detailRow('営業時間', shop.open || ''),
-        detailRow('定休日', shop.close || ''),
-        '</dl>',
-        url ? '<a class="shop-link" href="' + escapeHtml(url) + '" target="_blank" rel="noopener">Hot Pepperで開く</a>' : '',
-        '</div>'
-      ].join('');
+    shops.forEach((shop, index) => {
+      const card = renderShopCard(shop, index);
       elements.resultList.appendChild(card);
     });
+  }
+
+  function renderShopCard(shop, index) {
+    const card = document.createElement('article');
+    card.className = 'shop-card';
+    card.dataset.shopId = shop.id || '';
+    const photo = shop.photo
+      ? '<img src="' + escapeHtml(shop.photo) + '" alt="">'
+      : '<div class="photo-placeholder">HP</div>';
+    const url = shop.urls && shop.urls.pc ? shop.urls.pc : '';
+    card.innerHTML = [
+      '<button class="dismiss-button" type="button" aria-label="この店を候補から外す" title="この店を候補から外す">×</button>',
+      '<div class="shop-photo">' + photo + '</div>',
+      '<div class="shop-body">',
+      '<div class="pick-line"><span>' + escapeHtml(formatPickLabel(index)) + '</span><em>' + escapeHtml(shop.pickReason || '') + '</em></div>',
+      '<div class="shop-meta"><span>' + escapeHtml(shop.genre || 'ジャンル未設定') + '</span><span>' + escapeHtml(shop.budget || '予算未設定') + '</span></div>',
+      '<h3>' + escapeHtml(shop.name || '名称未設定') + '</h3>',
+      renderReasonTags(shop.reasonTags),
+      shop.catchText ? '<p class="catch">' + escapeHtml(shop.catchText) + '</p>' : '',
+      '<dl>',
+      detailRow('最寄り', shop.station || ''),
+      detailRow('アクセス', shop.access || ''),
+      detailRow('徒歩目安', formatWalkMinutes(shop.walkMinutes)),
+      detailRow('住所', shop.address || '', shop.mapsUrl || ''),
+      detailRow('禁煙・喫煙', shop.nonSmoking || ''),
+      detailRow('カード', shop.card || ''),
+      detailRow('対応カード', formatCreditCards(shop.creditCards)),
+      detailRow('営業状態', shop.openNow ? '営業中' : ''),
+      detailRow('営業時間', shop.open || ''),
+      detailRow('定休日', shop.close || ''),
+      '</dl>',
+      url ? '<a class="shop-link" href="' + escapeHtml(url) + '" target="_blank" rel="noopener">Hot Pepperで開く</a>' : '',
+      '</div>'
+    ].join('');
+    card.querySelector('.dismiss-button').addEventListener('click', () => dismissShop(shop.id, card));
+    bindSwipeDismiss(card, shop);
+    return card;
+  }
+
+  function bindSwipeDismiss(card, shop) {
+    let startX = 0;
+    let startY = 0;
+    let dragging = false;
+
+    card.addEventListener('pointerdown', (event) => {
+      if (event.target.closest('a, button')) {
+        return;
+      }
+      startX = event.clientX;
+      startY = event.clientY;
+      dragging = true;
+      card.classList.add('is-dragging');
+      card.setPointerCapture(event.pointerId);
+    });
+
+    card.addEventListener('pointermove', (event) => {
+      if (!dragging) {
+        return;
+      }
+      const deltaX = event.clientX - startX;
+      const deltaY = event.clientY - startY;
+      if (Math.abs(deltaX) < 8 || Math.abs(deltaY) > 96) {
+        return;
+      }
+      const limitedX = Math.min(28, Math.max(-150, deltaX));
+      card.style.transform = 'translateX(' + limitedX + 'px) rotate(' + (limitedX / 38) + 'deg)';
+      card.style.opacity = String(Math.max(0.42, 1 - Math.abs(limitedX) / 210));
+    });
+
+    card.addEventListener('pointerup', (event) => {
+      if (!dragging) {
+        return;
+      }
+      dragging = false;
+      card.classList.remove('is-dragging');
+      const deltaX = event.clientX - startX;
+      const deltaY = event.clientY - startY;
+      if (deltaX < -90 && Math.abs(deltaY) < 96) {
+        dismissShop(shop.id, card);
+        return;
+      }
+      resetCardPosition(card);
+    });
+
+    card.addEventListener('pointercancel', () => {
+      dragging = false;
+      card.classList.remove('is-dragging');
+      resetCardPosition(card);
+    });
+  }
+
+  function dismissShop(shopId, card) {
+    if (!shopId) {
+      return;
+    }
+    if (card) {
+      card.classList.add('is-dismissing');
+      card.style.transform = 'translateX(-120%) rotate(-5deg)';
+      card.style.opacity = '0';
+      setTimeout(() => replaceDismissedShop(shopId), 180);
+      return;
+    }
+    replaceDismissedShop(shopId);
+  }
+
+  function replaceDismissedShop(shopId) {
+    state.visibleShops = state.visibleShops.filter((shop) => shop.id !== shopId);
+    const replacement = state.backupShops.shift();
+    if (replacement) {
+      state.visibleShops.push(replacement);
+    }
+    renderShopList();
+    refreshResultCount();
+  }
+
+  function resetCardPosition(card) {
+    card.style.transform = '';
+    card.style.opacity = '';
+  }
+
+  function formatPickLabel(index) {
+    return ['本命', '対抗', '穴場'][index] || '候補';
   }
 
   function renderReasonTags(tags) {
@@ -220,10 +324,18 @@
   function formatResultCount(data, visibleCount) {
     const fetchedCount = Number(data.resultsFetched || visibleCount);
     const base = visibleCount + '件提案';
+    const reserveCount = state.backupShops.length;
+    if (reserveCount > 0) {
+      return base + ' / 控え' + reserveCount + '件 / 取得' + fetchedCount + '件';
+    }
     if (fetchedCount !== visibleCount) {
       return base + ' / 取得' + fetchedCount + '件 / 全' + data.resultsAvailable + '件';
     }
     return base + ' / 全' + data.resultsAvailable + '件';
+  }
+
+  function refreshResultCount() {
+    elements.resultCount.textContent = formatResultCount(state.lastResultMeta || {}, state.visibleShops.length);
   }
 
   function formatCreditCards(creditCards) {
@@ -252,6 +364,9 @@
   }
 
   function showError(message) {
+    state.visibleShops = [];
+    state.backupShops = [];
+    state.lastResultMeta = null;
     elements.resultCount.textContent = 'エラー';
     elements.resultList.innerHTML = '<p class="empty">' + escapeHtml(message) + '</p>';
   }

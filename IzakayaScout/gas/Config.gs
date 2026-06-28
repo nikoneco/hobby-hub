@@ -4,7 +4,8 @@ const CONFIG = {
     API_URL: 'https://webservice.recruit.co.jp/hotpepper/gourmet/v1/',
     API_KEY_PROPERTY: 'HOTPEPPER_API_KEY',
     RESULT_COUNT: 30,
-    RETURN_COUNT: 3
+    RETURN_COUNT: 3,
+    POOL_COUNT: 12
   },
   DEFAULTS: {
     GENRE_CODE: 'G001',

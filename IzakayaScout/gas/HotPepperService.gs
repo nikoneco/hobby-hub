@@ -40,14 +40,18 @@ function searchHotPepperShops_(payload) {
   const walkFilteredShops = filterShopsByWalkMinutes_(normalizedShops, payload);
   const smokingFilteredShops = filterShopsBySmokingPreference_(walkFilteredShops, payload);
   const openTaggedShops = markOpenNowFiltered_(smokingFilteredShops, payload);
-  const rankedShops = selectTopCandidates_(openTaggedShops, payload);
+  const rankedShops = selectTopCandidates_(openTaggedShops, payload, CONFIG.HOTPEPPER.POOL_COUNT);
+  const visibleShops = rankedShops.slice(0, CONFIG.HOTPEPPER.RETURN_COUNT);
+  const backupShops = rankedShops.slice(CONFIG.HOTPEPPER.RETURN_COUNT);
   return {
     query: buildSearchSummary_(payload, params),
     resultsAvailable: Number(results.results_available || 0),
-    resultsReturned: rankedShops.length,
+    resultsReturned: visibleShops.length,
+    resultsPool: rankedShops.length,
     resultsFetched: normalizedShops.length,
     resultsMatched: openTaggedShops.length,
-    shops: rankedShops
+    shops: visibleShops,
+    backupShops: backupShops
   };
 }
 
@@ -137,7 +141,7 @@ function getMoodConfig_(payload) {
   return configs[mood] || configs.safe;
 }
 
-function selectTopCandidates_(shops, payload) {
+function selectTopCandidates_(shops, payload, limit) {
   const mood = getMoodConfig_(payload);
   return shops
     .map(function (shop) {
@@ -150,7 +154,7 @@ function selectTopCandidates_(shops, payload) {
     .sort(function (a, b) {
       return b.score - a.score;
     })
-    .slice(0, CONFIG.HOTPEPPER.RETURN_COUNT)
+    .slice(0, limit || CONFIG.HOTPEPPER.RETURN_COUNT)
     .map(function (shop, index) {
       const labels = ['本命', '対抗', '穴場'];
       return Object.assign({}, shop, {

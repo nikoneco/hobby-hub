@@ -309,6 +309,7 @@
   }
 
   .shop-card {
+    position: relative;
     display: grid;
     grid-template-columns: 150px minmax(0, 1fr);
     gap: 14px;
@@ -316,6 +317,41 @@
     border-radius: 8px;
     background: linear-gradient(180deg, rgba(61, 39, 30, 0.98), rgba(28, 22, 19, 0.98));
     padding: 14px;
+    touch-action: pan-y;
+    transition: transform 180ms ease, opacity 180ms ease, border-color 180ms ease;
+  }
+
+  .shop-card.is-dragging {
+    cursor: grabbing;
+    transition: none;
+  }
+
+  .shop-card.is-dismissing {
+    pointer-events: none;
+  }
+
+  .dismiss-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 2;
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid rgba(247, 240, 228, 0.16);
+    border-radius: 999px;
+    background: rgba(8, 9, 9, 0.5);
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  .dismiss-button:hover {
+    border-color: rgba(232, 93, 79, 0.7);
+    background: rgba(232, 93, 79, 0.22);
+    color: var(--text);
   }
 
   .shop-photo {
