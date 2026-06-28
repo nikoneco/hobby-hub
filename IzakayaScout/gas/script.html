@@ -459,6 +459,7 @@
       shop.mapsUrl ? '<a class="shop-link map-link" href="' + escapeHtml(shop.mapsUrl) + '" target="_blank" rel="noopener">地図で見る</a>' : '',
       telUrl ? '<a class="shop-link tel-link" href="' + escapeHtml(telUrl) + '">電話</a>' : '',
       url ? '<a class="shop-link hp-link" href="' + escapeHtml(url) + '" target="_blank" rel="noopener">Hot Pepper</a>' : '',
+      state.backupShops.length ? '<button class="shop-link swap-link" type="button" data-replace-index="' + index + '">この店だけ別案</button>' : '',
       '</div>',
       '</div>'
     ].join('');
@@ -648,6 +649,19 @@
     vibrate(14);
   }
 
+  function replaceCandidate(index) {
+    if (!state.backupShops.length || index < 0 || index >= state.visibleShops.length) {
+      return;
+    }
+    const nextShop = state.backupShops.shift();
+    state.visibleShops.splice(index, 1, nextShop);
+    hideActionToast();
+    renderShopList();
+    refreshResultCount();
+    showActionToast('1件だけ差し替えました');
+    vibrate(10);
+  }
+
   function hideActionToast() {
     clearToastTimer();
     elements.actionToast.classList.add('hidden');
@@ -831,6 +845,12 @@
   }
 
   function handleResultListClick(event) {
+    const replaceButton = event.target.closest('button[data-replace-index]');
+    if (replaceButton && elements.resultList.contains(replaceButton) && !state.searching) {
+      replaceCandidate(Number(replaceButton.dataset.replaceIndex));
+      return;
+    }
+
     const button = event.target.closest('button[data-relax]');
     if (!button || !elements.resultList.contains(button) || state.searching) {
       return;
