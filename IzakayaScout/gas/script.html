@@ -452,6 +452,8 @@
       '<details class="shop-details">',
       '<summary>詳しく見る</summary>',
       '<dl>',
+      detailRow('予算', shop.budget || ''),
+      detailRow('予算目安', formatBudgetEstimate(shop.budgetEstimatedYen)),
       detailRow('最寄り', shop.station || ''),
       detailRow('アクセス', shop.access || ''),
       detailRow('徒歩目安', formatWalkMinutes(shop.walkMinutes)),
@@ -777,11 +779,13 @@
     ].filter(Boolean).join('\n');
     const lines = state.visibleShops.map((shop, index) => {
       const cheapBudgetEvidence = formatCheapBudgetEvidence(shop, preferences);
+      const budgetEstimate = formatBudgetEstimate(shop.budgetEstimatedYen);
       const pieces = [
         (index + 1) + '. ' + (shop.name || '名称未設定'),
         shop.pickReason ? '理由: ' + shop.pickReason : '',
         cheapBudgetEvidence ? '安く飲む: ' + cheapBudgetEvidence : '',
         shop.budget ? '予算: ' + shop.budget : '',
+        budgetEstimate ? '予算目安: ' + budgetEstimate : '',
         shop.mapsUrl ? '地図: ' + shop.mapsUrl : '',
         shop.urls && shop.urls.pc ? 'HP: ' + shop.urls.pc : ''
       ].filter(Boolean);
@@ -902,6 +906,11 @@
 
   function isCardUsableText(cardText) {
     return /利用可|可|VISA|JCB|マスター|Master|AMEX|アメックス|DINERS/i.test(String(cardText || ''));
+  }
+
+  function formatBudgetEstimate(value) {
+    const estimated = Number(value || 0);
+    return estimated ? '約' + estimated.toLocaleString('ja-JP') + '円' : '';
   }
 
   function detailRow(label, value, href) {
