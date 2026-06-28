@@ -825,6 +825,34 @@
     overflow-wrap: anywhere;
   }
 
+  .decision-strip {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+    margin: 0 0 10px;
+  }
+
+  .decision-strip span {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+    border: 1px solid rgba(79, 177, 168, 0.24);
+    border-radius: 8px;
+    background: rgba(79, 177, 168, 0.08);
+    color: var(--text);
+    padding: 7px 8px;
+    font-size: 12px;
+    font-weight: 850;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+
+  .decision-strip strong {
+    color: var(--accent);
+    font-size: 10px;
+    font-weight: 900;
+  }
+
   .catch {
     display: -webkit-box;
     margin-bottom: 10px;
@@ -1192,6 +1220,10 @@
 
     .shop-card h3 {
       font-size: 18px;
+    }
+
+    .decision-strip {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .pick-line,

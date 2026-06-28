@@ -433,6 +433,7 @@
       '<div class="pick-line"><span>' + escapeHtml(formatPickLabel(index)) + '</span><em>' + escapeHtml(shop.pickReason || '') + '</em></div>',
       '<div class="shop-meta"><span>' + escapeHtml(shop.genre || 'ジャンル未設定') + '</span><span>' + escapeHtml(shop.budget || '予算未設定') + '</span></div>',
       '<h3>' + escapeHtml(shop.name || '名称未設定') + '</h3>',
+      renderDecisionStrip(shop),
       renderMatchMeter(shop),
       renderScoutNote(shop),
       renderConditionTags(shop.conditionTags),
@@ -464,6 +465,62 @@
       '</div>'
     ].join('');
     return card;
+  }
+
+  function renderDecisionStrip(shop) {
+    const items = buildDecisionItems(shop);
+    if (!items.length) {
+      return '';
+    }
+    return [
+      '<div class="decision-strip">',
+      items.map((item) => '<span><strong>' + escapeHtml(item.label) + '</strong>' + escapeHtml(item.value) + '</span>').join(''),
+      '</div>'
+    ].join('');
+  }
+
+  function buildDecisionItems(shop) {
+    const preferences = state.resultPreferences || state.preferences || {};
+    const items = [];
+    const walkText = formatWalkMinutes(shop.walkMinutes);
+    if (walkText) {
+      items.push({ label: '距離', value: walkText });
+    }
+
+    const conditionText = buildPrimaryConditionText(shop);
+    if (conditionText) {
+      items.push({ label: '条件', value: conditionText });
+    }
+
+    const moodText = buildPrimaryMoodText(shop, preferences);
+    if (moodText) {
+      items.push({ label: '気分', value: moodText });
+    }
+
+    return items.slice(0, 3);
+  }
+
+  function buildPrimaryConditionText(shop) {
+    const tags = Array.isArray(shop.conditionTags) ? shop.conditionTags : [];
+    const usefulTags = tags.filter((tag) => !/^徒歩/.test(String(tag || '')));
+    if (usefulTags.length) {
+      return usefulTags.slice(0, 2).join('・');
+    }
+    if (isCardUsableText(shop.card)) {
+      return 'カード可';
+    }
+    if (shop.nonSmoking) {
+      return shop.nonSmoking;
+    }
+    return '';
+  }
+
+  function buildPrimaryMoodText(shop, preferences) {
+    const foodMatches = findSelectedFoodMatches(shop, preferences);
+    if (foodMatches.length) {
+      return foodMatches.slice(0, 2).join('・');
+    }
+    return formatMoodEvidence(shop, preferences) || shop.pickReason || '';
   }
 
   function renderEmptyState() {
