@@ -565,6 +565,9 @@
     if (preferences && preferences.smokingPreference && Number(data.resultsSmokingMatched || 0) === 0) {
       return 'たばこ条件で候補が落ちています。今回は店詳細で確認する前提にすると広がります。';
     }
+    if (preferences && preferences.mood === 'cheap' && Number(data.resultsBudgetMatched || 0) === 0) {
+      return '3500円目安で候補が落ちています。予算をゆるめて無難に探すと戻りそうです。';
+    }
     if (mustValues.includes('openNow')) {
       return '営業中・個室・カードなどのゆずれない条件が重なっている可能性があります。';
     }
@@ -606,7 +609,9 @@
     if (preferences && Array.isArray(preferences.foodValues) && preferences.foodValues.length) {
       actions.push({ key: 'food', label: '料理をゆるめる' });
     }
-    if (preferences && preferences.mood && preferences.mood !== 'safe') {
+    if (preferences && preferences.mood === 'cheap') {
+      actions.push({ key: 'mood', label: '予算をゆるめる' });
+    } else if (preferences && preferences.mood && preferences.mood !== 'safe') {
       actions.push({ key: 'mood', label: '無難に戻す' });
     }
     if (!actions.length) {
