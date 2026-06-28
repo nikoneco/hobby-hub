@@ -477,6 +477,7 @@ function normalizeShop_(shop) {
     walkMinutes: extractWalkMinutes_(shop.access || ''),
     address: shop.address || '',
     mapsUrl: buildMapsUrl_(shop),
+    mapsDirectionsUrl: buildMapsDirectionsUrl_(shop),
     budget: shop.budget ? shop.budget.average || shop.budget.name || '' : '',
     privateRoom: shop.private_room || '',
     midnight: shop.midnight || '',
@@ -677,6 +678,11 @@ function normalizeCreditCards_(creditCards) {
 function buildMapsUrl_(shop) {
   const query = [shop.name, shop.address].filter(Boolean).join(' ');
   return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(query);
+}
+
+function buildMapsDirectionsUrl_(shop) {
+  const destination = [shop.name, shop.address].filter(Boolean).join(' ');
+  return 'https://www.google.com/maps/dir/?api=1&travelmode=walking&destination=' + encodeURIComponent(destination);
 }
 
 function getHotPepperApiKey_() {
