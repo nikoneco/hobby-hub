@@ -790,9 +790,51 @@
     border-radius: 8px;
     background: linear-gradient(180deg, rgba(61, 39, 30, 0.98), rgba(28, 22, 19, 0.98));
     padding: 14px;
-    transition: border-color 180ms ease;
+    touch-action: pan-y;
+    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
     animation: dealIn 260ms ease both;
     animation-delay: calc(var(--card-index, 0) * 54ms);
+  }
+
+  .shop-card::after {
+    content: "別案";
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    min-height: 30px;
+    border: 1px solid rgba(232, 93, 79, 0.7);
+    border-radius: 999px;
+    background: rgba(232, 93, 79, 0.18);
+    color: #ffe7df;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+    font-size: 12px;
+    font-weight: 900;
+    opacity: 0;
+    transform: translateX(8px);
+    transition: opacity 160ms ease, transform 160ms ease, background 160ms ease;
+    pointer-events: none;
+  }
+
+  .shop-card.is-swiping {
+    cursor: grabbing;
+    user-select: none;
+  }
+
+  .shop-card.is-swiping::after {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .shop-card.is-swipe-ready {
+    border-color: rgba(232, 93, 79, 0.74);
+    box-shadow: 0 18px 44px rgba(232, 93, 79, 0.14);
+  }
+
+  .shop-card.is-swipe-ready::after {
+    background: rgba(232, 93, 79, 0.3);
   }
 
   .shop-photo {

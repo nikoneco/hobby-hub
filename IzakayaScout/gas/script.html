@@ -11,6 +11,7 @@
     backupShops: [],
     lastResultMeta: null,
     resultPreferences: null,
+    cardSwipe: null,
     toastTimer: null
   };
 
@@ -100,6 +101,11 @@
     elements.rotateButton.addEventListener('click', rotateCandidates);
     elements.shareButton.addEventListener('click', shareVisibleCandidates);
     elements.resultList.addEventListener('click', handleResultListClick);
+    elements.resultList.addEventListener('pointerdown', handleCardPointerDown);
+    elements.resultList.addEventListener('pointermove', handleCardPointerMove);
+    elements.resultList.addEventListener('pointerup', handleCardPointerUp);
+    elements.resultList.addEventListener('pointercancel', cancelCardSwipe);
+    elements.resultList.addEventListener('lostpointercapture', cancelCardSwipe);
     document.querySelectorAll('.preset-field button[data-preset]').forEach((button) => {
       button.addEventListener('click', () => applyScoutPreset(button.dataset.preset));
     });
@@ -449,6 +455,7 @@
     const card = document.createElement('article');
     card.className = 'shop-card';
     card.dataset.shopId = shop.id || '';
+    card.dataset.shopIndex = String(index);
     const photo = shop.photo
       ? '<img src="' + escapeHtml(shop.photo) + '" alt="">'
       : '<div class="photo-placeholder">HP</div>';
@@ -773,6 +780,93 @@
     refreshResultCount();
     showActionToast('1件だけ差し替えました');
     vibrate(10);
+  }
+
+  function handleCardPointerDown(event) {
+    if (state.searching || !state.backupShops.length || !event.isPrimary) {
+      return;
+    }
+    if (event.pointerType === 'mouse' && event.button !== 0) {
+      return;
+    }
+    if (isInteractiveSwipeTarget(event.target)) {
+      return;
+    }
+    const card = event.target.closest('.shop-card');
+    if (!card || !elements.resultList.contains(card)) {
+      return;
+    }
+    const index = Number(card.dataset.shopIndex);
+    if (!Number.isFinite(index)) {
+      return;
+    }
+    state.cardSwipe = {
+      card,
+      index,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      active: false
+    };
+    card.classList.add('is-swiping');
+    card.style.transition = 'none';
+    if (card.setPointerCapture) {
+      card.setPointerCapture(event.pointerId);
+    }
+  }
+
+  function handleCardPointerMove(event) {
+    const swipe = state.cardSwipe;
+    if (!swipe || swipe.pointerId !== event.pointerId) {
+      return;
+    }
+    const dx = event.clientX - swipe.startX;
+    const dy = event.clientY - swipe.startY;
+    if (!swipe.active && Math.abs(dy) > Math.abs(dx) * 1.25 && Math.abs(dy) > 14) {
+      cancelCardSwipe();
+      return;
+    }
+    if (!swipe.active && Math.abs(dx) < 10) {
+      return;
+    }
+    swipe.active = true;
+    const offset = Math.max(-112, Math.min(28, dx));
+    swipe.card.style.transform = 'translateX(' + offset + 'px)';
+    swipe.card.classList.toggle('is-swipe-ready', offset < -76);
+    event.preventDefault();
+  }
+
+  function handleCardPointerUp(event) {
+    const swipe = state.cardSwipe;
+    if (!swipe || swipe.pointerId !== event.pointerId) {
+      return;
+    }
+    const dx = event.clientX - swipe.startX;
+    const shouldReplace = swipe.active && dx < -76;
+    const index = swipe.index;
+    resetCardSwipe();
+    if (shouldReplace) {
+      replaceCandidate(index);
+    }
+  }
+
+  function cancelCardSwipe() {
+    resetCardSwipe();
+  }
+
+  function resetCardSwipe() {
+    const swipe = state.cardSwipe;
+    if (!swipe) {
+      return;
+    }
+    swipe.card.style.transition = '';
+    swipe.card.style.transform = '';
+    swipe.card.classList.remove('is-swiping', 'is-swipe-ready');
+    state.cardSwipe = null;
+  }
+
+  function isInteractiveSwipeTarget(target) {
+    return Boolean(target && target.closest('a, button, input, select, textarea, summary, details, label'));
   }
 
   function shareVisibleCandidates() {
