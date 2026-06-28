@@ -160,7 +160,7 @@ function selectTopCandidates_(shops, payload, limit) {
       const labels = ['本命', '対抗', '穴場'];
       return Object.assign({}, shop, {
         pickLabel: labels[index] || '候補',
-        pickReason: buildPickReason_(shop, mood)
+        pickReason: buildPickReason_(shop, mood, payload)
       });
     });
 }
@@ -197,6 +197,7 @@ function scoreShop_(shop, payload, mood) {
     tags.push(shop.nonSmoking);
   }
 
+  score += scoreFoodFit_(shop, payload, tags);
   score += scoreMoodFit_(shop, mood, tags);
   if (shop.photo) score += 1;
   if (shop.catchText) score += 1;
@@ -254,6 +255,53 @@ function isDifferentPrefixedArea_(text, anchor) {
   return text.indexOf('新' + anchor) !== -1;
 }
 
+function scoreFoodFit_(shop, payload, tags) {
+  const matches = findFoodMatches_(shop, payload.foodTerms || []);
+  if (!matches.length) {
+    return 0;
+  }
+  matches.slice(0, 3).forEach(function (term) {
+    tags.push(term);
+  });
+  return Math.min(18, matches.length * 7);
+}
+
+function findFoodMatches_(shop, foodTerms) {
+  const terms = Array.isArray(foodTerms) ? foodTerms.filter(Boolean) : [];
+  if (!terms.length) {
+    return [];
+  }
+  const haystack = normalizeFoodText_([
+    shop.name,
+    shop.genre,
+    shop.catchText,
+    shop.access
+  ].join(' '));
+  return terms.filter(function (term) {
+    const pattern = getFoodPattern_(term);
+    return pattern ? pattern.test(haystack) : haystack.indexOf(normalizeFoodText_(term)) !== -1;
+  });
+}
+
+function getFoodPattern_(term) {
+  const patterns = {
+    '焼き鳥': /焼き鳥|やきとり|焼鳥|串焼/,
+    '海鮮': /海鮮|魚|刺身|寿司|鮮魚/,
+    '肉': /肉|焼肉|ステーキ|ホルモン|牛|豚|鶏/,
+    '串揚げ': /串揚|串かつ|串カツ/,
+    'おでん': /おでん/
+  };
+  return patterns[String(term || '').trim()] || null;
+}
+
+function normalizeFoodText_(value) {
+  return normalizeDigits_(String(value || ''))
+    .replace(/[ァ-ン]/g, function (char) {
+      return String.fromCharCode(char.charCodeAt(0) - 0x60);
+    })
+    .toLowerCase();
+}
+
 function scoreMoodFit_(shop, mood, tags) {
   const haystack = [
     shop.genre,
@@ -294,11 +342,13 @@ function scoreMoodFit_(shop, mood, tags) {
   return 5;
 }
 
-function buildPickReason_(shop, mood) {
+function buildPickReason_(shop, mood, payload) {
   const bits = [];
   if (shop.walkMinutes != null) {
     bits.push(Number(shop.walkMinutes) === 0 ? '駅すぐ' : '徒歩' + shop.walkMinutes + '分');
   }
+  const foodMatches = findFoodMatches_(shop, payload.foodTerms || []);
+  if (foodMatches.length) bits.push(foodMatches.slice(0, 2).join('・'));
   if (isCardUsable_(shop.card)) bits.push('カード可');
   if (mood.label) bits.push(mood.label);
   return bits.slice(0, 3).join(' / ');

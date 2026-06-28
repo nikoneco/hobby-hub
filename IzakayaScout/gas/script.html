@@ -312,6 +312,7 @@
       '<div class="shop-meta"><span>' + escapeHtml(shop.genre || 'ジャンル未設定') + '</span><span>' + escapeHtml(shop.budget || '予算未設定') + '</span></div>',
       '<h3>' + escapeHtml(shop.name || '名称未設定') + '</h3>',
       renderMatchMeter(shop),
+      renderScoutNote(shop),
       renderConditionTags(shop.conditionTags),
       renderReasonTags(shop.reasonTags),
       renderGlanceItems(shop),
@@ -340,6 +341,98 @@
       '</div>'
     ].join('');
     return card;
+  }
+
+  function renderScoutNote(shop) {
+    const preferences = state.resultPreferences || state.preferences || {};
+    const pieces = [];
+    const foodMatches = findSelectedFoodMatches(shop, preferences).slice(0, 2);
+    const conditionMatches = Array.isArray(shop.conditionTags) ? shop.conditionTags.slice(0, 2) : [];
+    const moodText = formatMoodEvidence(shop, preferences);
+
+    if (foodMatches.length) {
+      pieces.push(foodMatches.join('・') + 'が合いそう');
+    }
+    if (conditionMatches.length) {
+      pieces.push(conditionMatches.join('・') + 'を確認');
+    }
+    if (moodText) {
+      pieces.push(moodText);
+    }
+    if (!pieces.length && shop.pickReason) {
+      pieces.push(shop.pickReason);
+    }
+    if (!pieces.length) {
+      return '';
+    }
+    return [
+      '<p class="scout-note">',
+      '<strong>選定メモ</strong>',
+      '<span>' + escapeHtml(pieces.slice(0, 3).join(' / ')) + '</span>',
+      '</p>'
+    ].join('');
+  }
+
+  function findSelectedFoodMatches(shop, preferences) {
+    const foodValues = Array.isArray(preferences.foodValues) ? preferences.foodValues : [];
+    if (!foodValues.length) {
+      return [];
+    }
+    const text = normalizeFoodText([
+      shop.name,
+      shop.genre,
+      shop.catchText,
+      shop.access
+    ].join(' '));
+    return foodValues.filter((food) => {
+      const pattern = getFoodPattern(food);
+      return pattern ? pattern.test(text) : text.includes(normalizeFoodText(food));
+    });
+  }
+
+  function getFoodPattern(food) {
+    const patterns = {
+      '焼き鳥': /焼き鳥|やきとり|焼鳥|串焼/,
+      '海鮮': /海鮮|魚|刺身|寿司|鮮魚/,
+      '肉': /肉|焼肉|ステーキ|ホルモン|牛|豚|鶏/,
+      '串揚げ': /串揚|串かつ|串カツ/,
+      'おでん': /おでん/
+    };
+    return patterns[food] || null;
+  }
+
+  function normalizeFoodText(value) {
+    return String(value || '')
+      .replace(/[０-９]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xfee0))
+      .replace(/[ァ-ン]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0x60))
+      .toLowerCase();
+  }
+
+  function formatMoodEvidence(shop, preferences) {
+    const mood = preferences.mood || 'safe';
+    const text = [
+      shop.name,
+      shop.genre,
+      shop.catchText,
+      shop.budget,
+      shop.access
+    ].join(' ');
+    if (mood === 'cheap' && /安|リーズナブル|せんべろ|コスパ|お得|飲み放題/.test(text)) {
+      return '安く飲む気分に近い';
+    }
+    if (mood === 'second' && /バー|カクテル|二次会|2次会|深夜|駅近/.test(text)) {
+      return '二軒目に寄せた候補';
+    }
+    if (mood === 'quiet' && /落ち着|隠れ家|個室|静|大人|ゆったり/.test(text)) {
+      return '静かめ要素あり';
+    }
+    if (mood === 'bar' && /バー|カクテル|ワイン|ダイニングバー/.test(text)) {
+      return 'バー寄り要素あり';
+    }
+    if (mood === 'safe') {
+      return '無難にうまい枠';
+    }
+    return '';
   }
 
   function rotateCandidates() {
