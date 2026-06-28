@@ -22,6 +22,39 @@
     bar: 'バー寄り'
   };
 
+  const scoutPresets = {
+    nearby: {
+      label: '近場で一杯',
+      mood: 'safe',
+      mustValues: ['walk5', 'openNow'],
+      foodValues: []
+    },
+    cheap: {
+      label: '安くサクッと',
+      mood: 'cheap',
+      mustValues: ['walk5', 'openNow'],
+      foodValues: []
+    },
+    quiet: {
+      label: '静かに飲む',
+      mood: 'quiet',
+      mustValues: ['privateRoom', 'card'],
+      foodValues: []
+    },
+    yakitori: {
+      label: '焼き鳥気分',
+      mood: 'safe',
+      mustValues: ['walk5', 'openNow'],
+      foodValues: ['焼き鳥']
+    },
+    bar: {
+      label: '二軒目バー',
+      mood: 'bar',
+      mustValues: ['midnight', 'card'],
+      foodValues: []
+    }
+  };
+
   const elements = {
     areaInput: document.getElementById('areaInput'),
     recentAreaList: document.getElementById('recentAreaList'),
@@ -57,6 +90,9 @@
     elements.searchButton.addEventListener('click', search);
     elements.recentAreaList.addEventListener('click', handleRecentAreaClick);
     elements.rotateButton.addEventListener('click', rotateCandidates);
+    document.querySelectorAll('.preset-field button[data-preset]').forEach((button) => {
+      button.addEventListener('click', () => applyScoutPreset(button.dataset.preset));
+    });
   }
 
   function applySavedPreferences() {
@@ -160,6 +196,33 @@
     handlePreferenceChange();
     showActionToast('今夜は「' + (moodLabels[nextMood] || '気分まかせ') + '」で探します');
     vibrate(12);
+  }
+
+  function applyScoutPreset(presetName) {
+    const preset = scoutPresets[presetName];
+    if (!preset) {
+      return;
+    }
+    setMoodValue(preset.mood);
+    setCheckedValues('.chip-field input[type="checkbox"]', preset.mustValues || []);
+    setCheckedValues('.food-field input[type="checkbox"]', preset.foodValues || []);
+    handlePreferenceChange();
+    showActionToast('「' + preset.label + '」で整えました');
+    vibrate(16);
+  }
+
+  function setMoodValue(mood) {
+    const input = document.querySelector('input[name="mood"][value="' + cssEscape(mood) + '"]');
+    if (input) {
+      input.checked = true;
+    }
+  }
+
+  function setCheckedValues(selector, values) {
+    const selected = new Set(values || []);
+    document.querySelectorAll(selector).forEach((input) => {
+      input.checked = selected.has(input.value);
+    });
   }
 
   function getSelectedSmokingLabel() {

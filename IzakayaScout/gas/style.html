@@ -241,6 +241,42 @@
     outline: 2px solid rgba(79, 177, 168, 0.22);
   }
 
+  .preset-field {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin: -4px 0 16px;
+  }
+
+  .preset-field span {
+    flex: 0 0 100%;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .preset-field button {
+    flex: 1 1 calc(50% - 4px);
+    min-height: 38px;
+    border: 1px solid rgba(79, 177, 168, 0.28);
+    border-radius: 8px;
+    background: rgba(79, 177, 168, 0.08);
+    color: var(--text);
+    cursor: pointer;
+    padding: 8px 10px;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1.2;
+    transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+  }
+
+  .preset-field button:hover,
+  .preset-field button:focus-visible {
+    border-color: rgba(79, 177, 168, 0.66);
+    background: rgba(79, 177, 168, 0.14);
+    transform: translateY(-1px);
+  }
+
   .chip-field,
   .food-field,
   .choice-field {
