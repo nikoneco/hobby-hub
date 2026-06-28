@@ -10,6 +10,7 @@
     visibleShops: [],
     backupShops: [],
     lastResultMeta: null,
+    resultPreferences: null,
     lastDismissed: null,
     undoTimer: null
   };
@@ -194,6 +195,7 @@
     }
 
     setSearching(true);
+    state.resultPreferences = payload;
     renderSearchingState(payload);
     scrollResultsIntoView();
     google.script.run
@@ -226,6 +228,7 @@
     state.visibleShops = [];
     state.backupShops = [];
     state.lastResultMeta = null;
+    state.resultPreferences = payload;
     state.lastDismissed = null;
     hideUndoToast();
     elements.resultPanel.setAttribute('aria-busy', 'true');
@@ -274,6 +277,7 @@
       '<div class="pick-line"><span>' + escapeHtml(formatPickLabel(index)) + '</span><em>' + escapeHtml(shop.pickReason || '') + '</em></div>',
       '<div class="shop-meta"><span>' + escapeHtml(shop.genre || 'ジャンル未設定') + '</span><span>' + escapeHtml(shop.budget || '予算未設定') + '</span></div>',
       '<h3>' + escapeHtml(shop.name || '名称未設定') + '</h3>',
+      renderMatchMeter(shop),
       renderConditionTags(shop.conditionTags),
       renderReasonTags(shop.reasonTags),
       renderGlanceItems(shop),
@@ -491,6 +495,43 @@
     return '<div class="condition-tags"><strong>条件OK</strong>' + tags.map((tag) => '<span>' + escapeHtml(tag) + '</span>').join('') + '</div>';
   }
 
+  function renderMatchMeter(shop) {
+    const expected = getExpectedConditionLabels(state.resultPreferences || state.preferences);
+    if (!expected.length) {
+      return '';
+    }
+    const matchedTags = Array.isArray(shop.conditionTags) ? shop.conditionTags : [];
+    const matched = expected.filter((label) => hasMatchedCondition(label, matchedTags));
+    const missing = expected.filter((label) => !hasMatchedCondition(label, matchedTags));
+    const percent = Math.round((matched.length / expected.length) * 100);
+    const className = percent === 100 ? 'match-meter is-full' : 'match-meter';
+    return [
+      '<div class="' + className + '">',
+      '<div class="match-meter-head"><span>条件一致</span><strong>' + matched.length + '/' + expected.length + '</strong></div>',
+      '<div class="match-track" aria-hidden="true"><i style="width: ' + percent + '%"></i></div>',
+      missing.length ? '<em>未確認: ' + escapeHtml(missing.slice(0, 3).join('、')) + '</em>' : '<em>ゆずれない条件クリア</em>',
+      '</div>'
+    ].join('');
+  }
+
+  function getExpectedConditionLabels(preferences) {
+    const values = preferences && Array.isArray(preferences.mustValues) ? preferences.mustValues : [];
+    return [
+      preferences && preferences.walkLabel,
+      ...formatMustLabels(values),
+      preferences && preferences.smokingLabel
+    ].filter(Boolean);
+  }
+
+  function hasMatchedCondition(label, tags) {
+    const normalizedLabel = normalizeConditionLabel(label);
+    return tags.some((tag) => normalizeConditionLabel(tag) === normalizedLabel);
+  }
+
+  function normalizeConditionLabel(value) {
+    return String(value || '').replace(/\s+/g, '').trim();
+  }
+
   function renderGlanceItems(shop) {
     const items = [
       formatWalkMinutes(shop.walkMinutes),
@@ -567,6 +608,7 @@
     state.visibleShops = [];
     state.backupShops = [];
     state.lastResultMeta = null;
+    state.resultPreferences = null;
     state.lastDismissed = null;
     hideUndoToast();
     elements.rotateButton.disabled = true;
