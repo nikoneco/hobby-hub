@@ -420,11 +420,29 @@
       return;
     }
 
+    const budgetNotice = renderBudgetFallbackNotice();
+    if (budgetNotice) {
+      elements.resultList.insertAdjacentHTML('beforeend', budgetNotice);
+    }
+
     shops.forEach((shop, index) => {
       const card = renderShopCard(shop, index);
       card.style.setProperty('--card-index', String(index));
       elements.resultList.appendChild(card);
     });
+  }
+
+  function renderBudgetFallbackNotice() {
+    const data = state.lastResultMeta || {};
+    const preferences = state.resultPreferences || state.preferences || {};
+    if (!preferences || preferences.mood !== 'cheap' || data.resultsBudgetFilterApplied !== false) {
+      return '';
+    }
+    const budgetCount = Number(data.resultsBudgetMatched || 0);
+    const message = budgetCount > 0
+      ? '3500円目安は' + budgetCount + '件だけだったので、少し広めに提案しています。'
+      : '3500円目安の候補が少なかったので、予算だけ少し広めに提案しています。';
+    return '<p class="result-note">' + escapeHtml(message) + '</p>';
   }
 
   function renderShopCard(shop, index) {
