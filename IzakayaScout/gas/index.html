@@ -45,6 +45,15 @@
           </fieldset>
           <button id="moodShuffleButton" class="mood-shuffle-button" type="button">今夜の気分を振る</button>
 
+          <fieldset class="food-field">
+            <legend>食べたいもの</legend>
+            <label><input type="checkbox" data-kind="food" value="焼き鳥">焼き鳥</label>
+            <label><input type="checkbox" data-kind="food" value="海鮮">海鮮</label>
+            <label><input type="checkbox" data-kind="food" value="肉">肉</label>
+            <label><input type="checkbox" data-kind="food" value="串揚げ">串揚げ</label>
+            <label><input type="checkbox" data-kind="food" value="おでん">おでん</label>
+          </fieldset>
+
           <fieldset class="chip-field">
             <legend>ゆずれない条件</legend>
             <label><input type="checkbox" data-kind="must" value="walk5">徒歩5分以内</label>
@@ -85,9 +94,8 @@
           <div id="resultList" class="shop-list"></div>
         </section>
       </main>
-      <div id="undoToast" class="undo-toast hidden" role="status" aria-live="polite">
-        <span id="undoMessage"></span>
-        <button id="undoButton" type="button">戻す</button>
+      <div id="actionToast" class="action-toast hidden" role="status" aria-live="polite">
+        <span id="actionMessage"></span>
       </div>
     </div>
     <?!= include('script'); ?>

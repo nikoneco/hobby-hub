@@ -11,8 +11,7 @@
     backupShops: [],
     lastResultMeta: null,
     resultPreferences: null,
-    lastDismissed: null,
-    undoTimer: null
+    toastTimer: null
   };
 
   const moodLabels = {
@@ -36,9 +35,8 @@
     rotateButton: document.getElementById('rotateButton'),
     resultCount: document.getElementById('resultCount'),
     resultList: document.getElementById('resultList'),
-    undoToast: document.getElementById('undoToast'),
-    undoMessage: document.getElementById('undoMessage'),
-    undoButton: document.getElementById('undoButton')
+    actionToast: document.getElementById('actionToast'),
+    actionMessage: document.getElementById('actionMessage')
   };
 
   function init() {
@@ -52,14 +50,13 @@
   function bindEvents() {
     elements.areaInput.addEventListener('input', handlePreferenceChange);
     elements.smokingSelect.addEventListener('change', handlePreferenceChange);
-    document.querySelectorAll('input[name="mood"], .chip-field input[type="checkbox"]').forEach((input) => {
+    document.querySelectorAll('input[name="mood"], .food-field input[type="checkbox"], .chip-field input[type="checkbox"]').forEach((input) => {
       input.addEventListener('change', handlePreferenceChange);
     });
     elements.moodShuffleButton.addEventListener('click', shuffleMood);
     elements.searchButton.addEventListener('click', search);
     elements.recentAreaList.addEventListener('click', handleRecentAreaClick);
     elements.rotateButton.addEventListener('click', rotateCandidates);
-    elements.undoButton.addEventListener('click', undoLastDismiss);
   }
 
   function applySavedPreferences() {
@@ -77,6 +74,11 @@
     document.querySelectorAll('.chip-field input[type="checkbox"]').forEach((input) => {
       input.checked = checked.has(input.value);
     });
+
+    const foodValues = new Set(state.preferences.foodValues || state.preferences.foodTerms || []);
+    document.querySelectorAll('.food-field input[type="checkbox"]').forEach((input) => {
+      input.checked = foodValues.has(input.value);
+    });
   }
 
   function handlePreferenceChange() {
@@ -88,6 +90,8 @@
   function collectPreferences() {
     const mustInputs = Array.from(document.querySelectorAll('.chip-field input[type="checkbox"]:checked'));
     const mustValues = mustInputs.map((input) => input.value);
+    const foodInputs = Array.from(document.querySelectorAll('.food-field input[type="checkbox"]:checked'));
+    const foodValues = foodInputs.map((input) => input.value);
     const features = {};
     if (mustValues.includes('card')) features.card = true;
     if (mustValues.includes('privateRoom')) features.privateRoom = true;
@@ -106,7 +110,9 @@
       smokingPreference,
       smokingLabel: getSelectedSmokingLabel(),
       features,
-      mustValues
+      mustValues,
+      foodValues,
+      foodTerms: foodValues
     };
   }
 
@@ -125,6 +131,7 @@
     const query = [
       preferences.areaText,
       preferences.moodLabel,
+      ...formatFoodLabels(preferences.foodValues),
       preferences.walkLabel,
       preferences.smokingLabel,
       ...formatMustLabels(preferences.mustValues)
@@ -173,11 +180,16 @@
     return values.filter((value) => value !== 'walk5').map((value) => labels[value] || '');
   }
 
+  function formatFoodLabels(values) {
+    return Array.isArray(values) ? values.filter(Boolean) : [];
+  }
+
   function renderScoutBrief(preferences) {
     const mustLabels = formatMustLabels(preferences.mustValues || []);
+    const foodLabels = formatFoodLabels(preferences.foodValues || []);
     const priorityLabels = [preferences.walkLabel].concat(mustLabels, preferences.smokingLabel).filter(Boolean);
     const areaLabel = preferences.areaText || '場所未入力';
-    const policyText = buildScoutBriefText(preferences, priorityLabels);
+    const policyText = buildScoutBriefText(preferences, priorityLabels, foodLabels);
     elements.scoutBrief.innerHTML = [
       '<div class="scout-brief-head">',
       '<span>今夜の方針</span>',
@@ -185,24 +197,29 @@
       '</div>',
       '<div class="scout-brief-chips">',
       '<span>' + escapeHtml(areaLabel) + '</span>',
+      foodLabels.map((label) => '<span>' + escapeHtml(label) + '</span>').join(''),
       priorityLabels.map((label) => '<span>' + escapeHtml(label) + '</span>').join(''),
-      !priorityLabels.length ? '<span>条件ゆるめ</span>' : '',
+      !priorityLabels.length && !foodLabels.length ? '<span>条件ゆるめ</span>' : '',
       '</div>',
       '<p>' + escapeHtml(policyText) + '</p>'
     ].join('');
   }
 
-  function buildScoutBriefText(preferences, priorityLabels) {
+  function buildScoutBriefText(preferences, priorityLabels, foodLabels) {
     const area = preferences.areaText ? preferences.areaText + 'で' : '場所を入れたら';
     const mood = preferences.moodLabel || '無難にうまい';
+    const foodText = foodLabels && foodLabels.length ? foodLabels.slice(0, 3).join('・') + 'も見ながら、' : '';
     if (!priorityLabels.length) {
+      if (foodText) {
+        return area + foodText + mood + '候補を拾います。';
+      }
       return area + mood + '候補を広めに拾います。';
     }
     const topPriorities = priorityLabels.slice(0, 3).join('・');
     if ((preferences.mustValues || []).includes('walk5')) {
-      return area + topPriorities + 'を強めに見て、' + mood + '候補を絞ります。';
+      return area + foodText + topPriorities + 'を強めに見て、' + mood + '候補を絞ります。';
     }
-    return area + topPriorities + 'を優先して、' + mood + '候補を並べます。';
+    return area + foodText + topPriorities + 'を優先して、' + mood + '候補を並べます。';
   }
 
   function search() {
@@ -236,8 +253,7 @@
     state.lastResultMeta = data;
     state.visibleShops = (data.shops || []).slice();
     state.backupShops = (data.backupShops || []).slice();
-    state.lastDismissed = null;
-    hideUndoToast();
+    hideActionToast();
     elements.queryPreview.textContent = data.query || '';
     renderShopList();
     refreshResultCount();
@@ -248,8 +264,7 @@
     state.backupShops = [];
     state.lastResultMeta = null;
     state.resultPreferences = payload;
-    state.lastDismissed = null;
-    hideUndoToast();
+    hideActionToast();
     elements.resultPanel.setAttribute('aria-busy', 'true');
     elements.resultCount.textContent = '選定中';
     elements.rotateButton.disabled = true;
@@ -291,7 +306,6 @@
     const url = shop.urls && shop.urls.pc ? shop.urls.pc : '';
     const telUrl = formatTelUrl(shop.tel);
     card.innerHTML = [
-      '<button class="dismiss-button" type="button" aria-label="この店を候補から外す" title="この店を候補から外す">×</button>',
       '<div class="shop-photo">' + photo + '</div>',
       '<div class="shop-body">',
       '<div class="pick-line"><span>' + escapeHtml(formatPickLabel(index)) + '</span><em>' + escapeHtml(shop.pickReason || '') + '</em></div>',
@@ -325,117 +339,7 @@
       '</div>',
       '</div>'
     ].join('');
-    card.querySelector('.dismiss-button').addEventListener('click', () => dismissShop(shop.id, card));
-    bindSwipeDismiss(card, shop);
     return card;
-  }
-
-  function bindSwipeDismiss(card, shop) {
-    let startX = 0;
-    let startY = 0;
-    let dragging = false;
-
-    card.addEventListener('pointerdown', (event) => {
-      if (event.target.closest('a, button, summary')) {
-        return;
-      }
-      startX = event.clientX;
-      startY = event.clientY;
-      dragging = true;
-      card.classList.add('is-dragging');
-      card.setPointerCapture(event.pointerId);
-    });
-
-    card.addEventListener('pointermove', (event) => {
-      if (!dragging) {
-        return;
-      }
-      const deltaX = event.clientX - startX;
-      const deltaY = event.clientY - startY;
-      if (Math.abs(deltaX) < 8 || Math.abs(deltaY) > 96) {
-        return;
-      }
-      const limitedX = Math.min(28, Math.max(-150, deltaX));
-      card.style.transform = 'translateX(' + limitedX + 'px) rotate(' + (limitedX / 38) + 'deg)';
-      card.style.opacity = String(Math.max(0.42, 1 - Math.abs(limitedX) / 210));
-      card.classList.toggle('is-swipe-ready', limitedX < -72);
-    });
-
-    card.addEventListener('pointerup', (event) => {
-      if (!dragging) {
-        return;
-      }
-      dragging = false;
-      card.classList.remove('is-dragging');
-      const deltaX = event.clientX - startX;
-      const deltaY = event.clientY - startY;
-      if (deltaX < -90 && Math.abs(deltaY) < 96) {
-        dismissShop(shop.id, card);
-        return;
-      }
-      resetCardPosition(card);
-    });
-
-    card.addEventListener('pointercancel', () => {
-      dragging = false;
-      card.classList.remove('is-dragging');
-      resetCardPosition(card);
-    });
-  }
-
-  function dismissShop(shopId, card) {
-    if (!shopId) {
-      return;
-    }
-    if (card) {
-      card.classList.add('is-dismissing');
-      card.style.transform = 'translateX(-120%) rotate(-5deg)';
-      card.style.opacity = '0';
-      setTimeout(() => replaceDismissedShop(shopId), 180);
-      return;
-    }
-    replaceDismissedShop(shopId);
-  }
-
-  function replaceDismissedShop(shopId) {
-    const dismissedIndex = state.visibleShops.findIndex((shop) => shop.id === shopId);
-    const dismissedShop = state.visibleShops[dismissedIndex];
-    if (!dismissedShop) {
-      return;
-    }
-    state.visibleShops = state.visibleShops.filter((shop) => shop.id !== shopId);
-    const replacement = state.backupShops.shift();
-    if (replacement) {
-      state.visibleShops.push(replacement);
-    }
-    state.lastDismissed = {
-      shop: dismissedShop,
-      index: dismissedIndex,
-      replacement: replacement || null
-    };
-    renderShopList();
-    refreshResultCount();
-    showUndoToast(dismissedShop);
-    vibrate(12);
-  }
-
-  function undoLastDismiss() {
-    const record = state.lastDismissed;
-    if (!record || !record.shop) {
-      hideUndoToast();
-      return;
-    }
-    if (record.replacement) {
-      state.visibleShops = state.visibleShops.filter((shop) => shop.id !== record.replacement.id);
-      state.backupShops.unshift(record.replacement);
-    }
-    const insertAt = Math.max(0, Math.min(record.index, state.visibleShops.length));
-    state.visibleShops.splice(insertAt, 0, record.shop);
-    state.lastDismissed = null;
-    hideUndoToast();
-    renderShopList();
-    refreshResultCount();
-    vibrate(10);
   }
 
   function rotateCandidates() {
@@ -447,8 +351,7 @@
     const candidates = state.backupShops.concat(currentVisible);
     state.visibleShops = candidates.slice(0, visibleCount);
     state.backupShops = candidates.slice(visibleCount);
-    state.lastDismissed = null;
-    hideUndoToast();
+    hideActionToast();
     elements.rotateButton.classList.add('is-spinning');
     setTimeout(() => elements.rotateButton.classList.remove('is-spinning'), 360);
     renderShopList();
@@ -457,34 +360,23 @@
     vibrate(14);
   }
 
-  function showUndoToast(shop) {
-    clearUndoTimer();
-    elements.undoMessage.textContent = '候補から外しました: ' + (shop.name || '名称未設定');
-    elements.undoToast.classList.remove('hidden');
-    state.undoTimer = setTimeout(() => {
-      state.lastDismissed = null;
-      hideUndoToast();
-    }, 5200);
-  }
-
-  function hideUndoToast() {
-    clearUndoTimer();
-    elements.undoToast.classList.add('hidden');
-    elements.undoMessage.textContent = '';
+  function hideActionToast() {
+    clearToastTimer();
+    elements.actionToast.classList.add('hidden');
+    elements.actionMessage.textContent = '';
   }
 
   function showActionToast(message) {
-    clearUndoTimer();
-    state.lastDismissed = null;
-    elements.undoMessage.textContent = message;
-    elements.undoToast.classList.remove('hidden');
-    state.undoTimer = setTimeout(hideUndoToast, 3200);
+    clearToastTimer();
+    elements.actionMessage.textContent = message;
+    elements.actionToast.classList.remove('hidden');
+    state.toastTimer = setTimeout(hideActionToast, 3200);
   }
 
-  function clearUndoTimer() {
-    if (state.undoTimer) {
-      clearTimeout(state.undoTimer);
-      state.undoTimer = null;
+  function clearToastTimer() {
+    if (state.toastTimer) {
+      clearTimeout(state.toastTimer);
+      state.toastTimer = null;
     }
   }
 
@@ -492,12 +384,6 @@
     if (window.navigator && typeof window.navigator.vibrate === 'function') {
       window.navigator.vibrate(duration);
     }
-  }
-
-  function resetCardPosition(card) {
-    card.classList.remove('is-swipe-ready');
-    card.style.transform = '';
-    card.style.opacity = '';
   }
 
   function formatPickLabel(index) {
@@ -637,8 +523,7 @@
     state.backupShops = [];
     state.lastResultMeta = null;
     state.resultPreferences = null;
-    state.lastDismissed = null;
-    hideUndoToast();
+    hideActionToast();
     elements.rotateButton.disabled = true;
     elements.resultCount.textContent = 'エラー';
     elements.resultList.innerHTML = '<p class="empty">' + escapeHtml(message) + '</p>';
@@ -648,6 +533,7 @@
     return [
       payload.areaText,
       payload.moodLabel,
+      ...formatFoodLabels(payload.foodValues || []),
       payload.walkLabel,
       payload.smokingLabel,
       ...formatMustLabels(payload.mustValues || [])
