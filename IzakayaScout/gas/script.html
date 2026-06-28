@@ -208,6 +208,7 @@
       '<div class="pick-line"><span>' + escapeHtml(formatPickLabel(index)) + '</span><em>' + escapeHtml(shop.pickReason || '') + '</em></div>',
       '<div class="shop-meta"><span>' + escapeHtml(shop.genre || 'ジャンル未設定') + '</span><span>' + escapeHtml(shop.budget || '予算未設定') + '</span></div>',
       '<h3>' + escapeHtml(shop.name || '名称未設定') + '</h3>',
+      renderConditionTags(shop.conditionTags),
       renderReasonTags(shop.reasonTags),
       renderGlanceItems(shop),
       shop.catchText ? '<p class="catch">' + escapeHtml(shop.catchText) + '</p>' : '',
@@ -415,6 +416,13 @@
       return '';
     }
     return '<div class="reason-tags">' + tags.map((tag) => '<span>' + escapeHtml(tag) + '</span>').join('') + '</div>';
+  }
+
+  function renderConditionTags(tags) {
+    if (!Array.isArray(tags) || !tags.length) {
+      return '';
+    }
+    return '<div class="condition-tags"><strong>条件OK</strong>' + tags.map((tag) => '<span>' + escapeHtml(tag) + '</span>').join('') + '</div>';
   }
 
   function renderGlanceItems(shop) {

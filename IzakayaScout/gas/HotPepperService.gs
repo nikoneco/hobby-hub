@@ -149,6 +149,7 @@ function selectTopCandidates_(shops, payload, limit) {
       const score = scoreShop_(shop, payload, mood);
       scored.score = score.value;
       scored.reasonTags = score.tags;
+      scored.conditionTags = buildConditionTags_(shop, payload);
       return scored;
     })
     .sort(function (a, b) {
@@ -301,6 +302,56 @@ function buildPickReason_(shop, mood) {
   if (isCardUsable_(shop.card)) bits.push('カード可');
   if (mood.label) bits.push(mood.label);
   return bits.slice(0, 3).join(' / ');
+}
+
+function buildConditionTags_(shop, payload) {
+  const features = payload.features || {};
+  const tags = [];
+  const walkLimit = parseWalkMinutesLimit_(payload.walkMinutesLimit);
+  if (walkLimit && shop.walkMinutes != null && shop.walkMinutes <= walkLimit) {
+    tags.push('徒歩' + walkLimit + '分以内');
+  }
+  if (features.card && isCardUsable_(shop.card)) {
+    tags.push('カード可');
+  }
+  if (features.privateRoom && hasPrivateRoom_(shop.privateRoom)) {
+    tags.push('個室');
+  }
+  if (features.midnight && hasMidnight_(shop.midnight)) {
+    tags.push('深夜');
+  }
+  if (features.openNow && shop.openNow) {
+    tags.push('営業中');
+  }
+  const smokingLabel = formatMatchedSmokingCondition_(shop, payload.smokingPreference);
+  if (smokingLabel) {
+    tags.push(smokingLabel);
+  }
+  return tags;
+}
+
+function formatMatchedSmokingCondition_(shop, preference) {
+  const value = String(preference || '').trim();
+  if (!value) {
+    return '';
+  }
+  const text = normalizeSmokingText_(shop.nonSmoking || '');
+  if (!text) {
+    return '';
+  }
+  if (value === 'non_smoking' && hasNonSmokingSeats_(text)) {
+    return '禁煙席あり';
+  }
+  if (value === 'smoking_allowed' && allowsSmoking_(text)) {
+    return '喫煙可';
+  }
+  if (value === 'all_smoking' && isAllSmoking_(text)) {
+    return '全席喫煙可';
+  }
+  if (value === 'heated_tobacco' && allowsHeatedTobacco_(text)) {
+    return '加熱式たばこ可';
+  }
+  return '';
 }
 
 function isCardUsable_(cardText) {
