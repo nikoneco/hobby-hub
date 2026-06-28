@@ -399,6 +399,7 @@ function normalizeShop_(shop) {
     nonSmoking: shop.non_smoking || '',
     card: shop.card || '',
     creditCards: normalizeCreditCards_(shop.credit_card),
+    tel: shop.tel || '',
     open: shop.open || '',
     close: shop.close || '',
     station: shop.station_name || '',
