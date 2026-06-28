@@ -642,6 +642,7 @@
     return [
       preferences && preferences.walkLabel,
       ...formatMustLabels(values),
+      ...formatDrinkLabels(preferences && preferences.drinkValues),
       preferences && preferences.smokingLabel
     ].filter(Boolean);
   }

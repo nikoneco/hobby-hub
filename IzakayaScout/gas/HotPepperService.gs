@@ -37,7 +37,8 @@ function searchHotPepperShops_(payload) {
   const results = json.results || {};
   const shops = Array.isArray(results.shop) ? results.shop : [];
   const normalizedShops = shops.map(normalizeShop_);
-  const walkFilteredShops = filterShopsByWalkMinutes_(normalizedShops, payload);
+  const areaFilteredShops = filterShopsByAreaAnchor_(normalizedShops, payload);
+  const walkFilteredShops = filterShopsByWalkMinutes_(areaFilteredShops, payload);
   const smokingFilteredShops = filterShopsBySmokingPreference_(walkFilteredShops, payload);
   const openTaggedShops = markOpenNowFiltered_(smokingFilteredShops, payload);
   const rankedShops = selectTopCandidates_(openTaggedShops, payload, CONFIG.HOTPEPPER.POOL_COUNT);
@@ -49,6 +50,7 @@ function searchHotPepperShops_(payload) {
     resultsReturned: visibleShops.length,
     resultsPool: rankedShops.length,
     resultsFetched: normalizedShops.length,
+    resultsAreaMatched: areaFilteredShops.length,
     resultsMatched: openTaggedShops.length,
     shops: visibleShops,
     backupShops: backupShops
@@ -198,6 +200,7 @@ function scoreShop_(shop, payload, mood) {
   }
 
   score += scoreFoodFit_(shop, payload, tags);
+  score += scoreDrinkFit_(payload, tags);
   score += scoreMoodFit_(shop, mood, tags);
   if (shop.photo) score += 1;
   if (shop.catchText) score += 1;
@@ -349,6 +352,8 @@ function buildPickReason_(shop, mood, payload) {
   }
   const foodMatches = findFoodMatches_(shop, payload.foodTerms || []);
   if (foodMatches.length) bits.push(foodMatches.slice(0, 2).join('・'));
+  const drinkLabels = formatDrinkSummaryTerms_(payload);
+  if (drinkLabels.length) bits.push(drinkLabels.slice(0, 2).join('・'));
   if (isCardUsable_(shop.card)) bits.push('カード可');
   if (mood.label) bits.push(mood.label);
   return bits.slice(0, 3).join(' / ');
@@ -377,7 +382,21 @@ function buildConditionTags_(shop, payload) {
   if (smokingLabel) {
     tags.push(smokingLabel);
   }
+  formatDrinkSummaryTerms_(payload).forEach(function (label) {
+    tags.push(label);
+  });
   return tags;
+}
+
+function scoreDrinkFit_(payload, tags) {
+  const labels = formatDrinkSummaryTerms_(payload);
+  if (!labels.length) {
+    return 0;
+  }
+  labels.slice(0, 3).forEach(function (label) {
+    tags.push(label);
+  });
+  return Math.min(12, labels.length * 5);
 }
 
 function formatMatchedSmokingCondition_(shop, preference) {
@@ -441,7 +460,7 @@ function formatDrinkSummaryTerms_(payload) {
   const values = Array.isArray(payload.drinkValues) ? payload.drinkValues : [];
   return values.map(function (value) {
     return labels[value] || '';
-  });
+  }).filter(Boolean);
 }
 
 function normalizeShop_(shop) {
@@ -471,6 +490,32 @@ function normalizeShop_(shop) {
       mobile: shop.urls && shop.urls.mobile ? shop.urls.mobile : ''
     }
   };
+}
+
+function filterShopsByAreaAnchor_(shops, payload) {
+  const anchor = extractAreaAnchor_(payload.areaText);
+  if (!anchor) {
+    return shops;
+  }
+  const filtered = shops.filter(function (shop) {
+    return !isClearlyDifferentPrefixedAreaShop_(shop, anchor);
+  });
+  return filtered.length >= CONFIG.HOTPEPPER.RETURN_COUNT ? filtered : shops;
+}
+
+function isClearlyDifferentPrefixedAreaShop_(shop, anchor) {
+  if (!anchor || anchor.charAt(0) === '新') {
+    return false;
+  }
+  const station = normalizeAreaText_(shop.station).replace(/駅$/, '');
+  if (station === anchor) {
+    return false;
+  }
+  const access = normalizeAreaText_(shop.access);
+  if (access.indexOf(anchor + '駅') !== -1 && access.indexOf('新' + anchor + '駅') === -1) {
+    return false;
+  }
+  return station === '新' + anchor || access.indexOf('新' + anchor + '駅') !== -1;
 }
 
 function filterShopsBySmokingPreference_(shops, payload) {
