@@ -29,6 +29,7 @@
     setupNotice: document.getElementById('setupNotice'),
     searchButton: document.getElementById('searchButton'),
     queryPreview: document.getElementById('queryPreview'),
+    scoutBrief: document.getElementById('scoutBrief'),
     resultPanel: document.getElementById('resultPanel'),
     rotateButton: document.getElementById('rotateButton'),
     resultCount: document.getElementById('resultCount'),
@@ -126,6 +127,7 @@
       ...formatMustLabels(preferences.mustValues)
     ].filter(Boolean).join(' / ');
     elements.queryPreview.textContent = query || '場所と気分を入れて候補を出します。';
+    renderScoutBrief(preferences);
   }
 
   function getSelectedMood() {
@@ -149,6 +151,38 @@
       openNow: '営業中'
     };
     return values.filter((value) => value !== 'walk5').map((value) => labels[value] || '');
+  }
+
+  function renderScoutBrief(preferences) {
+    const mustLabels = formatMustLabels(preferences.mustValues || []);
+    const priorityLabels = [preferences.walkLabel].concat(mustLabels, preferences.smokingLabel).filter(Boolean);
+    const areaLabel = preferences.areaText || '場所未入力';
+    const policyText = buildScoutBriefText(preferences, priorityLabels);
+    elements.scoutBrief.innerHTML = [
+      '<div class="scout-brief-head">',
+      '<span>今夜の方針</span>',
+      '<strong>' + escapeHtml(preferences.moodLabel || '無難にうまい') + '</strong>',
+      '</div>',
+      '<div class="scout-brief-chips">',
+      '<span>' + escapeHtml(areaLabel) + '</span>',
+      priorityLabels.map((label) => '<span>' + escapeHtml(label) + '</span>').join(''),
+      !priorityLabels.length ? '<span>条件ゆるめ</span>' : '',
+      '</div>',
+      '<p>' + escapeHtml(policyText) + '</p>'
+    ].join('');
+  }
+
+  function buildScoutBriefText(preferences, priorityLabels) {
+    const area = preferences.areaText ? preferences.areaText + 'で' : '場所を入れたら';
+    const mood = preferences.moodLabel || '無難にうまい';
+    if (!priorityLabels.length) {
+      return area + mood + '候補を広めに拾います。';
+    }
+    const topPriorities = priorityLabels.slice(0, 3).join('・');
+    if ((preferences.mustValues || []).includes('walk5')) {
+      return area + topPriorities + 'を強めに見て、' + mood + '候補を絞ります。';
+    }
+    return area + topPriorities + 'を優先して、' + mood + '候補を並べます。';
   }
 
   function search() {
