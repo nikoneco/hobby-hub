@@ -41,7 +41,9 @@ function searchHotPepperShops_(payload) {
   const walkFilteredShops = filterShopsByWalkMinutes_(areaFilteredShops, payload);
   const smokingFilteredShops = filterShopsBySmokingPreference_(walkFilteredShops, payload);
   const openTaggedShops = markOpenNowFiltered_(smokingFilteredShops, payload);
-  const rankedShops = selectTopCandidates_(openTaggedShops, payload, CONFIG.HOTPEPPER.POOL_COUNT);
+  const mood = getMoodConfig_(payload);
+  const budgetFilteredShops = filterShopsByMoodBudget_(openTaggedShops, mood);
+  const rankedShops = selectTopCandidates_(budgetFilteredShops, payload, CONFIG.HOTPEPPER.POOL_COUNT);
   const visibleShops = rankedShops.slice(0, CONFIG.HOTPEPPER.RETURN_COUNT);
   const backupShops = rankedShops.slice(CONFIG.HOTPEPPER.RETURN_COUNT);
   return {
@@ -53,7 +55,8 @@ function searchHotPepperShops_(payload) {
     resultsAreaMatched: areaFilteredShops.length,
     resultsWalkMatched: walkFilteredShops.length,
     resultsSmokingMatched: smokingFilteredShops.length,
-    resultsMatched: openTaggedShops.length,
+    resultsBudgetMatched: budgetFilteredShops.length,
+    resultsMatched: budgetFilteredShops.length,
     shops: visibleShops,
     backupShops: backupShops
   };
@@ -143,7 +146,7 @@ function getMoodConfig_(payload) {
 
 function selectTopCandidates_(shops, payload, limit) {
   const mood = getMoodConfig_(payload);
-  return filterShopsByMoodBudget_(shops, mood)
+  return shops
     .map(function (shop) {
       const scored = Object.assign({}, shop);
       const score = scoreShop_(shop, payload, mood);

@@ -584,6 +584,9 @@
     if (preferences && preferences.smokingPreference && data.resultsSmokingMatched != null) {
       items.push('たばこ条件後 ' + Number(data.resultsSmokingMatched) + '件');
     }
+    if (preferences && preferences.mood === 'cheap' && data.resultsBudgetMatched != null) {
+      items.push('予算目安後 ' + Number(data.resultsBudgetMatched) + '件');
+    }
     if (data.resultsMatched != null) items.push('最終 ' + Number(data.resultsMatched) + '件');
     return items;
   }
@@ -926,14 +929,24 @@
   function formatResultCount(data, visibleCount) {
     const fetchedCount = Number(data.resultsFetched || visibleCount);
     const base = visibleCount + '件提案';
+    const budgetCount = Number(data.resultsBudgetMatched || 0);
     const reserveCount = state.backupShops.length;
     if (reserveCount > 0) {
-      return base + ' / 控え' + reserveCount + '件 / 取得' + fetchedCount + '件';
+      return base + formatBudgetCountSuffix(data, budgetCount) + ' / 控え' + reserveCount + '件 / 取得' + fetchedCount + '件';
     }
     if (fetchedCount !== visibleCount) {
-      return base + ' / 取得' + fetchedCount + '件 / 全' + data.resultsAvailable + '件';
+      return base + formatBudgetCountSuffix(data, budgetCount) + ' / 取得' + fetchedCount + '件 / 全' + data.resultsAvailable + '件';
     }
     return base + ' / 全' + data.resultsAvailable + '件';
+  }
+
+  function formatBudgetCountSuffix(data, budgetCount) {
+    const preferences = state.resultPreferences || state.preferences || {};
+    const beforeBudgetCount = Number(data.resultsSmokingMatched || data.resultsMatched || 0);
+    if (!preferences || preferences.mood !== 'cheap' || !budgetCount || budgetCount === beforeBudgetCount) {
+      return '';
+    }
+    return ' / 予算目安' + budgetCount + '件';
   }
 
   function refreshResultCount() {
