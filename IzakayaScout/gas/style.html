@@ -256,6 +256,10 @@
     margin-bottom: 16px;
   }
 
+  .choice-field {
+    margin-bottom: 8px;
+  }
+
   .chip-field legend,
   .choice-field legend {
     width: 100%;
@@ -345,6 +349,30 @@
     margin: 0;
     cursor: pointer;
     opacity: 0;
+  }
+
+  .mood-shuffle-button {
+    width: 100%;
+    min-height: 38px;
+    margin: 0 0 16px;
+    border: 1px solid rgba(79, 177, 168, 0.34);
+    border-radius: 8px;
+    background: rgba(79, 177, 168, 0.1);
+    color: #d8fff8;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 900;
+    transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+  }
+
+  .mood-shuffle-button:hover {
+    border-color: rgba(79, 177, 168, 0.68);
+    background: rgba(79, 177, 168, 0.16);
+    transform: translateY(-1px);
+  }
+
+  .mood-shuffle-button.is-rolling {
+    animation: moodRoll 340ms ease both;
   }
 
   .primary-button {
@@ -939,6 +967,18 @@
     }
     100% {
       transform: translateY(0) rotate(0deg);
+    }
+  }
+
+  @keyframes moodRoll {
+    0% {
+      transform: translateY(0) scale(1);
+    }
+    45% {
+      transform: translateY(-1px) scale(1.02);
+    }
+    100% {
+      transform: translateY(0) scale(1);
     }
   }
 

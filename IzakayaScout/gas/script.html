@@ -28,6 +28,7 @@
     recentAreaList: document.getElementById('recentAreaList'),
     smokingSelect: document.getElementById('smokingSelect'),
     setupNotice: document.getElementById('setupNotice'),
+    moodShuffleButton: document.getElementById('moodShuffleButton'),
     searchButton: document.getElementById('searchButton'),
     queryPreview: document.getElementById('queryPreview'),
     scoutBrief: document.getElementById('scoutBrief'),
@@ -54,6 +55,7 @@
     document.querySelectorAll('input[name="mood"], .chip-field input[type="checkbox"]').forEach((input) => {
       input.addEventListener('change', handlePreferenceChange);
     });
+    elements.moodShuffleButton.addEventListener('click', shuffleMood);
     elements.searchButton.addEventListener('click', search);
     elements.recentAreaList.addEventListener('click', handleRecentAreaClick);
     elements.rotateButton.addEventListener('click', rotateCandidates);
@@ -134,6 +136,23 @@
   function getSelectedMood() {
     const input = document.querySelector('input[name="mood"]:checked');
     return input ? input.value : 'safe';
+  }
+
+  function shuffleMood() {
+    const moods = Object.keys(moodLabels);
+    const currentMood = getSelectedMood();
+    const candidates = moods.filter((mood) => mood !== currentMood);
+    const nextMood = candidates[Math.floor(Math.random() * candidates.length)] || currentMood;
+    const input = document.querySelector('input[name="mood"][value="' + cssEscape(nextMood) + '"]');
+    if (!input) {
+      return;
+    }
+    input.checked = true;
+    elements.moodShuffleButton.classList.add('is-rolling');
+    setTimeout(() => elements.moodShuffleButton.classList.remove('is-rolling'), 360);
+    handlePreferenceChange();
+    showActionToast('今夜は「' + (moodLabels[nextMood] || '気分まかせ') + '」で探します');
+    vibrate(12);
   }
 
   function getSelectedSmokingLabel() {
