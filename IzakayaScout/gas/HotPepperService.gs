@@ -203,7 +203,7 @@ function scoreShop_(shop, payload, mood) {
   }
 
   score += scoreFoodFit_(shop, payload, tags);
-  score += scoreDrinkFit_(payload, tags);
+  score += scoreDrinkFit_(shop, payload, tags);
   score += scoreMoodFit_(shop, mood, tags);
   if (shop.photo) score += 1;
   if (shop.catchText) score += 1;
@@ -337,7 +337,13 @@ function scoreMoodFit_(shop, mood, tags) {
     shop.catchText,
     shop.budget,
     shop.name,
-    shop.access
+    shop.access,
+    shop.midnight,
+    shop.freeDrink,
+    shop.cocktail,
+    shop.wine,
+    shop.sake,
+    shop.shochu
   ].join(' ');
   if (mood.code === 'cheap') {
     if (isWithinMoodBudget_(shop, mood)) {
@@ -351,11 +357,24 @@ function scoreMoodFit_(shop, mood, tags) {
     return 2;
   }
   if (mood.code === 'second') {
+    let secondScore = 2;
     if (/バー|カクテル|二次会|2次会|深夜|駅近/.test(haystack)) {
-      tags.push('二軒目向き');
-      return 8;
+      pushUniqueTag_(tags, '二軒目向き');
+      secondScore += 8;
     }
-    return 2;
+    if (hasMidnight_(shop.midnight)) {
+      pushUniqueTag_(tags, '深夜');
+      secondScore += 5;
+    }
+    if (hasPositiveFeature_(shop.cocktail) || hasPositiveFeature_(shop.wine)) {
+      pushUniqueTag_(tags, '一杯向き');
+      secondScore += 4;
+    }
+    if (hasPositiveFeature_(shop.freeDrink)) {
+      pushUniqueTag_(tags, '飲み放題');
+      secondScore += 2;
+    }
+    return Math.max(1, secondScore);
   }
   if (mood.code === 'quiet') {
     let quietScore = 2;
@@ -376,11 +395,23 @@ function scoreMoodFit_(shop, mood, tags) {
     return Math.max(1, quietScore);
   }
   if (mood.code === 'bar') {
+    let barScore = 2;
     if (/バー|カクテル|ワイン|ダイニングバー/.test(haystack)) {
-      tags.push('バー寄り');
-      return 9;
+      pushUniqueTag_(tags, 'バー寄り');
+      barScore += 9;
     }
-    return 2;
+    if (hasPositiveFeature_(shop.cocktail)) {
+      pushUniqueTag_(tags, 'カクテル');
+      barScore += 5;
+    }
+    if (hasPositiveFeature_(shop.wine)) {
+      pushUniqueTag_(tags, 'ワイン');
+      barScore += 4;
+    }
+    if (/バー|ダイニングバー/.test(String(shop.genre || ''))) {
+      barScore += 4;
+    }
+    return Math.max(1, barScore);
   }
   tags.push('無難');
   return 5;
@@ -423,14 +454,14 @@ function buildConditionTags_(shop, payload) {
   if (smokingLabel) {
     tags.push(smokingLabel);
   }
-  formatDrinkSummaryTerms_(payload).forEach(function (label) {
+  formatMatchedDrinkConditionLabels_(shop, payload).forEach(function (label) {
     tags.push(label);
   });
   return tags;
 }
 
-function scoreDrinkFit_(payload, tags) {
-  const labels = formatDrinkSummaryTerms_(payload);
+function scoreDrinkFit_(shop, payload, tags) {
+  const labels = formatMatchedDrinkConditionLabels_(shop, payload);
   if (!labels.length) {
     return 0;
   }
@@ -473,7 +504,7 @@ function hasPrivateRoom_(text) {
 }
 
 function hasPositiveFeature_(text) {
-  return /あり|有|可|利用可|対応|歓迎|いる/.test(String(text || '')) && !/なし|無し|無|不可|未確認/.test(String(text || ''));
+  return /あり|有|可|利用可|対応|歓迎|いる|充実|豊富/.test(String(text || '')) && !/なし|無し|無|不可|未確認/.test(String(text || ''));
 }
 
 function hasEntertainmentFeature_(shop) {
@@ -486,6 +517,12 @@ function hasEntertainmentFeature_(shop) {
 
 function hasMidnight_(text) {
   return /営業|可|あり|有/.test(String(text || '')) && !/なし|無し|無/.test(String(text || ''));
+}
+
+function pushUniqueTag_(tags, label) {
+  if (tags.indexOf(label) === -1) {
+    tags.push(label);
+  }
 }
 
 function buildSearchSummary_(payload, params) {
@@ -504,16 +541,41 @@ function buildSearchSummary_(payload, params) {
 }
 
 function formatDrinkSummaryTerms_(payload) {
-  const labels = {
+  const labels = getDrinkFeatureLabels_();
+  const values = Array.isArray(payload.drinkValues) ? payload.drinkValues : [];
+  return values.map(function (value) {
+    return labels[value] || '';
+  }).filter(Boolean);
+}
+
+function formatMatchedDrinkConditionLabels_(shop, payload) {
+  const labels = getDrinkFeatureLabels_();
+  const values = Array.isArray(payload.drinkValues) ? payload.drinkValues : [];
+  return values.map(function (value) {
+    if (!hasPositiveFeature_(getShopDrinkFeatureText_(shop, value))) {
+      return '';
+    }
+    return labels[value] || '';
+  }).filter(Boolean);
+}
+
+function getDrinkFeatureLabels_() {
+  return {
     sake: '日本酒',
     shochu: '焼酎',
     wine: 'ワイン',
     cocktail: 'カクテル'
   };
-  const values = Array.isArray(payload.drinkValues) ? payload.drinkValues : [];
-  return values.map(function (value) {
-    return labels[value] || '';
-  }).filter(Boolean);
+}
+
+function getShopDrinkFeatureText_(shop, value) {
+  const fields = {
+    sake: shop.sake,
+    shochu: shop.shochu,
+    wine: shop.wine,
+    cocktail: shop.cocktail
+  };
+  return fields[value] || '';
 }
 
 function normalizeShop_(shop) {
@@ -535,6 +597,11 @@ function normalizeShop_(shop) {
     horigotatsu: shop.horigotatsu || '',
     tatami: shop.tatami || '',
     midnight: shop.midnight || '',
+    freeDrink: shop.free_drink || '',
+    cocktail: shop.cocktail || '',
+    wine: shop.wine || '',
+    sake: shop.sake || '',
+    shochu: shop.shochu || '',
     nonSmoking: shop.non_smoking || '',
     card: shop.card || '',
     creditCards: normalizeCreditCards_(shop.credit_card),

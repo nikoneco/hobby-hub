@@ -495,6 +495,11 @@
       detailRow('個室', shop.privateRoom || ''),
       detailRow('掘りごたつ', shop.horigotatsu || ''),
       detailRow('座敷', shop.tatami || ''),
+      detailRow('飲み放題', shop.freeDrink || ''),
+      detailRow('カクテル', shop.cocktail || ''),
+      detailRow('ワイン', shop.wine || ''),
+      detailRow('日本酒', shop.sake || ''),
+      detailRow('焼酎', shop.shochu || ''),
       detailRow('カード', shop.card || ''),
       detailRow('対応カード', formatCreditCards(shop.creditCards)),
       detailRow('電話', shop.tel || '', telUrl),
@@ -731,7 +736,13 @@
       shop.access,
       shop.privateRoom,
       shop.horigotatsu,
-      shop.tatami
+      shop.tatami,
+      shop.midnight,
+      shop.freeDrink,
+      shop.cocktail,
+      shop.wine,
+      shop.sake,
+      shop.shochu
     ].join(' ');
     if (mood === 'cheap' && /安|リーズナブル|せんべろ|コスパ|お得|飲み放題/.test(text)) {
       return '安く飲む気分に近い';
