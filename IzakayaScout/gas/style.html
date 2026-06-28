@@ -287,6 +287,7 @@
   }
 
   .chip-field,
+  .drink-field,
   .food-field,
   .choice-field {
     display: flex;
@@ -298,6 +299,7 @@
   }
 
   .chip-field:last-of-type,
+  .drink-field:last-of-type,
   .food-field:last-of-type,
   .choice-field:last-of-type {
     margin-bottom: 16px;
@@ -308,6 +310,7 @@
   }
 
   .chip-field legend,
+  .drink-field legend,
   .food-field legend,
   .choice-field legend {
     width: 100%;
@@ -318,6 +321,7 @@
   }
 
   .chip-field label,
+  .drink-field label,
   .food-field label,
   .choice-field label {
     position: relative;
@@ -352,7 +356,12 @@
     flex: 1 1 calc(33.333% - 6px);
   }
 
+  .drink-field label {
+    flex: 1 1 calc(50% - 4px);
+  }
+
   .chip-field label::before,
+  .drink-field label::before,
   .food-field label::before,
   .choice-field label::before {
     content: "";
@@ -366,6 +375,7 @@
   }
 
   .chip-field label:hover,
+  .drink-field label:hover,
   .food-field label:hover,
   .choice-field label:hover {
     border-color: rgba(240, 180, 90, 0.42);
@@ -374,6 +384,7 @@
   }
 
   .chip-field label:has(input:focus-visible),
+  .drink-field label:has(input:focus-visible),
   .food-field label:has(input:focus-visible),
   .choice-field label:has(input:focus-visible) {
     outline: 2px solid rgba(79, 177, 168, 0.34);
@@ -381,6 +392,7 @@
   }
 
   .chip-field label:has(input:checked),
+  .drink-field label:has(input:checked),
   .food-field label:has(input:checked),
   .choice-field label:has(input:checked) {
     border-color: rgba(240, 180, 90, 0.72);
@@ -392,6 +404,7 @@
   }
 
   .chip-field label:has(input:checked)::before,
+  .drink-field label:has(input:checked)::before,
   .food-field label:has(input:checked)::before,
   .choice-field label:has(input:checked)::before {
     border-color: rgba(255, 236, 196, 0.9);
@@ -399,6 +412,7 @@
   }
 
   .chip-field input,
+  .drink-field input,
   .food-field input,
   .choice-field input {
     position: absolute;

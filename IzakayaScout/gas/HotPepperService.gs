@@ -423,12 +423,25 @@ function buildSearchSummary_(payload, params) {
     formatWalkLimitSummary_(payload.walkMinutesLimit),
     formatOpenNowSummary_(payload),
     formatSmokingSummary_(payload.smokingPreference)
-  ].concat(payload.foodTerms || [])
+  ].concat(payload.foodTerms || [], formatDrinkSummaryTerms_(payload))
     .map(function (term) {
       return String(term || '').trim();
     })
     .filter(Boolean)
     .join(' ');
+}
+
+function formatDrinkSummaryTerms_(payload) {
+  const labels = {
+    sake: '日本酒',
+    shochu: '焼酎',
+    wine: 'ワイン',
+    cocktail: 'カクテル'
+  };
+  const values = Array.isArray(payload.drinkValues) ? payload.drinkValues : [];
+  return values.map(function (value) {
+    return labels[value] || '';
+  });
 }
 
 function normalizeShop_(shop) {

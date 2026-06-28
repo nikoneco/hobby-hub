@@ -27,31 +27,36 @@
       label: '近場で一杯',
       mood: 'safe',
       mustValues: ['walk5', 'openNow'],
-      foodValues: []
+      foodValues: [],
+      drinkValues: []
     },
     cheap: {
       label: '安くサクッと',
       mood: 'cheap',
       mustValues: ['walk5', 'openNow'],
-      foodValues: []
+      foodValues: [],
+      drinkValues: []
     },
     quiet: {
       label: '静かに飲む',
       mood: 'quiet',
       mustValues: ['privateRoom', 'card'],
-      foodValues: []
+      foodValues: [],
+      drinkValues: ['wine']
     },
     yakitori: {
       label: '焼き鳥気分',
       mood: 'safe',
       mustValues: ['walk5', 'openNow'],
-      foodValues: ['焼き鳥']
+      foodValues: ['焼き鳥'],
+      drinkValues: ['sake']
     },
     bar: {
       label: '二軒目バー',
       mood: 'bar',
       mustValues: ['midnight', 'card'],
-      foodValues: []
+      foodValues: [],
+      drinkValues: ['cocktail']
     }
   };
 
@@ -83,7 +88,7 @@
   function bindEvents() {
     elements.areaInput.addEventListener('input', handlePreferenceChange);
     elements.smokingSelect.addEventListener('change', handlePreferenceChange);
-    document.querySelectorAll('input[name="mood"], .food-field input[type="checkbox"], .chip-field input[type="checkbox"]').forEach((input) => {
+    document.querySelectorAll('input[name="mood"], .food-field input[type="checkbox"], .drink-field input[type="checkbox"], .chip-field input[type="checkbox"]').forEach((input) => {
       input.addEventListener('change', handlePreferenceChange);
     });
     elements.moodShuffleButton.addEventListener('click', shuffleMood);
@@ -115,6 +120,11 @@
     document.querySelectorAll('.food-field input[type="checkbox"]').forEach((input) => {
       input.checked = foodValues.has(input.value);
     });
+
+    const drinkValues = new Set(state.preferences.drinkValues || []);
+    document.querySelectorAll('.drink-field input[type="checkbox"]').forEach((input) => {
+      input.checked = drinkValues.has(input.value);
+    });
   }
 
   function handlePreferenceChange() {
@@ -128,11 +138,16 @@
     const mustValues = mustInputs.map((input) => input.value);
     const foodInputs = Array.from(document.querySelectorAll('.food-field input[type="checkbox"]:checked'));
     const foodValues = foodInputs.map((input) => input.value);
+    const drinkInputs = Array.from(document.querySelectorAll('.drink-field input[type="checkbox"]:checked'));
+    const drinkValues = drinkInputs.map((input) => input.value);
     const features = {};
     if (mustValues.includes('card')) features.card = true;
     if (mustValues.includes('privateRoom')) features.privateRoom = true;
     if (mustValues.includes('midnight')) features.midnight = true;
     if (mustValues.includes('openNow')) features.openNow = true;
+    drinkValues.forEach((value) => {
+      features[value] = true;
+    });
 
     const mood = getSelectedMood();
     const smokingPreference = elements.smokingSelect.value;
@@ -148,6 +163,7 @@
       features,
       mustValues,
       foodValues,
+      drinkValues,
       foodTerms: foodValues
     };
   }
@@ -168,6 +184,7 @@
       preferences.areaText,
       preferences.moodLabel,
       ...formatFoodLabels(preferences.foodValues),
+      ...formatDrinkLabels(preferences.drinkValues),
       preferences.walkLabel,
       preferences.smokingLabel,
       ...formatMustLabels(preferences.mustValues)
@@ -207,6 +224,7 @@
     setMoodValue(preset.mood);
     setCheckedValues('.chip-field input[type="checkbox"]', preset.mustValues || []);
     setCheckedValues('.food-field input[type="checkbox"]', preset.foodValues || []);
+    setCheckedValues('.drink-field input[type="checkbox"]', preset.drinkValues || []);
     handlePreferenceChange();
     showActionToast('「' + preset.label + '」で整えました');
     vibrate(16);
@@ -226,7 +244,8 @@
       const preset = scoutPresets[key];
       return preferences.mood === preset.mood
         && hasSameValues(preferences.mustValues || [], preset.mustValues || [])
-        && hasSameValues(preferences.foodValues || [], preset.foodValues || []);
+        && hasSameValues(preferences.foodValues || [], preset.foodValues || [])
+        && hasSameValues(preferences.drinkValues || [], preset.drinkValues || []);
     }) || '';
   }
 
@@ -274,12 +293,24 @@
     return Array.isArray(values) ? values.filter(Boolean) : [];
   }
 
+  function formatDrinkLabels(values) {
+    const labels = {
+      sake: '日本酒',
+      shochu: '焼酎',
+      wine: 'ワイン',
+      cocktail: 'カクテル'
+    };
+    return Array.isArray(values) ? values.map((value) => labels[value] || '').filter(Boolean) : [];
+  }
+
   function renderScoutBrief(preferences) {
     const mustLabels = formatMustLabels(preferences.mustValues || []);
     const foodLabels = formatFoodLabels(preferences.foodValues || []);
+    const drinkLabels = formatDrinkLabels(preferences.drinkValues || []);
+    const tasteLabels = foodLabels.concat(drinkLabels);
     const priorityLabels = [preferences.walkLabel].concat(mustLabels, preferences.smokingLabel).filter(Boolean);
     const areaLabel = preferences.areaText || '場所未入力';
-    const policyText = buildScoutBriefText(preferences, priorityLabels, foodLabels);
+    const policyText = buildScoutBriefText(preferences, priorityLabels, tasteLabels);
     elements.scoutBrief.innerHTML = [
       '<div class="scout-brief-head">',
       '<span>今夜の方針</span>',
@@ -287,18 +318,18 @@
       '</div>',
       '<div class="scout-brief-chips">',
       '<span>' + escapeHtml(areaLabel) + '</span>',
-      foodLabels.map((label) => '<span>' + escapeHtml(label) + '</span>').join(''),
+      tasteLabels.map((label) => '<span>' + escapeHtml(label) + '</span>').join(''),
       priorityLabels.map((label) => '<span>' + escapeHtml(label) + '</span>').join(''),
-      !priorityLabels.length && !foodLabels.length ? '<span>条件ゆるめ</span>' : '',
+      !priorityLabels.length && !tasteLabels.length ? '<span>条件ゆるめ</span>' : '',
       '</div>',
       '<p>' + escapeHtml(policyText) + '</p>'
     ].join('');
   }
 
-  function buildScoutBriefText(preferences, priorityLabels, foodLabels) {
+  function buildScoutBriefText(preferences, priorityLabels, tasteLabels) {
     const area = preferences.areaText ? preferences.areaText + 'で' : '場所を入れたら';
     const mood = preferences.moodLabel || '無難にうまい';
-    const foodText = foodLabels && foodLabels.length ? foodLabels.slice(0, 3).join('・') + 'も見ながら、' : '';
+    const foodText = tasteLabels && tasteLabels.length ? tasteLabels.slice(0, 3).join('・') + 'も見ながら、' : '';
     if (!priorityLabels.length) {
       if (foodText) {
         return area + foodText + mood + '候補を拾います。';
@@ -717,6 +748,7 @@
       payload.areaText,
       payload.moodLabel,
       ...formatFoodLabels(payload.foodValues || []),
+      ...formatDrinkLabels(payload.drinkValues || []),
       payload.walkLabel,
       payload.smokingLabel,
       ...formatMustLabels(payload.mustValues || [])
