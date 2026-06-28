@@ -492,6 +492,9 @@
       detailRow('徒歩目安', formatWalkMinutes(shop.walkMinutes)),
       detailRow('住所', shop.address || '', shop.mapsUrl || ''),
       detailRow('禁煙・喫煙', shop.nonSmoking || ''),
+      detailRow('個室', shop.privateRoom || ''),
+      detailRow('掘りごたつ', shop.horigotatsu || ''),
+      detailRow('座敷', shop.tatami || ''),
       detailRow('カード', shop.card || ''),
       detailRow('対応カード', formatCreditCards(shop.creditCards)),
       detailRow('電話', shop.tel || '', telUrl),
@@ -725,7 +728,10 @@
       shop.genre,
       shop.catchText,
       shop.budget,
-      shop.access
+      shop.access,
+      shop.privateRoom,
+      shop.horigotatsu,
+      shop.tatami
     ].join(' ');
     if (mood === 'cheap' && /安|リーズナブル|せんべろ|コスパ|お得|飲み放題/.test(text)) {
       return '安く飲む気分に近い';

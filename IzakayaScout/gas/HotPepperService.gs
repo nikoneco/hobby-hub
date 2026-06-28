@@ -358,11 +358,22 @@ function scoreMoodFit_(shop, mood, tags) {
     return 2;
   }
   if (mood.code === 'quiet') {
+    let quietScore = 2;
     if (/落ち着|隠れ家|個室|静|大人|ゆったり/.test(haystack)) {
       tags.push('落ち着き');
-      return 8;
+      quietScore += 8;
     }
-    return 2;
+    if (hasPrivateRoom_(shop.privateRoom)) {
+      quietScore += 5;
+    }
+    if (hasPositiveFeature_(shop.horigotatsu) || hasPositiveFeature_(shop.tatami)) {
+      tags.push('ゆったり席');
+      quietScore += 4;
+    }
+    if (hasEntertainmentFeature_(shop)) {
+      quietScore -= 4;
+    }
+    return Math.max(1, quietScore);
   }
   if (mood.code === 'bar') {
     if (/バー|カクテル|ワイン|ダイニングバー/.test(haystack)) {
@@ -461,6 +472,18 @@ function hasPrivateRoom_(text) {
   return /あり|有|個室/.test(String(text || '')) && !/なし|無し|無/.test(String(text || ''));
 }
 
+function hasPositiveFeature_(text) {
+  return /あり|有|可|利用可|対応|歓迎|いる/.test(String(text || '')) && !/なし|無し|無|不可|未確認/.test(String(text || ''));
+}
+
+function hasEntertainmentFeature_(shop) {
+  return hasPositiveFeature_(shop.karaoke)
+    || hasPositiveFeature_(shop.show)
+    || hasPositiveFeature_(shop.equipment)
+    || hasPositiveFeature_(shop.band)
+    || hasPositiveFeature_(shop.tv);
+}
+
 function hasMidnight_(text) {
   return /営業|可|あり|有/.test(String(text || '')) && !/なし|無し|無/.test(String(text || ''));
 }
@@ -509,6 +532,8 @@ function normalizeShop_(shop) {
     budget: shop.budget ? shop.budget.average || shop.budget.name || '' : '',
     budgetEstimatedYen: extractBudgetEstimatedYen_(shop.budget),
     privateRoom: shop.private_room || '',
+    horigotatsu: shop.horigotatsu || '',
+    tatami: shop.tatami || '',
     midnight: shop.midnight || '',
     nonSmoking: shop.non_smoking || '',
     card: shop.card || '',
@@ -516,6 +541,11 @@ function normalizeShop_(shop) {
     tel: shop.tel || '',
     open: shop.open || '',
     close: shop.close || '',
+    show: shop.show || '',
+    equipment: shop.equipment || '',
+    karaoke: shop.karaoke || '',
+    band: shop.band || '',
+    tv: shop.tv || '',
     station: shop.station_name || '',
     urls: {
       pc: shop.urls && shop.urls.pc ? shop.urls.pc : '',
