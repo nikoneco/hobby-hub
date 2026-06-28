@@ -535,6 +535,10 @@
     if (foodMatches.length) {
       return foodMatches.slice(0, 2).join('・');
     }
+    const budgetFit = formatCheapBudgetEvidence(shop, preferences);
+    if (budgetFit) {
+      return budgetFit;
+    }
     return formatMoodEvidence(shop, preferences) || shop.pickReason || '';
   }
 
@@ -616,7 +620,7 @@
     const pieces = [];
     const foodMatches = findSelectedFoodMatches(shop, preferences).slice(0, 2);
     const conditionMatches = Array.isArray(shop.conditionTags) ? shop.conditionTags.slice(0, 2) : [];
-    const moodText = formatMoodEvidence(shop, preferences);
+    const moodText = formatCheapBudgetEvidence(shop, preferences) || formatMoodEvidence(shop, preferences);
 
     if (foodMatches.length) {
       pieces.push(foodMatches.join('・') + 'が合いそう');
@@ -703,6 +707,20 @@
     return '';
   }
 
+  function formatCheapBudgetEvidence(shop, preferences) {
+    if (!preferences || preferences.mood !== 'cheap') {
+      return '';
+    }
+    const estimated = Number(shop.budgetEstimatedYen || 0);
+    if (estimated && estimated <= 3500) {
+      return estimated + '円目安';
+    }
+    if (shop.budget && /2000|3000|3500/.test(String(shop.budget))) {
+      return '安め予算';
+    }
+    return '';
+  }
+
   function rotateCandidates() {
     if (!state.visibleShops.length || !state.backupShops.length) {
       return;
@@ -763,9 +781,11 @@
       buildSearchingSummary(preferences)
     ].filter(Boolean).join('\n');
     const lines = state.visibleShops.map((shop, index) => {
+      const cheapBudgetEvidence = formatCheapBudgetEvidence(shop, preferences);
       const pieces = [
         (index + 1) + '. ' + (shop.name || '名称未設定'),
         shop.pickReason ? '理由: ' + shop.pickReason : '',
+        cheapBudgetEvidence ? '安く飲む: ' + cheapBudgetEvidence : '',
         shop.budget ? '予算: ' + shop.budget : '',
         shop.mapsUrl ? '地図: ' + shop.mapsUrl : '',
         shop.urls && shop.urls.pc ? 'HP: ' + shop.urls.pc : ''
