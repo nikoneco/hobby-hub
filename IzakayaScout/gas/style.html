@@ -1172,6 +1172,7 @@
   }
 
   .action-toast span {
+    flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1190,6 +1191,7 @@
     padding: 0 12px;
     font-size: 13px;
     font-weight: 900;
+    white-space: nowrap;
   }
 
   .toast-action:hover,
@@ -1346,6 +1348,17 @@
   }
 
   @media (max-width: 380px) {
+    .action-toast {
+      gap: 8px;
+      padding: 10px;
+    }
+
+    .toast-action {
+      min-height: 30px;
+      padding-inline: 10px;
+      font-size: 12px;
+    }
+
     .topbar {
       gap: 10px;
       padding-inline: 14px;
