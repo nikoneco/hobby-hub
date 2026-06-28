@@ -7,6 +7,8 @@
     searching: false,
     visibleShops: [],
     backupShops: [],
+    keptShops: [],
+    selectedShop: null,
     lastResultMeta: null,
     lastDismissed: null,
     undoTimer: null
@@ -26,6 +28,8 @@
     setupNotice: document.getElementById('setupNotice'),
     searchButton: document.getElementById('searchButton'),
     queryPreview: document.getElementById('queryPreview'),
+    decisionPanel: document.getElementById('decisionPanel'),
+    keepTray: document.getElementById('keepTray'),
     resultCount: document.getElementById('resultCount'),
     resultList: document.getElementById('resultList'),
     undoToast: document.getElementById('undoToast'),
@@ -168,9 +172,13 @@
     state.lastResultMeta = data;
     state.visibleShops = (data.shops || []).slice();
     state.backupShops = (data.backupShops || []).slice();
+    state.keptShops = [];
+    state.selectedShop = null;
     state.lastDismissed = null;
     hideUndoToast();
     elements.queryPreview.textContent = data.query || '';
+    renderDecisionPanel();
+    renderKeepTray();
     renderShopList();
     refreshResultCount();
   }
@@ -219,10 +227,16 @@
       detailRow('営業時間', shop.open || ''),
       detailRow('定休日', shop.close || ''),
       '</dl>',
+      '<div class="shop-actions">',
+      '<button class="card-action decide-action" type="button">ここにする</button>',
+      '<button class="card-action keep-action" type="button">' + escapeHtml(isKept(shop.id) ? 'キープ中' : 'キープ') + '</button>',
       url ? '<a class="shop-link" href="' + escapeHtml(url) + '" target="_blank" rel="noopener">Hot Pepperで開く</a>' : '',
+      '</div>',
       '</div>'
     ].join('');
     card.querySelector('.dismiss-button').addEventListener('click', () => dismissShop(shop.id, card));
+    card.querySelector('.decide-action').addEventListener('click', () => decideShop(shop));
+    card.querySelector('.keep-action').addEventListener('click', () => keepShop(shop));
     bindSwipeDismiss(card, shop);
     return card;
   }
@@ -299,7 +313,13 @@
     if (!dismissedShop) {
       return;
     }
+    const wasKept = isKept(shopId);
+    const wasSelected = state.selectedShop && state.selectedShop.id === shopId;
     state.visibleShops = state.visibleShops.filter((shop) => shop.id !== shopId);
+    state.keptShops = state.keptShops.filter((shop) => shop.id !== shopId);
+    if (state.selectedShop && state.selectedShop.id === shopId) {
+      state.selectedShop = null;
+    }
     const replacement = state.backupShops.shift();
     if (replacement) {
       state.visibleShops.push(replacement);
@@ -307,9 +327,13 @@
     state.lastDismissed = {
       shop: dismissedShop,
       index: dismissedIndex,
-      replacement: replacement || null
+      replacement: replacement || null,
+      wasKept: wasKept,
+      wasSelected: Boolean(wasSelected)
     };
     renderShopList();
+    renderKeepTray();
+    renderDecisionPanel();
     refreshResultCount();
     showUndoToast(dismissedShop);
     vibrate(12);
@@ -327,11 +351,124 @@
     }
     const insertAt = Math.max(0, Math.min(record.index, state.visibleShops.length));
     state.visibleShops.splice(insertAt, 0, record.shop);
+    if (record.wasKept && !isKept(record.shop.id)) {
+      state.keptShops.push(record.shop);
+    }
+    if (record.wasSelected) {
+      state.selectedShop = record.shop;
+    }
     state.lastDismissed = null;
     hideUndoToast();
     renderShopList();
+    renderKeepTray();
+    renderDecisionPanel();
     refreshResultCount();
     vibrate(10);
+  }
+
+  function keepShop(shop) {
+    if (!shop || !shop.id) {
+      return;
+    }
+    if (!isKept(shop.id)) {
+      state.keptShops.push(shop);
+    }
+    renderShopList();
+    renderKeepTray();
+    showActionToast('キープしました: ' + (shop.name || '名称未設定'));
+    vibrate(8);
+  }
+
+  function removeKeptShop(shopId) {
+    state.keptShops = state.keptShops.filter((shop) => shop.id !== shopId);
+    renderShopList();
+    renderKeepTray();
+  }
+
+  function isKept(shopId) {
+    return state.keptShops.some((shop) => shop.id === shopId);
+  }
+
+  function decideShop(shop) {
+    if (!shop || !shop.id) {
+      return;
+    }
+    state.selectedShop = shop;
+    renderDecisionPanel();
+    showActionToast('今日の一軒にしました: ' + (shop.name || '名称未設定'));
+    if (elements.decisionPanel.scrollIntoView) {
+      elements.decisionPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    vibrate(18);
+  }
+
+  function clearDecision() {
+    state.selectedShop = null;
+    renderDecisionPanel();
+  }
+
+  function renderKeepTray() {
+    if (!state.keptShops.length) {
+      elements.keepTray.classList.add('hidden');
+      elements.keepTray.innerHTML = '';
+      return;
+    }
+
+    elements.keepTray.classList.remove('hidden');
+    elements.keepTray.innerHTML = [
+      '<div class="keep-heading"><span>キープ中</span><em>' + state.keptShops.length + '件</em></div>',
+      '<div class="keep-list">',
+      state.keptShops.map((shop) => [
+        '<button class="keep-chip" type="button" data-shop-id="' + escapeHtml(shop.id) + '">',
+        '<span>' + escapeHtml(shop.name || '名称未設定') + '</span>',
+        '<em>外す</em>',
+        '</button>'
+      ].join('')).join(''),
+      '</div>'
+    ].join('');
+
+    elements.keepTray.querySelectorAll('.keep-chip').forEach((button) => {
+      button.addEventListener('click', () => removeKeptShop(button.dataset.shopId || ''));
+    });
+  }
+
+  function renderDecisionPanel() {
+    const shop = state.selectedShop;
+    if (!shop) {
+      elements.decisionPanel.classList.add('hidden');
+      elements.decisionPanel.innerHTML = '';
+      return;
+    }
+
+    const hotPepperUrl = shop.urls && shop.urls.pc ? shop.urls.pc : '';
+    elements.decisionPanel.classList.remove('hidden');
+    elements.decisionPanel.innerHTML = [
+      '<div class="decision-copy">',
+      '<p class="eyebrow">Tonight Decision</p>',
+      '<h3>' + escapeHtml(shop.name || '名称未設定') + '</h3>',
+      '<p>' + escapeHtml(buildDecisionSummary(shop)) + '</p>',
+      '</div>',
+      '<div class="decision-actions">',
+      shop.mapsUrl ? '<a href="' + escapeHtml(shop.mapsUrl) + '" target="_blank" rel="noopener">Google Maps</a>' : '',
+      hotPepperUrl ? '<a href="' + escapeHtml(hotPepperUrl) + '" target="_blank" rel="noopener">Hot Pepper</a>' : '',
+      '<button id="clearDecisionButton" type="button">選び直す</button>',
+      '</div>'
+    ].join('');
+
+    const clearButton = document.getElementById('clearDecisionButton');
+    if (clearButton) {
+      clearButton.addEventListener('click', clearDecision);
+    }
+  }
+
+  function buildDecisionSummary(shop) {
+    return [
+      shop.pickReason,
+      shop.genre,
+      shop.budget,
+      formatWalkMinutes(shop.walkMinutes),
+      shop.station ? shop.station + '駅' : ''
+    ].filter(Boolean).slice(0, 4).join(' / ');
   }
 
   function showUndoToast(shop) {
@@ -348,6 +485,14 @@
     clearUndoTimer();
     elements.undoToast.classList.add('hidden');
     elements.undoMessage.textContent = '';
+  }
+
+  function showActionToast(message) {
+    clearUndoTimer();
+    state.lastDismissed = null;
+    elements.undoMessage.textContent = message;
+    elements.undoToast.classList.remove('hidden');
+    state.undoTimer = setTimeout(hideUndoToast, 3200);
   }
 
   function clearUndoTimer() {
@@ -434,9 +579,13 @@
   function showError(message) {
     state.visibleShops = [];
     state.backupShops = [];
+    state.keptShops = [];
+    state.selectedShop = null;
     state.lastResultMeta = null;
     state.lastDismissed = null;
     hideUndoToast();
+    renderKeepTray();
+    renderDecisionPanel();
     elements.resultCount.textContent = 'エラー';
     elements.resultList.innerHTML = '<p class="empty">' + escapeHtml(message) + '</p>';
   }
