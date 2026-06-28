@@ -7,7 +7,9 @@
     searching: false,
     visibleShops: [],
     backupShops: [],
-    lastResultMeta: null
+    lastResultMeta: null,
+    lastDismissed: null,
+    undoTimer: null
   };
 
   const moodLabels = {
@@ -25,7 +27,10 @@
     searchButton: document.getElementById('searchButton'),
     queryPreview: document.getElementById('queryPreview'),
     resultCount: document.getElementById('resultCount'),
-    resultList: document.getElementById('resultList')
+    resultList: document.getElementById('resultList'),
+    undoToast: document.getElementById('undoToast'),
+    undoMessage: document.getElementById('undoMessage'),
+    undoButton: document.getElementById('undoButton')
   };
 
   function init() {
@@ -42,6 +47,7 @@
       input.addEventListener('change', handlePreferenceChange);
     });
     elements.searchButton.addEventListener('click', search);
+    elements.undoButton.addEventListener('click', undoLastDismiss);
   }
 
   function applySavedPreferences() {
@@ -162,6 +168,8 @@
     state.lastResultMeta = data;
     state.visibleShops = (data.shops || []).slice();
     state.backupShops = (data.backupShops || []).slice();
+    state.lastDismissed = null;
+    hideUndoToast();
     elements.queryPreview.textContent = data.query || '';
     renderShopList();
     refreshResultCount();
@@ -286,13 +294,73 @@
   }
 
   function replaceDismissedShop(shopId) {
+    const dismissedIndex = state.visibleShops.findIndex((shop) => shop.id === shopId);
+    const dismissedShop = state.visibleShops[dismissedIndex];
+    if (!dismissedShop) {
+      return;
+    }
     state.visibleShops = state.visibleShops.filter((shop) => shop.id !== shopId);
     const replacement = state.backupShops.shift();
     if (replacement) {
       state.visibleShops.push(replacement);
     }
+    state.lastDismissed = {
+      shop: dismissedShop,
+      index: dismissedIndex,
+      replacement: replacement || null
+    };
     renderShopList();
     refreshResultCount();
+    showUndoToast(dismissedShop);
+    vibrate(12);
+  }
+
+  function undoLastDismiss() {
+    const record = state.lastDismissed;
+    if (!record || !record.shop) {
+      hideUndoToast();
+      return;
+    }
+    if (record.replacement) {
+      state.visibleShops = state.visibleShops.filter((shop) => shop.id !== record.replacement.id);
+      state.backupShops.unshift(record.replacement);
+    }
+    const insertAt = Math.max(0, Math.min(record.index, state.visibleShops.length));
+    state.visibleShops.splice(insertAt, 0, record.shop);
+    state.lastDismissed = null;
+    hideUndoToast();
+    renderShopList();
+    refreshResultCount();
+    vibrate(10);
+  }
+
+  function showUndoToast(shop) {
+    clearUndoTimer();
+    elements.undoMessage.textContent = '候補から外しました: ' + (shop.name || '名称未設定');
+    elements.undoToast.classList.remove('hidden');
+    state.undoTimer = setTimeout(() => {
+      state.lastDismissed = null;
+      hideUndoToast();
+    }, 5200);
+  }
+
+  function hideUndoToast() {
+    clearUndoTimer();
+    elements.undoToast.classList.add('hidden');
+    elements.undoMessage.textContent = '';
+  }
+
+  function clearUndoTimer() {
+    if (state.undoTimer) {
+      clearTimeout(state.undoTimer);
+      state.undoTimer = null;
+    }
+  }
+
+  function vibrate(duration) {
+    if (window.navigator && typeof window.navigator.vibrate === 'function') {
+      window.navigator.vibrate(duration);
+    }
   }
 
   function resetCardPosition(card) {
@@ -367,6 +435,8 @@
     state.visibleShops = [];
     state.backupShops = [];
     state.lastResultMeta = null;
+    state.lastDismissed = null;
+    hideUndoToast();
     elements.resultCount.textContent = 'エラー';
     elements.resultList.innerHTML = '<p class="empty">' + escapeHtml(message) + '</p>';
   }
