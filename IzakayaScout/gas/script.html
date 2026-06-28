@@ -2,8 +2,10 @@
   const app = document.getElementById('app');
   const bootstrap = JSON.parse(app.dataset.bootstrap || '{}');
   const storageKey = 'izakayaScout.preferences.v2';
+  const recentAreasKey = 'izakayaScout.recentAreas.v1';
   const state = {
     preferences: loadPreferences(),
+    recentAreas: loadRecentAreas(),
     searching: false,
     visibleShops: [],
     backupShops: [],
@@ -22,6 +24,7 @@
 
   const elements = {
     areaInput: document.getElementById('areaInput'),
+    recentAreaList: document.getElementById('recentAreaList'),
     smokingSelect: document.getElementById('smokingSelect'),
     setupNotice: document.getElementById('setupNotice'),
     searchButton: document.getElementById('searchButton'),
@@ -39,6 +42,7 @@
     applySavedPreferences();
     renderSetupNotice();
     bindEvents();
+    renderRecentAreas();
     renderPreview();
   }
 
@@ -49,6 +53,7 @@
       input.addEventListener('change', handlePreferenceChange);
     });
     elements.searchButton.addEventListener('click', search);
+    elements.recentAreaList.addEventListener('click', handleRecentAreaClick);
     elements.rotateButton.addEventListener('click', rotateCandidates);
     elements.undoButton.addEventListener('click', undoLastDismiss);
   }
@@ -160,7 +165,9 @@
     google.script.run
       .withSuccessHandler((response) => {
         setSearching(false);
-        renderResults(unwrap(response));
+        const data = unwrap(response);
+        rememberRecentArea(payload.areaText);
+        renderResults(data);
       })
       .withFailureHandler((error) => {
         setSearching(false);
@@ -543,6 +550,40 @@
     ].filter(Boolean).join(' / ') || '場所と気分を入れて候補を出します。';
   }
 
+  function handleRecentAreaClick(event) {
+    const button = event.target.closest('button[data-area]');
+    if (!button) {
+      return;
+    }
+    elements.areaInput.value = button.dataset.area || '';
+    handlePreferenceChange();
+    elements.areaInput.focus();
+    vibrate(6);
+  }
+
+  function rememberRecentArea(areaText) {
+    const area = String(areaText || '').trim();
+    if (!area) {
+      return;
+    }
+    state.recentAreas = [area].concat(state.recentAreas.filter((item) => item !== area)).slice(0, 5);
+    saveRecentAreas(state.recentAreas);
+    renderRecentAreas();
+  }
+
+  function renderRecentAreas() {
+    if (!state.recentAreas.length) {
+      elements.recentAreaList.classList.add('hidden');
+      elements.recentAreaList.innerHTML = '';
+      return;
+    }
+    elements.recentAreaList.classList.remove('hidden');
+    elements.recentAreaList.innerHTML = [
+      '<span>最近</span>',
+      state.recentAreas.map((area) => '<button type="button" data-area="' + escapeHtml(area) + '">' + escapeHtml(area) + '</button>').join('')
+    ].join('');
+  }
+
   function scrollResultsIntoView() {
     if (!elements.resultPanel || !elements.resultPanel.scrollIntoView) {
       return;
@@ -562,6 +603,19 @@
 
   function savePreferences(preferences) {
     localStorage.setItem(storageKey, JSON.stringify(preferences));
+  }
+
+  function loadRecentAreas() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(recentAreasKey) || '[]');
+      return Array.isArray(parsed) ? parsed.filter(Boolean).slice(0, 5) : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function saveRecentAreas(areas) {
+    localStorage.setItem(recentAreasKey, JSON.stringify(areas));
   }
 
   function cssEscape(value) {
