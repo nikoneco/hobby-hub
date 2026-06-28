@@ -42,7 +42,8 @@ function searchHotPepperShops_(payload) {
   const smokingFilteredShops = filterShopsBySmokingPreference_(walkFilteredShops, payload);
   const openTaggedShops = markOpenNowFiltered_(smokingFilteredShops, payload);
   const mood = getMoodConfig_(payload);
-  const budgetFilteredShops = filterShopsByMoodBudget_(openTaggedShops, mood);
+  const budgetMatchedShops = findMoodBudgetMatchedShops_(openTaggedShops, mood);
+  const budgetFilteredShops = chooseMoodBudgetPool_(openTaggedShops, budgetMatchedShops);
   const rankedShops = selectTopCandidates_(budgetFilteredShops, payload, CONFIG.HOTPEPPER.POOL_COUNT);
   const visibleShops = rankedShops.slice(0, CONFIG.HOTPEPPER.RETURN_COUNT);
   const backupShops = rankedShops.slice(CONFIG.HOTPEPPER.RETURN_COUNT);
@@ -55,7 +56,8 @@ function searchHotPepperShops_(payload) {
     resultsAreaMatched: areaFilteredShops.length,
     resultsWalkMatched: walkFilteredShops.length,
     resultsSmokingMatched: smokingFilteredShops.length,
-    resultsBudgetMatched: budgetFilteredShops.length,
+    resultsBudgetMatched: budgetMatchedShops.length,
+    resultsBudgetFilterApplied: budgetFilteredShops.length === budgetMatchedShops.length,
     resultsMatched: budgetFilteredShops.length,
     shops: visibleShops,
     backupShops: backupShops
@@ -212,14 +214,18 @@ function scoreShop_(shop, payload, mood) {
   };
 }
 
-function filterShopsByMoodBudget_(shops, mood) {
+function findMoodBudgetMatchedShops_(shops, mood) {
   if (!mood || !mood.budgetMaxYen) {
-    return shops;
+    return shops.slice();
   }
-  const budgetMatched = shops.filter(function (shop) {
+  return shops.filter(function (shop) {
     return isWithinMoodBudget_(shop, mood);
   });
-  return budgetMatched.length >= CONFIG.HOTPEPPER.RETURN_COUNT ? budgetMatched : shops;
+}
+
+function chooseMoodBudgetPool_(shops, budgetMatchedShops) {
+  const matched = Array.isArray(budgetMatchedShops) ? budgetMatchedShops : [];
+  return matched.length >= CONFIG.HOTPEPPER.RETURN_COUNT ? matched : shops;
 }
 
 function isWithinMoodBudget_(shop, mood) {
