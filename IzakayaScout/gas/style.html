@@ -992,25 +992,58 @@
 
   @media (max-width: 820px) {
     .topbar {
-      align-items: flex-start;
-      flex-direction: column;
+      align-items: center;
+      flex-direction: row;
       min-height: auto;
-      padding-bottom: 28px;
+      gap: 14px;
+      padding: 22px 16px 18px;
+    }
+
+    .topbar-copy {
+      min-width: 0;
+    }
+
+    h1 {
+      font-size: clamp(34px, 10vw, 46px);
+    }
+
+    .lead {
+      font-size: 13px;
+      line-height: 1.55;
     }
 
     .scout-visual {
-      width: 100%;
+      width: auto;
       min-width: 0;
-      flex-basis: auto;
-      justify-items: start;
+      flex: 0 0 92px;
+      justify-items: end;
+    }
+
+    .scout-visual::before {
+      inset: 8% -10% 0 0;
+      filter: blur(12px);
     }
 
     .scout-mascot-frame {
-      width: min(58vw, 190px);
+      width: 92px;
+      border-radius: 8px;
     }
 
     .app-shell {
       grid-template-columns: 1fr;
+      padding: 14px 12px 36px;
+    }
+
+    .search-builder,
+    .result-panel {
+      padding: 14px;
+    }
+
+    .primary-button {
+      position: sticky;
+      bottom: max(10px, env(safe-area-inset-bottom));
+      z-index: 4;
+      box-shadow: 0 14px 32px rgba(0, 0, 0, 0.38);
     }
 
     .result-heading {
@@ -1049,6 +1082,25 @@
 
     .shop-link {
       flex: 1 1 calc(50% - 7px);
+    }
+  }
+
+  @media (max-width: 380px) {
+    .topbar {
+      gap: 10px;
+      padding-inline: 14px;
+    }
+
+    h1 {
+      font-size: 32px;
+    }
+
+    .scout-visual {
+      flex-basis: 76px;
+    }
+
+    .scout-mascot-frame {
+      width: 76px;
     }
   }
 </style>
