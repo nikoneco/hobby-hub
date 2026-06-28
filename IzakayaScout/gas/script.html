@@ -188,6 +188,7 @@
 
     shops.forEach((shop, index) => {
       const card = renderShopCard(shop, index);
+      card.style.setProperty('--card-index', String(index));
       elements.resultList.appendChild(card);
     });
   }
@@ -263,6 +264,7 @@
       const limitedX = Math.min(28, Math.max(-150, deltaX));
       card.style.transform = 'translateX(' + limitedX + 'px) rotate(' + (limitedX / 38) + 'deg)';
       card.style.opacity = String(Math.max(0.42, 1 - Math.abs(limitedX) / 210));
+      card.classList.toggle('is-swipe-ready', limitedX < -72);
     });
 
     card.addEventListener('pointerup', (event) => {
@@ -353,6 +355,8 @@
     state.backupShops = candidates.slice(visibleCount);
     state.lastDismissed = null;
     hideUndoToast();
+    elements.rotateButton.classList.add('is-spinning');
+    setTimeout(() => elements.rotateButton.classList.remove('is-spinning'), 360);
     renderShopList();
     refreshResultCount();
     showActionToast('別案を出しました');
@@ -397,6 +401,7 @@
   }
 
   function resetCardPosition(card) {
+    card.classList.remove('is-swipe-ready');
     card.style.transform = '';
     card.style.opacity = '';
   }
