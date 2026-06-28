@@ -95,6 +95,7 @@
     elements.searchButton.addEventListener('click', search);
     elements.recentAreaList.addEventListener('click', handleRecentAreaClick);
     elements.rotateButton.addEventListener('click', rotateCandidates);
+    elements.resultList.addEventListener('click', handleResultListClick);
     document.querySelectorAll('.preset-field button[data-preset]').forEach((button) => {
       button.addEventListener('click', () => applyScoutPreset(button.dataset.preset));
     });
@@ -406,7 +407,7 @@
     elements.resultList.innerHTML = '';
 
     if (!shops.length) {
-      elements.resultList.innerHTML = '<p class="empty">条件に合う候補がありません。</p>';
+      elements.resultList.innerHTML = renderEmptyState();
       return;
     }
 
@@ -462,6 +463,79 @@
       '</div>'
     ].join('');
     return card;
+  }
+
+  function renderEmptyState() {
+    const data = state.lastResultMeta || {};
+    const preferences = state.resultPreferences || state.preferences || {};
+    const stages = buildEmptyStageItems(data, preferences);
+    const actions = buildRelaxActions(preferences);
+    return [
+      '<div class="empty-state">',
+      '<strong>この条件だと候補が出ませんでした。</strong>',
+      '<p>' + escapeHtml(buildEmptyHint(data, preferences)) + '</p>',
+      stages.length ? '<div class="empty-stages">' + stages.map((item) => '<span>' + escapeHtml(item) + '</span>').join('') + '</div>' : '',
+      actions.length ? '<div class="relax-actions">' + actions.map((action) => '<button type="button" data-relax="' + escapeHtml(action.key) + '">' + escapeHtml(action.label) + '</button>').join('') + '</div>' : '',
+      '</div>'
+    ].join('');
+  }
+
+  function buildEmptyHint(data, preferences) {
+    const mustValues = preferences && Array.isArray(preferences.mustValues) ? preferences.mustValues : [];
+    if (Number(data.resultsFetched || 0) === 0) {
+      return '検索語がかなり絞られているか、エリア内の該当店が少なそうです。少し広めにすると拾えるかもしれません。';
+    }
+    if (mustValues.includes('walk5') && Number(data.resultsWalkMatched || 0) === 0) {
+      return '徒歩5分以内がかなり強めに効いています。まずは徒歩条件を外すのが早そうです。';
+    }
+    if (preferences && preferences.smokingPreference && Number(data.resultsSmokingMatched || 0) === 0) {
+      return 'たばこ条件で候補が落ちています。今回は店詳細で確認する前提にすると広がります。';
+    }
+    if (mustValues.includes('openNow')) {
+      return '営業中・個室・カードなどのゆずれない条件が重なっている可能性があります。';
+    }
+    return '気分や料理、飲みたいものを少しゆるめると候補が戻りそうです。';
+  }
+
+  function buildEmptyStageItems(data, preferences) {
+    const mustValues = preferences && Array.isArray(preferences.mustValues) ? preferences.mustValues : [];
+    const items = [];
+    if (data.resultsFetched != null) items.push('取得 ' + Number(data.resultsFetched) + '件');
+    if (data.resultsAreaMatched != null && Number(data.resultsAreaMatched) !== Number(data.resultsFetched || 0)) {
+      items.push('地域補正後 ' + Number(data.resultsAreaMatched) + '件');
+    }
+    if (mustValues.includes('walk5') && data.resultsWalkMatched != null) {
+      items.push('徒歩条件後 ' + Number(data.resultsWalkMatched) + '件');
+    }
+    if (preferences && preferences.smokingPreference && data.resultsSmokingMatched != null) {
+      items.push('たばこ条件後 ' + Number(data.resultsSmokingMatched) + '件');
+    }
+    if (data.resultsMatched != null) items.push('最終 ' + Number(data.resultsMatched) + '件');
+    return items;
+  }
+
+  function buildRelaxActions(preferences) {
+    const mustValues = preferences && Array.isArray(preferences.mustValues) ? preferences.mustValues : [];
+    const actions = [];
+    if (mustValues.includes('walk5')) actions.push({ key: 'walk5', label: '徒歩をゆるめる' });
+    if (mustValues.includes('openNow')) actions.push({ key: 'openNow', label: '営業中を外す' });
+    if (preferences && preferences.smokingPreference) actions.push({ key: 'smoking', label: 'たばこ条件を外す' });
+    if (mustValues.includes('privateRoom')) actions.push({ key: 'privateRoom', label: '個室を外す' });
+    if (mustValues.includes('card')) actions.push({ key: 'card', label: 'カード可を外す' });
+    if (mustValues.includes('midnight')) actions.push({ key: 'midnight', label: '深夜を外す' });
+    if (preferences && Array.isArray(preferences.drinkValues) && preferences.drinkValues.length) {
+      actions.push({ key: 'drink', label: '飲み物をゆるめる' });
+    }
+    if (preferences && Array.isArray(preferences.foodValues) && preferences.foodValues.length) {
+      actions.push({ key: 'food', label: '料理をゆるめる' });
+    }
+    if (preferences && preferences.mood && preferences.mood !== 'safe') {
+      actions.push({ key: 'mood', label: '無難に戻す' });
+    }
+    if (!actions.length) {
+      actions.push({ key: 'wide', label: '広めに探す' });
+    }
+    return actions.slice(0, 4);
   }
 
   function renderScoutNote(shop) {
@@ -754,6 +828,46 @@
       payload.smokingLabel,
       ...formatMustLabels(payload.mustValues || [])
     ].filter(Boolean).join(' / ') || '場所と気分を入れて候補を出します。';
+  }
+
+  function handleResultListClick(event) {
+    const button = event.target.closest('button[data-relax]');
+    if (!button || !elements.resultList.contains(button) || state.searching) {
+      return;
+    }
+    relaxSearchCondition(button.dataset.relax || '');
+  }
+
+  function relaxSearchCondition(action) {
+    if (action === 'walk5' || action === 'openNow' || action === 'privateRoom' || action === 'midnight' || action === 'card') {
+      setMustChecked(action, false);
+    } else if (action === 'smoking') {
+      elements.smokingSelect.value = '';
+    } else if (action === 'drink') {
+      setCheckedValues('.drink-field input[type="checkbox"]', []);
+    } else if (action === 'food') {
+      setCheckedValues('.food-field input[type="checkbox"]', []);
+    } else if (action === 'mood') {
+      setMoodValue('safe');
+    } else if (action === 'wide') {
+      setMoodValue('safe');
+      elements.smokingSelect.value = '';
+      setCheckedValues('.chip-field input[type="checkbox"]', []);
+      setCheckedValues('.drink-field input[type="checkbox"]', []);
+      setCheckedValues('.food-field input[type="checkbox"]', []);
+    } else {
+      return;
+    }
+    handlePreferenceChange();
+    showActionToast('条件を少しゆるめました');
+    search();
+  }
+
+  function setMustChecked(value, checked) {
+    const input = document.querySelector('.chip-field input[value="' + cssEscape(value) + '"]');
+    if (input) {
+      input.checked = checked;
+    }
   }
 
   function handleRecentAreaClick(event) {

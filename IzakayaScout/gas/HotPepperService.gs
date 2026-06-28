@@ -51,6 +51,8 @@ function searchHotPepperShops_(payload) {
     resultsPool: rankedShops.length,
     resultsFetched: normalizedShops.length,
     resultsAreaMatched: areaFilteredShops.length,
+    resultsWalkMatched: walkFilteredShops.length,
+    resultsSmokingMatched: smokingFilteredShops.length,
     resultsMatched: openTaggedShops.length,
     shops: visibleShops,
     backupShops: backupShops
