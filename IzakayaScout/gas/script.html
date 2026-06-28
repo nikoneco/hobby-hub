@@ -66,6 +66,7 @@
     smokingSelect: document.getElementById('smokingSelect'),
     setupNotice: document.getElementById('setupNotice'),
     moodShuffleButton: document.getElementById('moodShuffleButton'),
+    randomPresetButton: document.getElementById('randomPresetButton'),
     searchButton: document.getElementById('searchButton'),
     queryPreview: document.getElementById('queryPreview'),
     scoutBrief: document.getElementById('scoutBrief'),
@@ -92,6 +93,7 @@
       input.addEventListener('change', handlePreferenceChange);
     });
     elements.moodShuffleButton.addEventListener('click', shuffleMood);
+    elements.randomPresetButton.addEventListener('click', applyRandomScoutPreset);
     elements.searchButton.addEventListener('click', search);
     elements.recentAreaList.addEventListener('click', handleRecentAreaClick);
     elements.rotateButton.addEventListener('click', rotateCandidates);
@@ -229,6 +231,15 @@
     handlePreferenceChange();
     showActionToast('「' + preset.label + '」で整えました');
     vibrate(16);
+  }
+
+  function applyRandomScoutPreset() {
+    const current = findMatchingPreset(collectPreferences());
+    const presetNames = Object.keys(scoutPresets).filter((name) => name !== current);
+    const nextName = presetNames[Math.floor(Math.random() * presetNames.length)] || Object.keys(scoutPresets)[0];
+    elements.randomPresetButton.classList.add('is-rolling');
+    setTimeout(() => elements.randomPresetButton.classList.remove('is-rolling'), 420);
+    applyScoutPreset(nextName);
   }
 
   function renderPresetState(preferences) {

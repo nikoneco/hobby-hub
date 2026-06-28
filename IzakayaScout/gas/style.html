@@ -286,6 +286,19 @@
     box-shadow: inset 0 0 0 1px rgba(240, 180, 90, 0.12);
   }
 
+  .preset-field .preset-random-button {
+    flex-basis: 100%;
+    border-color: rgba(240, 180, 90, 0.54);
+    background:
+      linear-gradient(90deg, rgba(240, 180, 90, 0.16), rgba(79, 177, 168, 0.12)),
+      rgba(247, 240, 228, 0.06);
+    color: #fff8eb;
+  }
+
+  .preset-random-button.is-rolling {
+    animation: moodRoll 420ms ease both;
+  }
+
   .chip-field,
   .drink-field,
   .food-field,
