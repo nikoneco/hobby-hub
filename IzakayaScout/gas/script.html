@@ -72,6 +72,7 @@
     scoutBrief: document.getElementById('scoutBrief'),
     resultPanel: document.getElementById('resultPanel'),
     rotateButton: document.getElementById('rotateButton'),
+    shareButton: document.getElementById('shareButton'),
     resultCount: document.getElementById('resultCount'),
     resultList: document.getElementById('resultList'),
     actionToast: document.getElementById('actionToast'),
@@ -97,6 +98,7 @@
     elements.searchButton.addEventListener('click', search);
     elements.recentAreaList.addEventListener('click', handleRecentAreaClick);
     elements.rotateButton.addEventListener('click', rotateCandidates);
+    elements.shareButton.addEventListener('click', shareVisibleCandidates);
     elements.resultList.addEventListener('click', handleResultListClick);
     document.querySelectorAll('.preset-field button[data-preset]').forEach((button) => {
       button.addEventListener('click', () => applyScoutPreset(button.dataset.preset));
@@ -401,6 +403,7 @@
     elements.resultPanel.setAttribute('aria-busy', 'true');
     elements.resultCount.textContent = '選定中';
     elements.rotateButton.disabled = true;
+    elements.shareButton.disabled = true;
     elements.queryPreview.textContent = buildSearchingSummary(payload);
     elements.resultList.innerHTML = [
       '<div class="loading-scout" role="status">',
@@ -731,6 +734,61 @@
     vibrate(10);
   }
 
+  function shareVisibleCandidates() {
+    if (!state.visibleShops.length || state.searching) {
+      return;
+    }
+    const shareText = buildShareText();
+    const shareData = {
+      title: '居酒屋Scoutの候補',
+      text: shareText
+    };
+    if (navigator.share) {
+      navigator.share(shareData)
+        .then(() => showActionToast('候補を共有しました'))
+        .catch((error) => {
+          if (!error || error.name !== 'AbortError') {
+            copyShareText(shareText);
+          }
+        });
+      return;
+    }
+    copyShareText(shareText);
+  }
+
+  function buildShareText() {
+    const preferences = state.resultPreferences || state.preferences || {};
+    const header = [
+      '居酒屋Scout候補',
+      buildSearchingSummary(preferences)
+    ].filter(Boolean).join('\n');
+    const lines = state.visibleShops.map((shop, index) => {
+      const pieces = [
+        (index + 1) + '. ' + (shop.name || '名称未設定'),
+        shop.pickReason ? '理由: ' + shop.pickReason : '',
+        shop.budget ? '予算: ' + shop.budget : '',
+        shop.mapsUrl ? '地図: ' + shop.mapsUrl : '',
+        shop.urls && shop.urls.pc ? 'HP: ' + shop.urls.pc : ''
+      ].filter(Boolean);
+      return pieces.join('\n');
+    });
+    return [header].concat(lines).join('\n\n');
+  }
+
+  function copyShareText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text)
+        .then(() => showActionToast('候補をコピーしました'))
+        .catch(() => showShareFallback(text));
+      return;
+    }
+    showShareFallback(text);
+  }
+
+  function showShareFallback(text) {
+    window.prompt('候補をコピーして共有してね。', text);
+  }
+
   function hideActionToast() {
     clearToastTimer();
     elements.actionToast.classList.add('hidden');
@@ -857,6 +915,7 @@
   function refreshResultCount() {
     elements.resultCount.textContent = formatResultCount(state.lastResultMeta || {}, state.visibleShops.length);
     elements.rotateButton.disabled = !state.visibleShops.length || !state.backupShops.length;
+    elements.shareButton.disabled = !state.visibleShops.length;
   }
 
   function formatCreditCards(creditCards) {
@@ -897,6 +956,7 @@
     state.resultPreferences = null;
     hideActionToast();
     elements.rotateButton.disabled = true;
+    elements.shareButton.disabled = true;
     elements.resultCount.textContent = 'エラー';
     elements.resultList.innerHTML = '<p class="empty">' + escapeHtml(message) + '</p>';
   }
