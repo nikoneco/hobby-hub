@@ -12,6 +12,7 @@
     lastResultMeta: null,
     resultPreferences: null,
     cardSwipe: null,
+    toastAction: null,
     toastTimer: null
   };
 
@@ -77,7 +78,8 @@
     resultCount: document.getElementById('resultCount'),
     resultList: document.getElementById('resultList'),
     actionToast: document.getElementById('actionToast'),
-    actionMessage: document.getElementById('actionMessage')
+    actionMessage: document.getElementById('actionMessage'),
+    actionUndoButton: document.getElementById('actionUndoButton')
   };
 
   function init() {
@@ -100,6 +102,7 @@
     elements.recentAreaList.addEventListener('click', handleRecentAreaClick);
     elements.rotateButton.addEventListener('click', rotateCandidates);
     elements.shareButton.addEventListener('click', shareVisibleCandidates);
+    elements.actionUndoButton.addEventListener('click', handleToastAction);
     elements.resultList.addEventListener('click', handleResultListClick);
     elements.resultList.addEventListener('pointerdown', handleCardPointerDown);
     elements.resultList.addEventListener('pointermove', handleCardPointerMove);
@@ -778,13 +781,38 @@
     if (!state.backupShops.length || index < 0 || index >= state.visibleShops.length) {
       return;
     }
+    const oldShop = state.visibleShops[index];
     const nextShop = state.backupShops.shift();
     state.visibleShops.splice(index, 1, nextShop);
     hideActionToast();
     renderShopList();
     refreshResultCount();
-    showActionToast('1件だけ差し替えました');
+    showActionToast('1件だけ差し替えました', {
+      label: '元に戻す',
+      onClick: () => undoReplaceCandidate(index, oldShop, nextShop)
+    });
     vibrate(10);
+  }
+
+  function undoReplaceCandidate(index, oldShop, newShop) {
+    if (!oldShop || index < 0 || index >= state.visibleShops.length) {
+      hideActionToast();
+      return;
+    }
+    const currentShop = state.visibleShops[index];
+    if (newShop && currentShop && currentShop.id && newShop.id && currentShop.id !== newShop.id) {
+      hideActionToast();
+      return;
+    }
+    state.visibleShops.splice(index, 1, oldShop);
+    if (currentShop) {
+      state.backupShops.unshift(currentShop);
+    }
+    hideActionToast();
+    renderShopList();
+    refreshResultCount();
+    showActionToast('戻しました');
+    vibrate(8);
   }
 
   function handleCardPointerDown(event) {
@@ -943,13 +971,32 @@
     clearToastTimer();
     elements.actionToast.classList.add('hidden');
     elements.actionMessage.textContent = '';
+    elements.actionUndoButton.classList.add('hidden');
+    elements.actionUndoButton.textContent = '';
+    state.toastAction = null;
   }
 
-  function showActionToast(message) {
+  function showActionToast(message, action) {
     clearToastTimer();
     elements.actionMessage.textContent = message;
+    state.toastAction = action && typeof action.onClick === 'function' ? action : null;
+    if (state.toastAction) {
+      elements.actionUndoButton.textContent = state.toastAction.label || '実行';
+      elements.actionUndoButton.classList.remove('hidden');
+    } else {
+      elements.actionUndoButton.classList.add('hidden');
+      elements.actionUndoButton.textContent = '';
+    }
     elements.actionToast.classList.remove('hidden');
     state.toastTimer = setTimeout(hideActionToast, 3200);
+  }
+
+  function handleToastAction() {
+    const action = state.toastAction;
+    if (!action || typeof action.onClick !== 'function') {
+      return;
+    }
+    action.onClick();
   }
 
   function clearToastTimer() {
