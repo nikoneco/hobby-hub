@@ -63,7 +63,7 @@ function buildHotPepperParams_(apiKey, payload) {
   const mood = getMoodConfig_(payload);
   const terms = [
     payload.areaText
-  ].concat(mood.keywordTerms || [], payload.foodTerms || [])
+  ].concat(payload.foodTerms || [])
     .map(function (term) {
       return String(term || '').trim();
     })
@@ -114,32 +114,28 @@ function getMoodConfig_(payload) {
     safe: {
       code: 'safe',
       label: '無難にうまい',
-      genreCode: 'G001',
-      keywordTerms: []
+      genreCode: 'G001'
     },
     cheap: {
       code: 'cheap',
       label: '安く飲む',
       genreCode: 'G001',
-      keywordTerms: ['安い']
+      budgetMaxYen: 3500
     },
     second: {
       code: 'second',
       label: '二軒目',
-      genreCode: 'G012',
-      keywordTerms: ['二次会']
+      genreCode: 'G012'
     },
     quiet: {
       code: 'quiet',
       label: '静かめ',
-      genreCode: 'G001',
-      keywordTerms: ['落ち着いた']
+      genreCode: 'G001'
     },
     bar: {
       code: 'bar',
       label: 'バー寄り',
-      genreCode: 'G012',
-      keywordTerms: []
+      genreCode: 'G012'
     }
   };
   return configs[mood] || configs.safe;
@@ -147,7 +143,7 @@ function getMoodConfig_(payload) {
 
 function selectTopCandidates_(shops, payload, limit) {
   const mood = getMoodConfig_(payload);
-  return shops
+  return filterShopsByMoodBudget_(shops, mood)
     .map(function (shop) {
       const scored = Object.assign({}, shop);
       const score = scoreShop_(shop, payload, mood);
@@ -211,6 +207,25 @@ function scoreShop_(shop, payload, mood) {
     value: score,
     tags: tags.slice(0, 5)
   };
+}
+
+function filterShopsByMoodBudget_(shops, mood) {
+  if (!mood || !mood.budgetMaxYen) {
+    return shops;
+  }
+  const budgetMatched = shops.filter(function (shop) {
+    return isWithinMoodBudget_(shop, mood);
+  });
+  return budgetMatched.length >= CONFIG.HOTPEPPER.RETURN_COUNT ? budgetMatched : shops;
+}
+
+function isWithinMoodBudget_(shop, mood) {
+  const estimated = Number(shop.budgetEstimatedYen || 0);
+  return Boolean(mood && mood.budgetMaxYen && estimated && estimated <= mood.budgetMaxYen);
+}
+
+function formatBudgetFitTag_(mood) {
+  return mood && mood.budgetMaxYen ? mood.budgetMaxYen + '円目安' : '安め';
 }
 
 function scoreAreaFit_(shop, payload) {
@@ -316,6 +331,10 @@ function scoreMoodFit_(shop, mood, tags) {
     shop.access
   ].join(' ');
   if (mood.code === 'cheap') {
+    if (isWithinMoodBudget_(shop, mood)) {
+      tags.push(formatBudgetFitTag_(mood));
+      return 14;
+    }
     if (/安|リーズナブル|せんべろ|コスパ|お得|飲み放題/.test(haystack)) {
       tags.push('安め');
       return 8;
@@ -479,6 +498,7 @@ function normalizeShop_(shop) {
     mapsUrl: buildMapsUrl_(shop),
     mapsDirectionsUrl: buildMapsDirectionsUrl_(shop),
     budget: shop.budget ? shop.budget.average || shop.budget.name || '' : '',
+    budgetEstimatedYen: extractBudgetEstimatedYen_(shop.budget),
     privateRoom: shop.private_room || '',
     midnight: shop.midnight || '',
     nonSmoking: shop.non_smoking || '',
@@ -673,6 +693,48 @@ function normalizeCreditCards_(creditCards) {
       return card && card.name ? card.name : String(card || '').trim();
     })
     .filter(Boolean);
+}
+
+function extractBudgetEstimatedYen_(budget) {
+  if (!budget) {
+    return null;
+  }
+  const text = normalizeDigits_([
+    budget.average || '',
+    budget.name || ''
+  ].join(' ')).replace(/,/g, '');
+  if (!text.trim()) {
+    return null;
+  }
+
+  const range = text.match(/(\d+)\s*[～〜~-]\s*(\d+)\s*円?/);
+  if (range) {
+    const lower = Number(range[1]);
+    const upper = Number(range[2]);
+    if (Number.isFinite(lower) && Number.isFinite(upper)) {
+      return Math.floor((lower + upper) / 2);
+    }
+  }
+
+  const upperOnly = text.match(/[～〜~-]\s*(\d+)\s*円/);
+  if (upperOnly) {
+    const upper = Number(upperOnly[1]);
+    return Number.isFinite(upper) ? upper : null;
+  }
+
+  const lowerOnly = text.match(/(\d+)\s*円\s*(?:以下|以内|まで)/);
+  if (lowerOnly) {
+    const upper = Number(lowerOnly[1]);
+    return Number.isFinite(upper) ? upper : null;
+  }
+
+  const single = text.match(/(\d+)\s*円/);
+  if (single) {
+    const value = Number(single[1]);
+    return Number.isFinite(value) ? value : null;
+  }
+
+  return null;
 }
 
 function buildMapsUrl_(shop) {
