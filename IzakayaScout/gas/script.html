@@ -185,15 +185,7 @@
 
   function renderPreview() {
     const preferences = collectPreferences();
-    const query = [
-      preferences.areaText,
-      preferences.moodLabel,
-      ...formatFoodLabels(preferences.foodValues),
-      ...formatDrinkLabels(preferences.drinkValues),
-      preferences.walkLabel,
-      preferences.smokingLabel,
-      ...formatMustLabels(preferences.mustValues)
-    ].filter(Boolean).join(' / ');
+    const query = buildSearchingSummary(preferences);
     elements.queryPreview.textContent = query || '場所と気分を入れて候補を出します。';
     renderScoutBrief(preferences);
     renderPresetState(preferences);
@@ -321,10 +313,11 @@
     const mustLabels = formatMustLabels(preferences.mustValues || []);
     const foodLabels = formatFoodLabels(preferences.foodValues || []);
     const drinkLabels = formatDrinkLabels(preferences.drinkValues || []);
+    const moodHelperLabels = formatMoodHelperLabels(preferences);
     const tasteLabels = foodLabels.concat(drinkLabels);
     const priorityLabels = [preferences.walkLabel].concat(mustLabels, preferences.smokingLabel).filter(Boolean);
     const areaLabel = preferences.areaText || '場所未入力';
-    const policyText = buildScoutBriefText(preferences, priorityLabels, tasteLabels);
+    const policyText = buildScoutBriefText(preferences, priorityLabels, tasteLabels, moodHelperLabels);
     elements.scoutBrief.innerHTML = [
       '<div class="scout-brief-head">',
       '<span>今夜の方針</span>',
@@ -333,17 +326,19 @@
       '<div class="scout-brief-chips">',
       '<span>' + escapeHtml(areaLabel) + '</span>',
       tasteLabels.map((label) => '<span>' + escapeHtml(label) + '</span>').join(''),
+      moodHelperLabels.map((label) => '<span>' + escapeHtml(label) + '</span>').join(''),
       priorityLabels.map((label) => '<span>' + escapeHtml(label) + '</span>').join(''),
-      !priorityLabels.length && !tasteLabels.length ? '<span>条件ゆるめ</span>' : '',
+      !priorityLabels.length && !tasteLabels.length && !moodHelperLabels.length ? '<span>条件ゆるめ</span>' : '',
       '</div>',
       '<p>' + escapeHtml(policyText) + '</p>'
     ].join('');
   }
 
-  function buildScoutBriefText(preferences, priorityLabels, tasteLabels) {
+  function buildScoutBriefText(preferences, priorityLabels, tasteLabels, moodHelperLabels) {
     const area = preferences.areaText ? preferences.areaText + 'で' : '場所を入れたら';
     const mood = preferences.moodLabel || '無難にうまい';
-    const foodText = tasteLabels && tasteLabels.length ? tasteLabels.slice(0, 3).join('・') + 'も見ながら、' : '';
+    const focusLabels = [].concat(tasteLabels || [], moodHelperLabels || []);
+    const foodText = focusLabels.length ? focusLabels.slice(0, 3).join('・') + 'も見ながら、' : '';
     if (!priorityLabels.length) {
       if (foodText) {
         return area + foodText + mood + '候補を拾います。';
@@ -985,12 +980,20 @@
     return [
       payload.areaText,
       payload.moodLabel,
+      ...formatMoodHelperLabels(payload),
       ...formatFoodLabels(payload.foodValues || []),
       ...formatDrinkLabels(payload.drinkValues || []),
       payload.walkLabel,
       payload.smokingLabel,
       ...formatMustLabels(payload.mustValues || [])
     ].filter(Boolean).join(' / ') || '場所と気分を入れて候補を出します。';
+  }
+
+  function formatMoodHelperLabels(preferences) {
+    if (!preferences || preferences.mood !== 'cheap') {
+      return [];
+    }
+    return ['3500円目安'];
   }
 
   function handleResultListClick(event) {
