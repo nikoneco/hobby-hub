@@ -106,6 +106,8 @@
     elements.resultList.addEventListener('pointerup', handleCardPointerUp);
     elements.resultList.addEventListener('pointercancel', cancelCardSwipe);
     elements.resultList.addEventListener('lostpointercapture', cancelCardSwipe);
+    window.addEventListener('pointerup', handleCardPointerUp);
+    window.addEventListener('pointercancel', cancelCardSwipe);
     document.querySelectorAll('.preset-field button[data-preset]').forEach((button) => {
       button.addEventListener('click', () => applyScoutPreset(button.dataset.preset));
     });
@@ -386,6 +388,7 @@
 
   function renderResults(data) {
     elements.resultPanel.setAttribute('aria-busy', 'false');
+    resetCardSwipe();
     state.lastResultMeta = data;
     state.visibleShops = (data.shops || []).slice();
     state.backupShops = (data.backupShops || []).slice();
@@ -396,6 +399,7 @@
   }
 
   function renderSearchingState(payload) {
+    resetCardSwipe();
     state.visibleShops = [];
     state.backupShops = [];
     state.lastResultMeta = null;
@@ -419,6 +423,7 @@
 
   function renderShopList() {
     const shops = state.visibleShops;
+    resetCardSwipe();
     elements.resultList.innerHTML = '';
 
     if (!shops.length) {
@@ -800,6 +805,7 @@
     if (!Number.isFinite(index)) {
       return;
     }
+    resetCardSwipe();
     state.cardSwipe = {
       card,
       index,
@@ -808,8 +814,6 @@
       startY: event.clientY,
       active: false
     };
-    card.classList.add('is-swiping');
-    card.style.transition = 'none';
     if (card.setPointerCapture) {
       card.setPointerCapture(event.pointerId);
     }
@@ -829,7 +833,11 @@
     if (!swipe.active && Math.abs(dx) < 10) {
       return;
     }
-    swipe.active = true;
+    if (!swipe.active) {
+      swipe.active = true;
+      swipe.card.classList.add('is-swiping');
+      swipe.card.style.transition = 'none';
+    }
     const offset = Math.max(-112, Math.min(28, dx));
     swipe.card.style.transform = 'translateX(' + offset + 'px)';
     swipe.card.classList.toggle('is-swipe-ready', offset < -76);
@@ -862,6 +870,9 @@
     swipe.card.style.transition = '';
     swipe.card.style.transform = '';
     swipe.card.classList.remove('is-swiping', 'is-swipe-ready');
+    if (swipe.card.releasePointerCapture && swipe.card.hasPointerCapture && swipe.card.hasPointerCapture(swipe.pointerId)) {
+      swipe.card.releasePointerCapture(swipe.pointerId);
+    }
     state.cardSwipe = null;
   }
 
@@ -1104,6 +1115,7 @@
 
   function showError(message) {
     elements.resultPanel.setAttribute('aria-busy', 'false');
+    resetCardSwipe();
     state.visibleShops = [];
     state.backupShops = [];
     state.lastResultMeta = null;
