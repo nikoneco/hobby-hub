@@ -1,16 +1,20 @@
-<section class="study-grid" aria-label="737 Study Finder">
-  <section>
-    <h2>Questions</h2>
-    <div class="toolbar">
-      <select id="ataFilter">
-        <option value="">ATA All</option>
-        <option value="21">ATA 21</option>
-        <option value="24">ATA 24</option>
-      </select>
+<section class="study-shell" aria-label="737 Study Finder">
+  <section class="study-controls" aria-label="Study controls">
+    <div>
+      <p class="eyebrow">Study Mode</p>
+      <h2>ATAを選んで、ランダムに解く</h2>
+    </div>
+    <div class="study-actions">
+      <label>
+        ATA
+        <select id="ataFilter">
+          <option value="">ATA All</option>
+          <option value="21">ATA 21</option>
+          <option value="24">ATA 24</option>
+        </select>
+      </label>
       <button id="loadQuestions">読み込み</button>
-      <button id="randomQuestionButton">ランダム</button>
-      <button id="toggleQuestionListButton" aria-expanded="false">問題一覧を表示</button>
-      <button id="importPreparedButton">Prepared ATA取込</button>
+      <button id="randomQuestionButton" class="primary action-large">次のランダム問題</button>
     </div>
     <div id="questionLoadPanel" class="load-panel is-idle" aria-live="polite">
       <div class="load-panel-row">
@@ -21,76 +25,104 @@
         <span id="questionLoadBar"></span>
       </div>
     </div>
-    <p id="preparedImportStatus" class="muted"></p>
-    <div id="questionList" class="muted question-list is-collapsed">初期設定後に問題を読み込みます。</div>
   </section>
 
-  <section>
-    <h2>Question</h2>
-    <div id="questionDetail" class="muted">問題を選択してね。</div>
-    <div id="confirmedAnswers"></div>
-    <div id="answerNotes"></div>
+  <section class="focus-grid" aria-label="Study question and answer">
+    <section class="question-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Question</p>
+          <h2>まず自分で答える</h2>
+        </div>
+        <button id="toggleQuestionListButton" aria-expanded="false">問題一覧</button>
+      </div>
+      <div id="questionDetail" class="empty-state">問題を選択するか、ランダム出題を押してね。</div>
+      <div class="answer-reveal-actions">
+        <button id="revealAnswerButton" class="primary reveal-button" disabled>回答を見る</button>
+        <span id="revealHint" class="muted">回答はまだ隠れています。</span>
+      </div>
+      <div id="questionList" class="muted question-list is-collapsed">初期設定後に問題を読み込みます。</div>
+    </section>
 
-    <div class="toolbar">
-      <button id="promptButton">回答作成用プロンプト</button>
+    <section class="answer-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Answer Check</p>
+          <h2>答え合わせ</h2>
+        </div>
+      </div>
+      <div id="answerRevealPlaceholder" class="empty-state">問題を解いたら「回答を見る」で確認します。</div>
+      <div id="confirmedAnswers" class="is-hidden"></div>
+      <div id="answerNotes" class="is-hidden"></div>
+      <details id="candidateDetails" class="candidate-details is-hidden">
+        <summary>PDF/根拠候補を見る</summary>
+        <div id="candidateList" class="candidate-list">候補ページはここに表示します。</div>
+      </details>
+    </section>
+  </section>
+
+  <details class="admin-tools">
+    <summary>管理/取込ツール</summary>
+    <div class="utility-grid" aria-label="Study utility tools">
+      <section class="prompt-panel">
+        <h2>Prompt</h2>
+        <div class="toolbar">
+          <button id="promptButton">回答作成用プロンプト</button>
+        </div>
+        <textarea id="promptOutput" placeholder="ここにプロンプトが出ます"></textarea>
+      </section>
+
+      <section class="answer-editor">
+        <h2>Answer Draft</h2>
+        <input id="activeNoteId" type="hidden">
+        <label>
+          Source
+          <select id="answerSource">
+            <option value="chatgpt_manual">ChatGPT/Codex</option>
+            <option value="manual_user">手入力</option>
+            <option value="copied_from_sg">Study Guideから転記</option>
+            <option value="unknown">不明</option>
+          </select>
+        </label>
+        <label>
+          参照ページ
+          <input id="answerEvidencePages" placeholder="D0-09, F0-09">
+        </label>
+        <textarea id="answerText" placeholder="AI回答や修正後の回答をここに貼る"></textarea>
+        <div class="toolbar">
+          <button id="saveDraftButton">下書き保存</button>
+          <button id="adoptButton" class="primary">確定回答にする</button>
+          <button id="clearDraftButton">クリア</button>
+        </div>
+      </section>
+
+      <section class="import-panel">
+        <h2>Import</h2>
+        <button id="importPreparedButton">Prepared ATA取込</button>
+        <p id="preparedImportStatus" class="muted"></p>
+        <label>
+          Target
+          <select id="csvTarget">
+            <option value="question_bank">question_bank</option>
+            <option value="textbook_pages">textbook_pages</option>
+            <option value="textbook_sections">textbook_sections</option>
+            <option value="candidate_links">candidate_links</option>
+            <option value="answer_notes">answer_notes</option>
+            <option value="term_dictionary">term_dictionary</option>
+            <option value="source_files">source_files</option>
+          </select>
+        </label>
+        <label>
+          CSV File
+          <input id="csvFile" type="file" accept=".csv,text/csv">
+        </label>
+        <label class="check-label">
+          <input id="csvReplace" type="checkbox" checked>
+          既存行を置き換える
+        </label>
+        <button id="importCsvButton">CSV取込</button>
+        <p id="importStatus" class="muted"></p>
+      </section>
     </div>
-    <textarea id="promptOutput" placeholder="ここにプロンプトが出ます"></textarea>
-  </section>
-
-  <section>
-    <h2>Candidate Pages</h2>
-    <div id="candidateList" class="muted">候補ページはここに表示します。</div>
-  </section>
-</section>
-
-<section class="utility-grid" aria-label="Study utility tools">
-  <section class="answer-editor">
-    <h2>Answer Draft</h2>
-    <input id="activeNoteId" type="hidden">
-    <label>
-      Source
-      <select id="answerSource">
-        <option value="chatgpt_manual">ChatGPT/Codex</option>
-        <option value="manual_user">手入力</option>
-        <option value="copied_from_sg">Study Guideから転記</option>
-        <option value="unknown">不明</option>
-      </select>
-    </label>
-    <label>
-      参照ページ
-      <input id="answerEvidencePages" placeholder="D0-09, F0-09">
-    </label>
-    <textarea id="answerText" placeholder="AI回答や修正後の回答をここに貼る"></textarea>
-    <div class="toolbar">
-      <button id="saveDraftButton">下書き保存</button>
-      <button id="adoptButton" class="primary">確定回答にする</button>
-      <button id="clearDraftButton">クリア</button>
-    </div>
-  </section>
-
-  <section class="import-panel">
-    <h2>CSV Import</h2>
-    <label>
-      Target
-      <select id="csvTarget">
-        <option value="question_bank">question_bank</option>
-        <option value="textbook_pages">textbook_pages</option>
-        <option value="textbook_sections">textbook_sections</option>
-        <option value="candidate_links">candidate_links</option>
-        <option value="answer_notes">answer_notes</option>
-        <option value="term_dictionary">term_dictionary</option>
-        <option value="source_files">source_files</option>
-      </select>
-    </label>
-    <label>
-      CSV File
-      <input id="csvFile" type="file" accept=".csv,text/csv">
-    </label>
-    <label class="check-label">
-      <input id="csvReplace" type="checkbox" checked>
-      既存行を置き換える
-    </label>
-    <button id="importCsvButton">CSV取込</button>
-    <p id="importStatus" class="muted"></p>
-  </section>
+  </details>
 </section>

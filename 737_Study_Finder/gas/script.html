@@ -5,6 +5,8 @@
   let selectedQuestionId = '';
   let currentQuestions = [];
   let currentDetailsByQuestionId = {};
+  let currentDetail = null;
+  let answerRevealed = false;
   let questionListExpanded = false;
   let loadedAtaKey = null;
   let questionLoadRequestId = 0;
@@ -91,6 +93,51 @@
     toggleButton.disabled = state === 'loading';
   }
 
+  function resetStudySurface(message) {
+    currentDetail = null;
+    answerRevealed = false;
+    const questionDetail = document.getElementById('questionDetail');
+    questionDetail.className = 'empty-state';
+    questionDetail.textContent = message || '問題を選択するか、ランダム出題を押してね。';
+    document.getElementById('confirmedAnswers').innerHTML = '';
+    document.getElementById('answerNotes').innerHTML = '';
+    document.getElementById('candidateList').textContent = '候補ページはここに表示します。';
+    setAnswerVisibility(false);
+  }
+
+  function setAnswerVisibility(revealed) {
+    const hasQuestion = Boolean(currentDetail && currentDetail.question);
+    const revealButton = document.getElementById('revealAnswerButton');
+    const hint = document.getElementById('revealHint');
+    const placeholder = document.getElementById('answerRevealPlaceholder');
+    const confirmed = document.getElementById('confirmedAnswers');
+    const notes = document.getElementById('answerNotes');
+    const candidates = document.getElementById('candidateDetails');
+
+    revealButton.disabled = !hasQuestion;
+    placeholder.classList.toggle('is-hidden', Boolean(revealed && hasQuestion));
+    confirmed.classList.toggle('is-hidden', !revealed);
+    notes.classList.toggle('is-hidden', !revealed);
+    candidates.classList.toggle('is-hidden', !revealed);
+
+    if (!hasQuestion) {
+      revealButton.textContent = '回答を見る';
+      hint.textContent = '問題を選ぶと回答確認できます。';
+      placeholder.textContent = '問題を解いたら「回答を見る」で確認します。';
+      return;
+    }
+
+    if (revealed) {
+      revealButton.textContent = '回答を隠す';
+      hint.textContent = '答え合わせ中。次の問題ではまた隠れます。';
+      placeholder.textContent = '';
+    } else {
+      revealButton.textContent = '回答を見る';
+      hint.textContent = '回答はまだ隠れています。頭の中で答えてから確認してね。';
+      placeholder.textContent = '準備できたら「回答を見る」でAI回答と根拠候補を確認します。';
+    }
+  }
+
   function markQuestionsPending() {
     questionLoadRequestId += 1;
     const label = getSelectedAtaLabel();
@@ -99,6 +146,7 @@
       return;
     }
     currentDetailsByQuestionId = {};
+    resetStudySurface(label + ' の問題はまだ読み込んでいません。');
     const countText = currentQuestions.length ? '表示中: ' + currentQuestions.length + '問' : '未読み込み';
     setQuestionLoadState('pending', label + ' を選択中。読み込みを押すと問題一覧を更新します。', countText);
   }
@@ -108,6 +156,7 @@
     const requestId = ++questionLoadRequestId;
     const label = getSelectedAtaLabel();
     setQuestionLoadState('loading', label + ' を読み込み中...', '読み込み中');
+    resetStudySurface(label + ' の問題を読み込み中...');
     document.getElementById('questionList').textContent = '問題を読み込み中...';
     google.script.run
       .withSuccessHandler((response) => {
@@ -118,6 +167,11 @@
         renderQuestions(questions);
         loadedAtaKey = normalizeAtaKey(ata);
         setQuestionLoadState('loaded', label + ' 読み込み完了', questions.length + '問');
+        if (questions.length) {
+          const questionDetail = document.getElementById('questionDetail');
+          questionDetail.className = 'empty-state';
+          questionDetail.textContent = '準備できました。「次のランダム問題」で始めます。';
+        }
       })
       .withFailureHandler((error) => {
         if (requestId !== questionLoadRequestId) return;
@@ -133,7 +187,7 @@
     const root = document.getElementById('questionList');
     root.innerHTML = '';
     if (!questions.length) {
-      root.textContent = '問題がまだありません。CSV取込か初期設定を確認してね。';
+      root.textContent = '問題がまだありません。管理/取込ツールから取込状態を確認してね。';
       syncQuestionListVisibility();
       setQuestionLoadState('loaded', getSelectedAtaLabel() + ' 読み込み完了', '0問');
       return;
@@ -148,17 +202,6 @@
     syncQuestionListVisibility();
   }
 
-  /*
-  function loadRandomQuestion() {
-    if (!currentQuestions.length) {
-      showError(new Error('先に問題を読み込んでね。'));
-      return;
-    }
-    const question = currentQuestions[Math.floor(Math.random() * currentQuestions.length)];
-    loadDetail(question.question_id);
-  }
-
-  */
   function toggleQuestionList() {
     questionListExpanded = !questionListExpanded;
     syncQuestionListVisibility();
@@ -169,7 +212,7 @@
     const button = document.getElementById('toggleQuestionListButton');
     root.classList.toggle('is-collapsed', !questionListExpanded);
     button.setAttribute('aria-expanded', questionListExpanded ? 'true' : 'false');
-    button.textContent = questionListExpanded ? '問題一覧を隠す' : '問題一覧を表示';
+    button.textContent = questionListExpanded ? '問題一覧を隠す' : '問題一覧';
   }
 
   function loadDetail(questionId, forceRefresh) {
@@ -178,10 +221,7 @@
       renderDetail(currentDetailsByQuestionId[questionId]);
       return;
     }
-    document.getElementById('questionDetail').innerHTML = '<p class="muted">問題詳細を読み込み中...</p>';
-    document.getElementById('confirmedAnswers').innerHTML = '';
-    document.getElementById('answerNotes').innerHTML = '';
-    document.getElementById('candidateList').textContent = '候補ページを読み込み中...';
+    resetStudySurface('問題詳細を読み込み中...');
     google.script.run
       .withSuccessHandler((response) => {
         const detail = unwrap(response);
@@ -192,32 +232,59 @@
       })
       .withFailureHandler((error) => {
         document.getElementById('questionDetail').textContent = '問題詳細の読み込みに失敗しました。';
-        document.getElementById('candidateList').textContent = '';
         showError(error);
       })
       .apiGetQuestionDetail(questionId);
   }
 
   function renderDetail(detail) {
+    currentDetail = detail;
+    answerRevealed = false;
     const question = detail.question;
-    document.getElementById('questionDetail').innerHTML = [
-      '<p><span class="status">' + escapeHtml(question.check_status) + '</span></p>',
-      '<h3>' + escapeHtml(question.question_text) + '</h3>',
-      '<p class="muted">ATA ' + escapeHtml(question.ata) + ' / ' + escapeHtml(question.section_name || '') + '</p>'
+    const questionDetail = document.getElementById('questionDetail');
+    questionDetail.className = 'question-content';
+    questionDetail.innerHTML = [
+      '<div class="question-meta">',
+      '<span class="status">' + escapeHtml(question.check_status) + '</span>',
+      '<span>ATA ' + escapeHtml(question.ata) + '</span>',
+      '<span>' + escapeHtml(question.section_name || '') + '</span>',
+      '</div>',
+      '<h3>' + escapeHtml(question.question_text) + '</h3>'
     ].join('');
-    renderConfirmedAnswers(detail.confirmedAnswers || []);
-    renderAnswerNotes(detail.answerNotes || []);
+    document.getElementById('confirmedAnswers').innerHTML = '';
+    document.getElementById('answerNotes').innerHTML = '';
+    document.getElementById('candidateList').textContent = '回答表示後に候補ページを確認できます。';
     resetAnswerEditor();
-    renderCandidates(detail.candidates || {});
+    setAnswerVisibility(false);
+  }
+
+  function toggleAnswerReveal() {
+    if (!currentDetail) {
+      showError(new Error('先に問題を選んでね。'));
+      return;
+    }
+    answerRevealed = !answerRevealed;
+    if (answerRevealed) {
+      renderConfirmedAnswers(currentDetail.confirmedAnswers || []);
+      renderAnswerNotes(currentDetail.answerNotes || []);
+      renderCandidates(currentDetail.candidates || {});
+    }
+    setAnswerVisibility(answerRevealed);
   }
 
   function renderConfirmedAnswers(answers) {
     const root = document.getElementById('confirmedAnswers');
     root.innerHTML = '';
-    if (!answers.length) return;
     const heading = document.createElement('h3');
     heading.textContent = 'Confirmed Answer';
     root.appendChild(heading);
+    if (!answers.length) {
+      const empty = document.createElement('p');
+      empty.className = 'muted';
+      empty.textContent = '確定回答はまだありません。';
+      root.appendChild(empty);
+      return;
+    }
     answers.forEach((answer) => {
       const item = document.createElement('article');
       item.className = 'answer-card confirmed';
@@ -245,6 +312,7 @@
     notes.forEach((note, index) => {
       const details = document.createElement('details');
       details.className = 'answer-card';
+      details.open = index === 0;
       details.innerHTML = [
         '<summary><span>回答案 ' + (index + 1) + '</span><span class="status">' + escapeHtml(note.status || 'draft') + '</span></summary>',
         '<div class="answer-meta">' + escapeHtml(note.source_type || '') + ' / ' + escapeHtml(note.evidence_page_codes || '') + '</div>',
@@ -262,19 +330,32 @@
       related_figure: '関連図',
       general_reference: 'General参照',
       neighbor: '近接ページ',
-      manual: '手動候補'
+      manual: '手動候補',
+      reviewed_reference: '確認済み根拠'
     };
     const root = document.getElementById('candidateList');
     root.innerHTML = '';
-    Object.keys(groups).forEach((key) => {
+    const keys = Object.keys(groups || {});
+    if (!keys.length) {
+      root.textContent = '候補ページはまだありません。';
+      return;
+    }
+    keys.forEach((key) => {
       const heading = document.createElement('h3');
       heading.textContent = labels[key] || key;
       root.appendChild(heading);
       groups[key].forEach((candidate) => {
         const item = document.createElement('div');
         item.className = 'candidate';
+        const driveUrl = String(candidate.drive_url || '').trim();
+        const linkHtml = driveUrl
+          ? '<a class="candidate-link" href="' + escapeHtml(driveUrl) + '" target="_blank" rel="noopener">PDFを開く</a>'
+          : '<span class="candidate-link is-muted">ページコード確認用</span>';
         item.innerHTML = [
+          '<div class="candidate-head">',
           '<div class="candidate-code">' + escapeHtml(candidate.page_code) + '</div>',
+          linkHtml,
+          '</div>',
           '<strong>' + escapeHtml(candidate.title || '') + '</strong>',
           '<p class="muted">' + escapeHtml(candidate.excerpt || '') + '</p>'
         ].join('');
@@ -368,6 +449,8 @@
     document.getElementById('answerSource').value = note.source_type || 'manual_user';
     document.getElementById('answerEvidencePages').value = note.evidence_page_codes || '';
     document.getElementById('answerText').value = note.answer_text || '';
+    const tools = document.querySelector('.admin-tools');
+    if (tools) tools.open = true;
   }
 
   function resetAnswerEditor() {
@@ -466,10 +549,7 @@
       return;
     }
     selectedQuestionId = '';
-    document.getElementById('questionDetail').innerHTML = '<p class="muted">ランダム問題を読み込み中...</p>';
-    document.getElementById('confirmedAnswers').innerHTML = '';
-    document.getElementById('answerNotes').innerHTML = '';
-    document.getElementById('candidateList').textContent = '候補ページを読み込み中...';
+    resetStudySurface('ランダム問題を読み込み中...');
     google.script.run
       .withSuccessHandler((response) => {
         const detail = unwrap(response);
@@ -480,7 +560,6 @@
       })
       .withFailureHandler((error) => {
         document.getElementById('questionDetail').textContent = 'ランダム問題の読み込みに失敗しました。';
-        document.getElementById('candidateList').textContent = '';
         showError(error);
       })
       .apiGetRandomQuestionDetail({ ata: selectedAta });
@@ -491,6 +570,7 @@
   document.getElementById('loadQuestions').addEventListener('click', loadQuestions);
   document.getElementById('randomQuestionButton').addEventListener('click', loadRandomQuestion);
   document.getElementById('toggleQuestionListButton').addEventListener('click', toggleQuestionList);
+  document.getElementById('revealAnswerButton').addEventListener('click', toggleAnswerReveal);
   document.getElementById('importPreparedButton').addEventListener('click', importPreparedAta);
   document.getElementById('promptButton').addEventListener('click', buildPrompt);
   document.getElementById('saveDraftButton').addEventListener('click', saveDraft);
@@ -500,5 +580,6 @@
 
   renderAtaFilterOptions();
   syncQuestionListVisibility();
+  setAnswerVisibility(false);
   markQuestionsPending();
 </script>
