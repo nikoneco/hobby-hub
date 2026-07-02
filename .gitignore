@@ -14,5 +14,6 @@ __pycache__/
 .venv/
 venv/
 LifeBoard/tools/*.local.bat
+LifeBoard/bus_fetcher/*.local.ps1
 LifeBoard/data/*.json
 LifeBoard/logs/

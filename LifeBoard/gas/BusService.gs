@@ -1,3 +1,31 @@
+const BUS_SNAPSHOT_HEADERS = [
+  'imported_at',
+  'source',
+  'generated_at',
+  'route_id',
+  'snapshot_json'
+];
+
+function handleBusSnapshotImportPost_(e) {
+  try {
+    const payload = parseBusSnapshotImportPayload_(e);
+    verifyCalendarImportToken_(payload.token);
+    const result = importBusSnapshots_(payload);
+    return jsonOutput_({
+      ok: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Bus snapshot import failed: ' + (error && error.stack ? error.stack : error));
+    return jsonOutput_({
+      ok: false,
+      error: {
+        message: error && error.message ? error.message : String(error)
+      }
+    });
+  }
+}
+
 function getBusRoutes_() {
   try {
     const spreadsheet = openLifeBoardSpreadsheet_();
@@ -29,6 +57,11 @@ function fetchRouteSnapshotSafely_(route) {
     return fetchRouteSnapshot_(route);
   } catch (error) {
     console.error('Bus route failed: ' + route.route_id + ': ' + (error && error.stack ? error.stack : error));
+    const stored = getStoredBusRouteSnapshot_(route);
+    if (stored) {
+      stored.errorText = 'GAS direct fetch failed; using manual bus snapshot. ' + (error && error.message ? error.message : String(error));
+      return stored;
+    }
     return {
       routeId: String(route.route_id || ''),
       label: String(route.label || ''),
@@ -41,6 +74,95 @@ function fetchRouteSnapshotSafely_(route) {
       items: []
     };
   }
+}
+
+function parseBusSnapshotImportPayload_(e) {
+  const body = e && e.postData && e.postData.contents ? e.postData.contents : '';
+  if (!body) {
+    throw new Error('Request body is empty');
+  }
+  return JSON.parse(body);
+}
+
+function importBusSnapshots_(payload) {
+  const routes = Array.isArray(payload.routes) ? payload.routes : [];
+  const spreadsheet = openLifeBoardSpreadsheet_();
+  const sheet = getOrCreateSheet_(spreadsheet, CONFIG.SHEETS.BUS_SNAPSHOTS);
+  const importedAt = nowIso_();
+  const rows = routes
+    .filter(function (route) {
+      return route && route.routeId;
+    })
+    .map(function (route) {
+      return BUS_SNAPSHOT_HEADERS.map(function (header) {
+        return busSnapshotValue_(header, route, payload, importedAt);
+      });
+    });
+
+  sheet.clearContents();
+  sheet.getRange(1, 1, Math.max(rows.length + 1, 2), BUS_SNAPSHOT_HEADERS.length).setNumberFormat('@');
+  sheet.getRange(1, 1, 1, BUS_SNAPSHOT_HEADERS.length).setValues([BUS_SNAPSHOT_HEADERS]);
+  if (rows.length) {
+    sheet.getRange(2, 1, rows.length, BUS_SNAPSHOT_HEADERS.length).setValues(rows);
+  }
+  sheet.setFrozenRows(1);
+  autoResizeSafe_(sheet, BUS_SNAPSHOT_HEADERS.length);
+
+  return {
+    importedAt: importedAt,
+    source: String(payload.source || ''),
+    generatedAt: String(payload.generatedAt || ''),
+    importedRoutes: rows.length
+  };
+}
+
+function busSnapshotValue_(header, route, payload, importedAt) {
+  const map = {
+    imported_at: importedAt,
+    source: String(payload.source || ''),
+    generated_at: String(payload.generatedAt || ''),
+    route_id: String(route.routeId || ''),
+    snapshot_json: JSON.stringify(route)
+  };
+  return map[header] == null ? '' : map[header];
+}
+
+function getStoredBusRouteSnapshot_(route) {
+  try {
+    const spreadsheet = openLifeBoardSpreadsheet_();
+    const sheet = getSheetByName_(spreadsheet, CONFIG.SHEETS.BUS_SNAPSHOTS);
+    const rows = readObjects_(sheet);
+    const routeId = String(route.route_id || '');
+    const row = rows.filter(function (candidate) {
+      return String(candidate.route_id || '') === routeId;
+    })[0];
+    if (!row) {
+      return null;
+    }
+    const importedAt = String(row.imported_at || '');
+    if (isStoredBusSnapshotStale_(importedAt)) {
+      return null;
+    }
+    const snapshot = JSON.parse(String(row.snapshot_json || '{}'));
+    snapshot.sourceUpdatedAtText = snapshot.sourceUpdatedAtText
+      ? snapshot.sourceUpdatedAtText + ' / 手動同期'
+      : '手動同期';
+    snapshot.importedAt = importedAt;
+    snapshot.source = String(row.source || 'manual-bus-fetcher');
+    return snapshot;
+  } catch (error) {
+    console.warn('Stored bus snapshot fallback unavailable: ' + (error && error.message ? error.message : String(error)));
+    return null;
+  }
+}
+
+function isStoredBusSnapshotStale_(importedAt) {
+  const importedMs = Date.parse(importedAt);
+  if (!Number.isFinite(importedMs)) {
+    return true;
+  }
+  const maxAgeMs = Number(CONFIG.BUS.STORED_MAX_AGE_MINUTES || 15) * 60 * 1000;
+  return Date.now() - importedMs > maxAgeMs;
 }
 
 function fetchRouteSnapshot_(route) {
