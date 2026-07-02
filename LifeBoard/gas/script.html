@@ -250,14 +250,16 @@
     snapshot.routes.forEach((route) => {
       const card = document.createElement('article');
       card.className = 'route-card bus-route-' + normalizeClassName(route.routeId || route.route_id || '');
-      const first = route.items[0];
+      const items = route.items || [];
+      const timetableItems = route.timetableItems || [];
+      const first = items[0];
       card.innerHTML = [
         '<div class="route-head">',
         '<h2>' + escapeHtml(route.label) + '</h2>',
         '<a href="' + escapeHtml(route.officialUrl) + '" target="_blank" rel="noopener">情報元</a>',
         '</div>',
-        first ? renderPrimaryBus(first, snapshot.fetchedAt) : '<p class="empty">接近情報なし</p>',
-        renderNextBuses(route.items.slice(1), snapshot.fetchedAt),
+        first ? renderPrimaryBus(first, snapshot.fetchedAt) : renderBusFallback(route, timetableItems),
+        renderNextBuses(items.slice(1), snapshot.fetchedAt),
         '<p class="source-time">情報元更新 ' + escapeHtml(route.sourceUpdatedAtText || '-') + '</p>'
       ].join('');
       root.appendChild(card);
@@ -587,6 +589,26 @@
       '<span>' + escapeHtml(bus.delayText) + '</span>',
       '</li>'
     ].join('')).join('') + '</ul>';
+  }
+
+  function renderBusFallback(route, timetableItems) {
+    const message = route.statusText || '接近情報なし';
+    if (!timetableItems.length) {
+      return '<p class="empty">' + escapeHtml(message) + '</p>';
+    }
+    return [
+      '<div class="bus-fallback">',
+      '<p class="empty">' + escapeHtml(message) + '</p>',
+      '<ul class="timetable-list">',
+      timetableItems.map((bus) => [
+        '<li>',
+        '<span>' + escapeHtml(bus.scheduledDepartureText || '-') + '</span>',
+        '<span>' + escapeHtml([bus.courseName, bus.destination ? bus.destination + '行' : '', bus.via ? bus.via + '経由' : ''].filter(Boolean).join(' / ') || '定刻') + '</span>',
+        '</li>'
+      ].join('')).join(''),
+      '</ul>',
+      '</div>'
+    ].join('');
   }
 
   function renderRemainingSpan(bus, fetchedAt) {

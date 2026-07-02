@@ -50,3 +50,38 @@ Manual runs append logs to:
 ```text
 LifeBoard\logs\bus_fetcher_manual.log
 ```
+
+## Scheduled task
+
+Register a hidden Windows scheduled task:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\bus_fetcher\register_task.ps1
+```
+
+Default interval is 5 minutes. To change it:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\bus_fetcher\register_task.ps1 -IntervalMinutes 3
+```
+
+The task is registered as:
+
+```text
+\LifeBoard\LifeBoard Bus Fetcher
+```
+
+It runs `run_manual.ps1` through `powershell.exe -WindowStyle Hidden`, so it
+does not open a visible PowerShell window during normal use.
+
+To start it immediately after registration:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\bus_fetcher\register_task.ps1 -RunNow
+```
+
+To remove it:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\bus_fetcher\unregister_task.ps1
+```

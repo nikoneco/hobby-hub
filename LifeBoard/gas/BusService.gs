@@ -57,22 +57,15 @@ function fetchRouteSnapshotSafely_(route) {
     return fetchRouteSnapshot_(route);
   } catch (error) {
     console.error('Bus route failed: ' + route.route_id + ': ' + (error && error.stack ? error.stack : error));
-    const stored = getStoredBusRouteSnapshot_(route);
+    const stored = getStoredBusRouteSnapshot_(route, { allowStale: true });
     if (stored) {
-      stored.errorText = 'GAS direct fetch failed; using manual bus snapshot. ' + (error && error.message ? error.message : String(error));
-      return stored;
+      if (stored.isStale) {
+        return buildBusTimetableFallbackSnapshot_(route, stored.snapshot, stored.importedAt, error);
+      }
+      stored.snapshot.errorText = 'GAS direct fetch failed; using manual bus snapshot. ' + (error && error.message ? error.message : String(error));
+      return stored.snapshot;
     }
-    return {
-      routeId: String(route.route_id || ''),
-      label: String(route.label || ''),
-      departureName: String(route.departure_name || ''),
-      arrivalName: String(route.arrival_name || ''),
-      officialUrl: String(route.official_url || buildOfficialBusPageUrl_(route)),
-      sourceUpdatedAt: '',
-      sourceUpdatedAtText: '取得失敗',
-      errorText: error && error.message ? error.message : String(error),
-      items: []
-    };
+    return buildBusUnavailableSnapshot_(route, error);
   }
 }
 
@@ -127,7 +120,7 @@ function busSnapshotValue_(header, route, payload, importedAt) {
   return map[header] == null ? '' : map[header];
 }
 
-function getStoredBusRouteSnapshot_(route) {
+function getStoredBusRouteSnapshot_(route, options) {
   try {
     const spreadsheet = openLifeBoardSpreadsheet_();
     const sheet = getSheetByName_(spreadsheet, CONFIG.SHEETS.BUS_SNAPSHOTS);
@@ -140,20 +133,78 @@ function getStoredBusRouteSnapshot_(route) {
       return null;
     }
     const importedAt = String(row.imported_at || '');
-    if (isStoredBusSnapshotStale_(importedAt)) {
+    const isStale = isStoredBusSnapshotStale_(importedAt);
+    if (isStale && !(options && options.allowStale)) {
       return null;
     }
     const snapshot = JSON.parse(String(row.snapshot_json || '{}'));
-    snapshot.sourceUpdatedAtText = snapshot.sourceUpdatedAtText
-      ? snapshot.sourceUpdatedAtText + ' / 手動同期'
-      : '手動同期';
+    if (!isStale) {
+      snapshot.sourceUpdatedAtText = snapshot.sourceUpdatedAtText
+        ? snapshot.sourceUpdatedAtText + ' / 手動同期'
+        : '手動同期';
+    }
     snapshot.importedAt = importedAt;
     snapshot.source = String(row.source || 'manual-bus-fetcher');
-    return snapshot;
+    return {
+      importedAt: importedAt,
+      isStale: isStale,
+      snapshot: snapshot
+    };
   } catch (error) {
     console.warn('Stored bus snapshot fallback unavailable: ' + (error && error.message ? error.message : String(error)));
     return null;
   }
+}
+
+function buildBusTimetableFallbackSnapshot_(route, storedSnapshot, importedAt, error) {
+  const timetableItems = buildTimetableItemsFromSnapshot_(storedSnapshot);
+  return {
+    routeId: String(route.route_id || ''),
+    label: String(route.label || ''),
+    departureName: String(route.departure_name || ''),
+    arrivalName: String(route.arrival_name || ''),
+    officialUrl: String(route.official_url || buildOfficialBusPageUrl_(route)),
+    sourceUpdatedAt: storedSnapshot && storedSnapshot.sourceUpdatedAt || '',
+    sourceUpdatedAtText: '接近情報未更新（最終手動同期 ' + formatDateTime_(importedAt) + '）',
+    statusText: '15分以上リアルタイム未取得。定刻のみ表示',
+    errorText: error && error.message ? error.message : String(error),
+    items: [],
+    timetableItems: timetableItems
+  };
+}
+
+function buildBusUnavailableSnapshot_(route, error) {
+  return {
+    routeId: String(route.route_id || ''),
+    label: String(route.label || ''),
+    departureName: String(route.departure_name || ''),
+    arrivalName: String(route.arrival_name || ''),
+    officialUrl: String(route.official_url || buildOfficialBusPageUrl_(route)),
+    sourceUpdatedAt: '',
+    sourceUpdatedAtText: '接近情報未取得',
+    statusText: 'リアルタイム未取得。情報元で時刻表を確認',
+    errorText: error && error.message ? error.message : String(error),
+    items: [],
+    timetableItems: []
+  };
+}
+
+function buildTimetableItemsFromSnapshot_(snapshot) {
+  const nowMs = Date.now();
+  return ((snapshot && snapshot.items) || [])
+    .filter(function (item) {
+      const scheduledMs = Date.parse(item.scheduledDepartureTime || '');
+      return Number.isFinite(scheduledMs) ? scheduledMs >= nowMs - (2 * 60 * 1000) : true;
+    })
+    .slice(0, CONFIG.BUS.MAX_ITEMS_PER_ROUTE)
+    .map(function (item) {
+      return {
+        scheduledDepartureText: String(item.scheduledDepartureText || ''),
+        courseName: String(item.courseName || ''),
+        destination: String(item.destination || ''),
+        via: String(item.via || '')
+      };
+    });
 }
 
 function isStoredBusSnapshotStale_(importedAt) {

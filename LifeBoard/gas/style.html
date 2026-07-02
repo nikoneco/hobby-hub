@@ -536,6 +536,39 @@
     line-height: 1.4;
   }
 
+  .bus-fallback {
+    display: grid;
+    gap: 10px;
+  }
+
+  .timetable-list {
+    display: grid;
+    gap: 7px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .timetable-list li {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    border-radius: 7px;
+    background: rgba(248, 240, 222, 0.07);
+    padding: 8px 9px;
+    color: rgba(248, 240, 222, 0.86);
+    font-size: 13px;
+    font-weight: 750;
+    line-height: 1.25;
+  }
+
+  .timetable-list li span:first-child {
+    color: var(--paper);
+    font-size: 17px;
+    font-weight: 900;
+  }
+
   .rail-status {
     margin-bottom: 8px;
     color: var(--green);

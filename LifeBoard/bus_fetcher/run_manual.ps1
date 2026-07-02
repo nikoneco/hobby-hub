@@ -45,12 +45,33 @@ Add-Content -Path $logPath -Encoding UTF8 -Value ('[{0}] Start manual bus fetch 
 
 Push-Location $repoRoot
 try {
-  & node $nodeScript $modeFlag 2>&1 | Tee-Object -FilePath $logPath -Append
-  $exitCode = $LASTEXITCODE
+  $tempBase = Join-Path $env:TEMP ('lifeboard_bus_' + [guid]::NewGuid().ToString('N'))
+  $stdoutPath = $tempBase + '.out'
+  $stderrPath = $tempBase + '.err'
+  $arguments = ('"{0}" {1}' -f $nodeScript, $modeFlag)
+  $process = Start-Process -FilePath 'node' -ArgumentList $arguments -WorkingDirectory $repoRoot -NoNewWindow -Wait -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+  $exitCode = $process.ExitCode
+  foreach ($path in @($stdoutPath, $stderrPath)) {
+    if (-not (Test-Path -LiteralPath $path)) {
+      continue
+    }
+    $text = [System.IO.File]::ReadAllText($path, [System.Text.Encoding]::UTF8).TrimEnd()
+    if (-not $text) {
+      continue
+    }
+    Write-Output $text
+    Add-Content -Path $logPath -Encoding UTF8 -Value $text
+  }
 } catch {
   Add-Content -Path $logPath -Encoding UTF8 -Value ('[{0}] ERROR {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $_.Exception.Message)
   $exitCode = 1
 } finally {
+  if ($stdoutPath -and (Test-Path -LiteralPath $stdoutPath)) {
+    Remove-Item -LiteralPath $stdoutPath -Force
+  }
+  if ($stderrPath -and (Test-Path -LiteralPath $stderrPath)) {
+    Remove-Item -LiteralPath $stderrPath -Force
+  }
   Pop-Location
 }
 
