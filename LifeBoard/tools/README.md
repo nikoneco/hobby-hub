@@ -107,6 +107,8 @@ Scheduled runs write logs to:
 LifeBoard\logs\timetree_sync.log
 ```
 
-The scheduled task launches PowerShell with `-WindowStyle Hidden` and calls the
-Node sync script directly. The `.local.bat` is kept for manual runs and as the
-place where the local account/token values are stored.
+The scheduled task launches `run_timetree_sync_hidden.vbs` through `wscript.exe`.
+The VBS runner starts PowerShell with window style `0`, avoiding the brief
+PowerShell window flash that can happen when Task Scheduler points directly at
+`powershell.exe`. The `.local.bat` is kept for manual runs and as the place
+where the local account/token values are stored.

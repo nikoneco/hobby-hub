@@ -6,8 +6,6 @@ $batPath = Join-Path $scriptDir 'sync_timetree_calendar.local.bat'
 $nodeScript = Join-Path $scriptDir 'sync_timetree_calendar.js'
 $logDir = Join-Path $repoRoot 'LifeBoard\logs'
 $logPath = Join-Path $logDir 'timetree_sync.log'
-$stdoutPath = Join-Path $logDir 'timetree_sync_stdout.tmp'
-$stderrPath = Join-Path $logDir 'timetree_sync_stderr.tmp'
 $defaultPythonPath = Join-Path $env:LOCALAPPDATA 'Programs\Python\Python310\python.exe'
 
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
@@ -41,25 +39,31 @@ try {
   $syncMode = Get-BatSetting 'SYNC_MODE'
   $modeFlag = if ($syncMode -ieq 'POST') { '--post' } else { '--dry-run' }
 
-  Remove-Item -LiteralPath $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
-  $previousErrorActionPreference = $ErrorActionPreference
-  $ErrorActionPreference = 'Continue'
-  try {
-    & node $nodeScript --export $modeFlag > $stdoutPath 2> $stderrPath
-    $exitCode = $LASTEXITCODE
-  } finally {
-    $ErrorActionPreference = $previousErrorActionPreference
-  }
-  if (Test-Path -LiteralPath $stdoutPath) {
-    Add-Content -Path $logPath -Encoding UTF8 -Value (Get-Content -LiteralPath $stdoutPath -Raw)
-  }
-  if (Test-Path -LiteralPath $stderrPath) {
-    Add-Content -Path $logPath -Encoding UTF8 -Value (Get-Content -LiteralPath $stderrPath -Raw)
+  $tempBase = Join-Path $env:TEMP ('lifeboard_timetree_' + [guid]::NewGuid().ToString('N'))
+  $stdoutPath = $tempBase + '.out'
+  $stderrPath = $tempBase + '.err'
+  $arguments = ('"{0}" --export {1}' -f $nodeScript, $modeFlag)
+  $process = Start-Process -FilePath 'node' -ArgumentList $arguments -WorkingDirectory $repoRoot -WindowStyle Hidden -Wait -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+  $exitCode = $process.ExitCode
+  foreach ($path in @($stdoutPath, $stderrPath)) {
+    if (-not (Test-Path -LiteralPath $path)) {
+      continue
+    }
+    $text = [System.IO.File]::ReadAllText($path, [System.Text.Encoding]::UTF8).TrimEnd()
+    if ($text) {
+      Add-Content -Path $logPath -Encoding UTF8 -Value $text
+    }
   }
 } catch {
   Add-Content -Path $logPath -Encoding UTF8 -Value ('[{0}] ERROR {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $_.Exception.Message)
   $exitCode = 1
 } finally {
+  if ($stdoutPath -and (Test-Path -LiteralPath $stdoutPath)) {
+    Remove-Item -LiteralPath $stdoutPath -Force
+  }
+  if ($stderrPath -and (Test-Path -LiteralPath $stderrPath)) {
+    Remove-Item -LiteralPath $stderrPath -Force
+  }
   Pop-Location
 }
 

@@ -9,8 +9,8 @@ $intervalTaskName = 'LifeBoard TimeTree Calendar Sync'
 $logonTaskName = 'LifeBoard TimeTree Calendar Sync Logon'
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Resolve-Path (Join-Path $scriptDir '..\..')
-$runnerPath = Join-Path $scriptDir 'run_timetree_sync_task.ps1'
-$powershellPath = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+$runnerPath = Join-Path $scriptDir 'run_timetree_sync_hidden.vbs'
+$wscriptPath = Join-Path $env:SystemRoot 'System32\wscript.exe'
 $startupPath = Join-Path ([Environment]::GetFolderPath('Startup')) 'LifeBoard_TimeTree_Sync.vbs'
 
 function Invoke-Schtasks {
@@ -41,10 +41,10 @@ if ($Unregister) {
 }
 
 if (-not (Test-Path -LiteralPath $runnerPath)) {
-  throw "Runner script not found: $runnerPath"
+  throw "Hidden runner script not found: $runnerPath"
 }
 
-$taskRun = ('"{0}" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "{1}"' -f $powershellPath, $runnerPath)
+$taskRun = ('"{0}" //B //Nologo "{1}"' -f $wscriptPath, $runnerPath)
 
 Invoke-Schtasks @(
   '/Create',
@@ -79,10 +79,9 @@ if ($logonTaskExitCode -eq 0) {
 }
 
 if (-not $logonTaskRegistered) {
-  $vbsCommand = ('"{0}" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "{1}"' -f $powershellPath, $runnerPath)
   $vbs = @(
     'Set shell = CreateObject("WScript.Shell")',
-    ('shell.Run "{0}", 0, False' -f (ConvertTo-VbsString $vbsCommand))
+    ('shell.Run "{0}", 0, False' -f (ConvertTo-VbsString $taskRun))
   )
   Set-Content -LiteralPath $startupPath -Value $vbs -Encoding Unicode
 }
@@ -95,4 +94,5 @@ if ($logonTaskRegistered) {
 }
 Write-Host "Interval minutes: $IntervalMinutes"
 Write-Host "Runner: $runnerPath"
+Write-Host "Action uses wscript.exe to avoid a visible PowerShell window."
 Write-Host ('Log: {0}' -f (Join-Path $repoRoot 'LifeBoard\logs\timetree_sync.log'))
