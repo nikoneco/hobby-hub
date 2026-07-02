@@ -20,8 +20,27 @@ function getBusSnapshot_() {
   const routes = getBusRoutes_();
   return {
     fetchedAt: nowIso_(),
-    routes: routes.map(fetchRouteSnapshot_)
+    routes: routes.map(fetchRouteSnapshotSafely_)
   };
+}
+
+function fetchRouteSnapshotSafely_(route) {
+  try {
+    return fetchRouteSnapshot_(route);
+  } catch (error) {
+    console.error('Bus route failed: ' + route.route_id + ': ' + (error && error.stack ? error.stack : error));
+    return {
+      routeId: String(route.route_id || ''),
+      label: String(route.label || ''),
+      departureName: String(route.departure_name || ''),
+      arrivalName: String(route.arrival_name || ''),
+      officialUrl: String(route.official_url || buildOfficialBusPageUrl_(route)),
+      sourceUpdatedAt: '',
+      sourceUpdatedAtText: '取得失敗',
+      errorText: error && error.message ? error.message : String(error),
+      items: []
+    };
+  }
 }
 
 function fetchRouteSnapshot_(route) {
