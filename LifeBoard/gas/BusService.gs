@@ -133,6 +133,7 @@ function getStoredBusRouteSnapshot_(route, options) {
       return null;
     }
     const importedAt = String(row.imported_at || '');
+    const generatedAt = String(row.generated_at || '');
     const isStale = isStoredBusSnapshotStale_(importedAt);
     if (isStale && !(options && options.allowStale)) {
       return null;
@@ -143,6 +144,7 @@ function getStoredBusRouteSnapshot_(route, options) {
         ? snapshot.sourceUpdatedAtText + ' / 手動同期'
         : '手動同期';
     }
+    snapshot.countdownBaseAt = String(snapshot.countdownBaseAt || snapshot.sourceUpdatedAt || generatedAt || importedAt);
     snapshot.importedAt = importedAt;
     snapshot.source = String(row.source || 'manual-bus-fetcher');
     return {
@@ -246,6 +248,7 @@ function fetchRouteSnapshot_(route) {
     officialUrl: String(route.official_url || buildOfficialBusPageUrl_(route)),
     sourceUpdatedAt: payload.updatedAt || '',
     sourceUpdatedAtText: formatDateTime_(payload.updatedAt),
+    countdownBaseAt: payload.updatedAt || nowIso_(),
     items: (payload.approachings || [])
       .slice(0, CONFIG.BUS.MAX_ITEMS_PER_ROUTE)
       .map(normalizeApproaching_)

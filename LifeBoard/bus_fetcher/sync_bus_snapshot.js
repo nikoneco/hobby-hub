@@ -104,6 +104,7 @@ async function fetchRouteSnapshot(route) {
     throw new Error('Bus API request failed for ' + route.routeId + ': HTTP ' + response.status + ' ' + text.slice(0, 200));
   }
   const payload = JSON.parse(text);
+  const countdownBaseAt = payload.updatedAt || new Date().toISOString();
   return {
     routeId: route.routeId,
     label: route.label,
@@ -112,6 +113,7 @@ async function fetchRouteSnapshot(route) {
     officialUrl: buildOfficialUrl(route),
     sourceUpdatedAt: payload.updatedAt || '',
     sourceUpdatedAtText: formatDateTime(payload.updatedAt),
+    countdownBaseAt,
     items: (payload.approachings || [])
       .slice(0, MAX_ITEMS_PER_ROUTE)
       .map(normalizeApproaching)

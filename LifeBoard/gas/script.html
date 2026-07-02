@@ -1,6 +1,7 @@
 <script>
   const app = document.getElementById('app');
   const bootstrap = JSON.parse(app.dataset.bootstrap || '{}');
+  const AUTO_REFRESH_INTERVAL_MS = 60 * 1000;
   let autoRefreshTimer = null;
   let failureCount = 0;
   let clockTimer = null;
@@ -253,13 +254,14 @@
       const items = route.items || [];
       const timetableItems = route.timetableItems || [];
       const first = items[0];
+      const countdownBaseAt = route.countdownBaseAt || route.sourceUpdatedAt || snapshot.fetchedAt;
       card.innerHTML = [
         '<div class="route-head">',
         '<h2>' + escapeHtml(route.label) + '</h2>',
         '<a href="' + escapeHtml(route.officialUrl) + '" target="_blank" rel="noopener">情報元</a>',
         '</div>',
-        first ? renderPrimaryBus(first, snapshot.fetchedAt) : renderBusFallback(route, timetableItems),
-        renderNextBuses(items.slice(1), snapshot.fetchedAt),
+        first ? renderPrimaryBus(first, countdownBaseAt) : renderBusFallback(route, timetableItems),
+        renderNextBuses(items.slice(1), countdownBaseAt),
         '<p class="source-time">情報元更新 ' + escapeHtml(route.sourceUpdatedAtText || '-') + '</p>'
       ].join('');
       root.appendChild(card);
@@ -659,7 +661,7 @@
 
   function scheduleNextAutoRefresh() {
     clearAutoRefresh();
-    const intervalMs = getAutoRefreshIntervalMs(new Date());
+    const intervalMs = getAutoRefreshIntervalMs();
     updateAutoStatus('次回 ' + formatDuration(intervalMs) + '後');
     autoRefreshTimer = setTimeout(() => {
       if (document.hidden) {
@@ -670,22 +672,12 @@
     }, intervalMs);
   }
 
-  function getAutoRefreshIntervalMs(date) {
-    if (isWeekdayMorningRush(date)) {
-      return 60 * 1000;
-    }
-    return 5 * 60 * 1000;
-  }
-
-  function isWeekdayMorningRush(date) {
-    const day = date.getDay();
-    const hour = date.getHours();
-    return day >= 1 && day <= 5 && hour >= 6 && hour < 7;
+  function getAutoRefreshIntervalMs() {
+    return AUTO_REFRESH_INTERVAL_MS;
   }
 
   function updateAutoStatus(suffix) {
-    const mode = isWeekdayMorningRush(new Date()) ? '平日朝 1分ごと' : '5分ごと';
-    document.getElementById('autoStatus').textContent = '自動更新 ' + mode + (suffix ? ' / ' + suffix : '');
+    document.getElementById('autoStatus').textContent = '画面更新 1分ごと' + (suffix ? ' / ' + suffix : '');
   }
 
   function formatDuration(ms) {
