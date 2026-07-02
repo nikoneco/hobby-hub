@@ -2,10 +2,12 @@
   const app = document.getElementById('app');
   const bootstrap = JSON.parse(app.dataset.bootstrap || '{}');
   const AUTO_REFRESH_INTERVAL_MS = 60 * 1000;
+  const BUS_DEPARTURE_GRACE_MS = 60 * 1000;
   let autoRefreshTimer = null;
   let failureCount = 0;
   let clockTimer = null;
   let busCountdownTimer = null;
+  let latestBusSnapshot = null;
   let refreshRequestId = 0;
   let isRefreshing = false;
 
@@ -246,15 +248,16 @@
   }
 
   function renderBusSnapshot(snapshot) {
+    latestBusSnapshot = snapshot;
     const root = document.getElementById('busRoutes');
     root.innerHTML = '';
     snapshot.routes.forEach((route) => {
       const card = document.createElement('article');
       card.className = 'route-card bus-route-' + normalizeClassName(route.routeId || route.route_id || '');
-      const items = route.items || [];
       const timetableItems = route.timetableItems || [];
-      const first = items[0];
       const countdownBaseAt = route.countdownBaseAt || route.sourceUpdatedAt || snapshot.fetchedAt;
+      const items = getDisplayBusItems(route.items || [], countdownBaseAt);
+      const first = items[0];
       card.innerHTML = [
         '<div class="route-head">',
         '<h2>' + escapeHtml(route.label) + '</h2>',
@@ -618,10 +621,13 @@
     if (!Number.isFinite(remaining)) {
       return '<span>' + escapeHtml(bus.remainingText || '-') + '</span>';
     }
+    const expiresAt = getBusExpiresAt(bus, fetchedAt);
     return [
       '<span class="countdown-remain"',
       ' data-base-minutes="' + escapeHtml(remaining) + '"',
-      ' data-fetched-at="' + escapeHtml(fetchedAt || '') + '">',
+      ' data-fetched-at="' + escapeHtml(fetchedAt || '') + '"',
+      expiresAt ? ' data-expires-at="' + escapeHtml(String(expiresAt)) + '"' : '',
+      '>',
       escapeHtml(formatCountdownRemaining(remaining, fetchedAt)),
       '</span>'
     ].join('');
@@ -636,10 +642,19 @@
   }
 
   function updateBusCountdowns() {
+    let needsRerender = false;
     document.querySelectorAll('.countdown-remain').forEach((element) => {
+      const expiresAt = Number(element.dataset.expiresAt);
+      if (Number.isFinite(expiresAt) && Date.now() > expiresAt) {
+        needsRerender = true;
+        return;
+      }
       const remaining = Number(element.dataset.baseMinutes);
       element.textContent = formatCountdownRemaining(remaining, element.dataset.fetchedAt);
     });
+    if (needsRerender && latestBusSnapshot) {
+      renderBusSnapshot(latestBusSnapshot);
+    }
   }
 
   function formatCountdownRemaining(baseMinutes, fetchedAt) {
@@ -650,6 +665,28 @@
       return 'まもなく';
     }
     return 'あと約' + remaining + '分';
+  }
+
+  function getDisplayBusItems(items, fetchedAt) {
+    return items.filter((bus) => !isBusExpired(bus, fetchedAt));
+  }
+
+  function isBusExpired(bus, fetchedAt) {
+    const expiresAt = getBusExpiresAt(bus, fetchedAt);
+    return Number.isFinite(expiresAt) && Date.now() > expiresAt;
+  }
+
+  function getBusExpiresAt(bus, fetchedAt) {
+    const departureMs = Date.parse(bus.predictedDepartureTime || bus.scheduledDepartureTime || '');
+    if (Number.isFinite(departureMs)) {
+      return departureMs + BUS_DEPARTURE_GRACE_MS;
+    }
+    const baseMinutes = Number(bus.remainingMinutes);
+    const fetchedMs = Date.parse(fetchedAt || '');
+    if (Number.isFinite(baseMinutes) && Number.isFinite(fetchedMs)) {
+      return fetchedMs + (baseMinutes * 60 * 1000) + BUS_DEPARTURE_GRACE_MS;
+    }
+    return null;
   }
 
   function clearAutoRefresh() {
