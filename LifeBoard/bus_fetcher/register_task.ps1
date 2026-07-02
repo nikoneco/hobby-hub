@@ -11,14 +11,14 @@ if ($IntervalMinutes -lt 1) {
 }
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$runner = Join-Path $scriptDir 'run_manual.ps1'
+$runner = Join-Path $scriptDir 'run_hidden.vbs'
 if (-not (Test-Path -LiteralPath $runner)) {
-  throw "Runner not found: $runner"
+  throw "Hidden runner not found: $runner"
 }
 
-$powershell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
-$arguments = '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $runner + '"'
-$action = New-ScheduledTaskAction -Execute $powershell -Argument $arguments
+$wscript = Join-Path $env:SystemRoot 'System32\wscript.exe'
+$arguments = '//B //Nologo "' + $runner + '"'
+$action = New-ScheduledTaskAction -Execute $wscript -Argument $arguments
 $trigger = New-ScheduledTaskTrigger `
   -Once `
   -At (Get-Date).AddMinutes(1) `
@@ -46,4 +46,4 @@ if ($RunNow) {
 
 Write-Host ('Registered scheduled task: \LifeBoard\{0}' -f $TaskName)
 Write-Host ('Interval: {0} minute(s)' -f $IntervalMinutes)
-Write-Host 'Action uses powershell.exe -WindowStyle Hidden.'
+Write-Host 'Action uses wscript.exe to avoid a visible PowerShell window.'

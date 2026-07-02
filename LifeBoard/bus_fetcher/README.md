@@ -71,8 +71,10 @@ The task is registered as:
 \LifeBoard\LifeBoard Bus Fetcher
 ```
 
-It runs `run_manual.ps1` through `powershell.exe -WindowStyle Hidden`, so it
-does not open a visible PowerShell window during normal use.
+It runs `run_hidden.vbs` through `wscript.exe`, which launches
+`run_manual.ps1` with window style `0`. This avoids the brief PowerShell window
+flash that can happen with a scheduled task action pointing directly at
+`powershell.exe`.
 
 To start it immediately after registration:
 
