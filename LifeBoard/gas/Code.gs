@@ -11,10 +11,6 @@ function doGet(e) {
 }
 
 function doPost(e) {
-  const action = e && e.parameter ? String(e.parameter.action || '') : '';
-  if (action === 'importBusSnapshot') {
-    return handleBusSnapshotImportPost_(e);
-  }
   return handleCalendarImportPost_(e);
 }
 

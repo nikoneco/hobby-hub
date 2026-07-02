@@ -2,24 +2,6 @@
 
 Local helper for the LifeBoard calendar import flow.
 
-## Bus snapshot sync
-
-GAS may be blocked by the bus API while the local PC can still fetch it. Build a
-local snapshot and post it to LifeBoard:
-
-```powershell
-node .\LifeBoard\tools\sync_bus_snapshot.js --dry-run
-node .\LifeBoard\tools\sync_bus_snapshot.js --post
-```
-
-The `--post` mode uses the same `LIFEBOARD_IMPORT_TOKEN` as TimeTree. The
-scheduled-task friendly helper reads it from `sync_timetree_calendar.local.bat`
-and writes logs to `LifeBoard\logs\bus_snapshot_sync.log`:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\tools\run_bus_snapshot_sync_task.ps1
-```
-
 ## Dry run
 
 ```powershell

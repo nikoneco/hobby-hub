@@ -4,7 +4,6 @@ const CONFIG = {
   SPREADSHEET_ID: '1-vYY2ekc3UCz8_QKYpR4dXUt2uQ9y6gJRLM_Qccrcg0',
   SHEETS: {
     BUS_ROUTES: 'bus_routes',
-    BUS_SNAPSHOTS: 'bus_snapshots',
     RAIL_ROUTES: 'rail_routes',
     WEATHER_LOCATIONS: 'weather_locations',
     GARBAGE_RULES: 'garbage_rules',
@@ -15,7 +14,6 @@ const CONFIG = {
     API_BASE_URL: 'https://transfer-cloud.navitime.biz/apiv1/',
     PAGE_BASE_URL: 'https://transfer-cloud.navitime.biz/keiseibus-group/approachings',
     CACHE_SECONDS: 25,
-    STORED_MAX_AGE_MINUTES: 15,
     MAX_ITEMS_PER_ROUTE: 3
   },
   FALLBACK_BUS_ROUTES: [
