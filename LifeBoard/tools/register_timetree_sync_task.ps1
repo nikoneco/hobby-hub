@@ -57,15 +57,22 @@ Invoke-Schtasks @(
 )
 
 $logonTaskRegistered = $false
-& schtasks.exe @(
-  '/Create',
-  '/TN', "\$logonTaskName",
-  '/TR', $taskRun,
-  '/SC', 'ONLOGON',
-  '/F',
-  '/RL', 'LIMITED'
-) 2>$null
-if ($LASTEXITCODE -eq 0) {
+$previousErrorActionPreference = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
+try {
+  & schtasks.exe @(
+    '/Create',
+    '/TN', "\$logonTaskName",
+    '/TR', $taskRun,
+    '/SC', 'ONLOGON',
+    '/F',
+    '/RL', 'LIMITED'
+  ) 2>$null
+  $logonTaskExitCode = $LASTEXITCODE
+} finally {
+  $ErrorActionPreference = $previousErrorActionPreference
+}
+if ($logonTaskExitCode -eq 0) {
   $logonTaskRegistered = $true
 } else {
   Write-Warning "Logon scheduled task could not be created. Startup helper will be used instead."

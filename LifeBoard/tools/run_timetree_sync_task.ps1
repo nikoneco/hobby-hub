@@ -42,16 +42,14 @@ try {
   $modeFlag = if ($syncMode -ieq 'POST') { '--post' } else { '--dry-run' }
 
   Remove-Item -LiteralPath $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
-  $process = Start-Process `
-    -FilePath 'node' `
-    -ArgumentList @($nodeScript, '--export', $modeFlag) `
-    -WorkingDirectory $repoRoot `
-    -NoNewWindow `
-    -Wait `
-    -PassThru `
-    -RedirectStandardOutput $stdoutPath `
-    -RedirectStandardError $stderrPath
-  $exitCode = $process.ExitCode
+  $previousErrorActionPreference = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try {
+    & node $nodeScript --export $modeFlag > $stdoutPath 2> $stderrPath
+    $exitCode = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+  }
   if (Test-Path -LiteralPath $stdoutPath) {
     Add-Content -Path $logPath -Encoding UTF8 -Value (Get-Content -LiteralPath $stdoutPath -Raw)
   }
