@@ -38,6 +38,26 @@ function handleBusSnapshotImportPost_(e) {
   }
 }
 
+function handleBusTimetableImportPost_(e) {
+  try {
+    const payload = parseBusSnapshotImportPayload_(e);
+    verifyCalendarImportToken_(payload.token);
+    const result = importBusTimetable_(payload);
+    return jsonOutput_({
+      ok: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Bus timetable import failed: ' + (error && error.stack ? error.stack : error));
+    return jsonOutput_({
+      ok: false,
+      error: {
+        message: error && error.message ? error.message : String(error)
+      }
+    });
+  }
+}
+
 function getBusRoutes_() {
   try {
     const spreadsheet = openLifeBoardSpreadsheet_();
@@ -121,6 +141,37 @@ function importBusSnapshots_(payload) {
   };
 }
 
+function importBusTimetable_(payload) {
+  const rows = Array.isArray(payload.rows) ? payload.rows : [];
+  const spreadsheet = openLifeBoardSpreadsheet_();
+  const sheet = getOrCreateSheet_(spreadsheet, CONFIG.SHEETS.BUS_TIMETABLE);
+  const values = rows
+    .filter(function (row) {
+      return row && row.routeId && row.departureTime;
+    })
+    .map(function (row) {
+      return BUS_TIMETABLE_HEADERS.map(function (header) {
+        return busTimetableValue_(header, row, payload);
+      });
+    });
+
+  sheet.clearContents();
+  sheet.getRange(1, 1, Math.max(values.length + 1, 2), BUS_TIMETABLE_HEADERS.length).setNumberFormat('@');
+  sheet.getRange(1, 1, 1, BUS_TIMETABLE_HEADERS.length).setValues([BUS_TIMETABLE_HEADERS]);
+  if (values.length) {
+    sheet.getRange(2, 1, values.length, BUS_TIMETABLE_HEADERS.length).setValues(values);
+  }
+  sheet.setFrozenRows(1);
+  autoResizeSafe_(sheet, BUS_TIMETABLE_HEADERS.length);
+
+  return {
+    importedAt: nowIso_(),
+    source: String(payload.source || ''),
+    generatedAt: String(payload.generatedAt || ''),
+    importedRows: values.length
+  };
+}
+
 function busSnapshotValue_(header, route, payload, importedAt) {
   const map = {
     imported_at: importedAt,
@@ -128,6 +179,21 @@ function busSnapshotValue_(header, route, payload, importedAt) {
     generated_at: String(payload.generatedAt || ''),
     route_id: String(route.routeId || ''),
     snapshot_json: JSON.stringify(route)
+  };
+  return map[header] == null ? '' : map[header];
+}
+
+function busTimetableValue_(header, row, payload) {
+  const map = {
+    route_id: String(row.routeId || ''),
+    service_date: String(row.serviceDate || ''),
+    service_type: String(row.serviceType || ''),
+    departure_time: String(row.departureTime || ''),
+    course_name: String(row.courseName || ''),
+    destination: String(row.destination || ''),
+    via: String(row.via || ''),
+    enabled: row.enabled === false ? 'FALSE' : 'TRUE',
+    note: String(row.note || payload.note || '')
   };
   return map[header] == null ? '' : map[header];
 }
@@ -324,6 +390,8 @@ function normalizeBusServiceType_(value) {
     sat: 'saturday',
     '土曜': 'saturday',
     '土曜日': 'saturday',
+    weekend: 'holiday',
+    '土休日': 'holiday',
     holiday: 'holiday',
     holidays: 'holiday',
     sunday: 'holiday',

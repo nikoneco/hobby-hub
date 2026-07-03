@@ -15,6 +15,9 @@ function doPost(e) {
   if (action === 'importBusSnapshot') {
     return handleBusSnapshotImportPost_(e);
   }
+  if (action === 'importBusTimetable') {
+    return handleBusTimetableImportPost_(e);
+  }
   return handleCalendarImportPost_(e);
 }
 
@@ -24,6 +27,7 @@ function include(filename) {
 
 function getClientBootstrap_() {
   return safeRun_('getClientBootstrap_', function () {
+    setupBusTimetableSheet();
     return {
       appName: CONFIG.APP_NAME,
       busRoutes: getBusRoutes_(),
@@ -36,6 +40,7 @@ function getClientBootstrap_() {
 
 function apiGetLifeBoardData() {
   return safeRun_('apiGetLifeBoardData', function () {
+    setupBusTimetableSheet();
     return {
       bus: getBusSnapshot_(),
       rail: getRailSnapshot_(),

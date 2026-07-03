@@ -51,6 +51,41 @@ Manual runs append logs to:
 LifeBoard\logs\bus_fetcher_manual.log
 ```
 
+## Static timetable refresh
+
+The static timetable fallback is refreshed manually from NAVITIME timetable
+pages. It is not part of the realtime scheduled task.
+
+Dry run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\bus_fetcher\run_timetable_manual.ps1 -DryRun
+```
+
+Post to LifeBoard:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\bus_fetcher\run_timetable_manual.ps1
+```
+
+This writes the latest extracted timetable to:
+
+```text
+LifeBoard\data\bus_timetable.json
+```
+
+and imports rows into the spreadsheet sheet:
+
+```text
+bus_timetable
+```
+
+Manual timetable runs append logs to:
+
+```text
+LifeBoard\logs\bus_timetable_manual.log
+```
+
 ## Scheduled task
 
 Register a hidden Windows scheduled task:
