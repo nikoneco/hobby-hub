@@ -160,6 +160,9 @@ function getStoredBusRouteSnapshot_(route, options) {
 
 function buildBusTimetableFallbackSnapshot_(route, storedSnapshot, importedAt, error) {
   const timetableItems = buildTimetableItemsFromSnapshot_(storedSnapshot);
+  const statusText = timetableItems.length
+    ? '15分以上リアルタイム未取得。定刻のみ表示'
+    : '15分以上リアルタイム未取得。最新の定刻候補なし';
   return {
     routeId: String(route.route_id || ''),
     label: String(route.label || ''),
@@ -168,7 +171,7 @@ function buildBusTimetableFallbackSnapshot_(route, storedSnapshot, importedAt, e
     officialUrl: String(route.official_url || buildOfficialBusPageUrl_(route)),
     sourceUpdatedAt: storedSnapshot && storedSnapshot.sourceUpdatedAt || '',
     sourceUpdatedAtText: '接近情報未更新（最終手動同期 ' + formatDateTime_(importedAt) + '）',
-    statusText: '15分以上リアルタイム未取得。定刻のみ表示',
+    statusText: statusText,
     errorText: error && error.message ? error.message : String(error),
     items: [],
     timetableItems: timetableItems
