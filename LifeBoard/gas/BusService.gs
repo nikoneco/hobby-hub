@@ -6,6 +6,18 @@ const BUS_SNAPSHOT_HEADERS = [
   'snapshot_json'
 ];
 
+const BUS_TIMETABLE_HEADERS = [
+  'route_id',
+  'service_date',
+  'service_type',
+  'departure_time',
+  'course_name',
+  'destination',
+  'via',
+  'enabled',
+  'note'
+];
+
 function handleBusSnapshotImportPost_(e) {
   try {
     const payload = parseBusSnapshotImportPayload_(e);
@@ -159,10 +171,13 @@ function getStoredBusRouteSnapshot_(route, options) {
 }
 
 function buildBusTimetableFallbackSnapshot_(route, storedSnapshot, importedAt, error) {
-  const timetableItems = buildTimetableItemsFromSnapshot_(storedSnapshot);
+  const timetableItems = getStaticBusTimetableItems_(route);
+  const fallbackItems = timetableItems.length ? timetableItems : buildTimetableItemsFromSnapshot_(storedSnapshot);
   const statusText = timetableItems.length
-    ? '15分以上リアルタイム未取得。定刻のみ表示'
-    : '15分以上リアルタイム未取得。最新の定刻候補なし';
+    ? '15分以上リアルタイム未取得。スプシ定刻のみ表示'
+    : fallbackItems.length
+      ? '15分以上リアルタイム未取得。前回取得分の定刻のみ表示'
+      : '15分以上リアルタイム未取得。最新の定刻候補なし';
   return {
     routeId: String(route.route_id || ''),
     label: String(route.label || ''),
@@ -174,11 +189,15 @@ function buildBusTimetableFallbackSnapshot_(route, storedSnapshot, importedAt, e
     statusText: statusText,
     errorText: error && error.message ? error.message : String(error),
     items: [],
-    timetableItems: timetableItems
+    timetableItems: fallbackItems
   };
 }
 
 function buildBusUnavailableSnapshot_(route, error) {
+  const timetableItems = getStaticBusTimetableItems_(route);
+  const statusText = timetableItems.length
+    ? 'リアルタイム未取得。スプシ定刻のみ表示'
+    : 'リアルタイム未取得。情報元で時刻表を確認';
   return {
     routeId: String(route.route_id || ''),
     label: String(route.label || ''),
@@ -186,11 +205,11 @@ function buildBusUnavailableSnapshot_(route, error) {
     arrivalName: String(route.arrival_name || ''),
     officialUrl: String(route.official_url || buildOfficialBusPageUrl_(route)),
     sourceUpdatedAt: '',
-    sourceUpdatedAtText: '接近情報未取得',
-    statusText: 'リアルタイム未取得。情報元で時刻表を確認',
+    sourceUpdatedAtText: timetableItems.length ? '接近情報未取得 / スプシ定刻' : '接近情報未取得',
+    statusText: statusText,
     errorText: error && error.message ? error.message : String(error),
     items: [],
-    timetableItems: []
+    timetableItems: timetableItems
   };
 }
 
@@ -219,6 +238,162 @@ function isStoredBusSnapshotStale_(importedAt) {
   }
   const maxAgeMs = Number(CONFIG.BUS.STORED_MAX_AGE_MINUTES || 15) * 60 * 1000;
   return Date.now() - importedMs > maxAgeMs;
+}
+
+function getStaticBusTimetableItems_(route) {
+  try {
+    const spreadsheet = openLifeBoardSpreadsheet_();
+    const sheet = getSheetByName_(spreadsheet, CONFIG.SHEETS.BUS_TIMETABLE);
+    const rows = readObjects_(sheet);
+    const routeId = String(route.route_id || '');
+    const todayText = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'yyyyMMdd');
+    const serviceTypes = getTodayBusServiceTypes_();
+    const items = rows
+      .filter(function (row) {
+        if (String(row.route_id || '') !== routeId) {
+          return false;
+        }
+        if (row.enabled === false || row.enabled === 'FALSE' || row.enabled === 'false') {
+          return false;
+        }
+        const serviceDate = normalizeBusServiceDate_(row.service_date);
+        if (serviceDate) {
+          return serviceDate === todayText;
+        }
+        const serviceType = normalizeBusServiceType_(row.service_type);
+        return serviceTypes.indexOf(serviceType) !== -1;
+      })
+      .map(function (row) {
+        const time = parseBusTimetableTime_(row.departure_time);
+        if (!time) {
+          return null;
+        }
+        return {
+          scheduledMs: time.scheduledMs,
+          scheduledDepartureText: time.text,
+          courseName: String(row.course_name || ''),
+          destination: String(row.destination || ''),
+          via: String(row.via || '')
+        };
+      })
+      .filter(function (item) {
+        return item && item.scheduledMs >= Date.now() - (2 * 60 * 1000);
+      })
+      .sort(function (a, b) {
+        return a.scheduledMs - b.scheduledMs;
+      })
+      .slice(0, CONFIG.BUS.MAX_ITEMS_PER_ROUTE)
+      .map(function (item) {
+        return {
+          scheduledDepartureText: item.scheduledDepartureText,
+          courseName: item.courseName,
+          destination: item.destination,
+          via: item.via
+        };
+      });
+    return items;
+  } catch (error) {
+    console.warn('Static bus timetable unavailable: ' + (error && error.message ? error.message : String(error)));
+    return [];
+  }
+}
+
+function getTodayBusServiceTypes_() {
+  const weekday = Number(Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'u'));
+  if (weekday === 6) {
+    return ['everyday', 'saturday'];
+  }
+  if (weekday === 7) {
+    return ['everyday', 'holiday'];
+  }
+  return ['everyday', 'weekday'];
+}
+
+function normalizeBusServiceType_(value) {
+  const text = String(value || '').trim().toLowerCase();
+  const map = {
+    '': 'everyday',
+    all: 'everyday',
+    everyday: 'everyday',
+    daily: 'everyday',
+    '毎日': 'everyday',
+    weekday: 'weekday',
+    weekdays: 'weekday',
+    '平日': 'weekday',
+    saturday: 'saturday',
+    sat: 'saturday',
+    '土曜': 'saturday',
+    '土曜日': 'saturday',
+    holiday: 'holiday',
+    holidays: 'holiday',
+    sunday: 'holiday',
+    sun: 'holiday',
+    '休日': 'holiday',
+    '日曜': 'holiday',
+    '日祝': 'holiday'
+  };
+  return map[text] || text;
+}
+
+function normalizeBusServiceDate_(value) {
+  if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value.getTime())) {
+    return Utilities.formatDate(value, CONFIG.TIMEZONE, 'yyyyMMdd');
+  }
+  return String(value || '').replace(/[^\d]/g, '').slice(0, 8);
+}
+
+function parseBusTimetableTime_(value) {
+  if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value.getTime())) {
+    return buildBusTimetableTime_(Number(Utilities.formatDate(value, CONFIG.TIMEZONE, 'H')), Number(Utilities.formatDate(value, CONFIG.TIMEZONE, 'm')));
+  }
+  if (typeof value === 'number' && isFinite(value)) {
+    const totalMinutes = Math.round(value * 24 * 60);
+    return buildBusTimetableTime_(Math.floor(totalMinutes / 60), totalMinutes % 60);
+  }
+  const text = String(value || '').trim();
+  const match = text.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) {
+    return null;
+  }
+  return buildBusTimetableTime_(Number(match[1]), Number(match[2]));
+}
+
+function buildBusTimetableTime_(hour, minute) {
+  if (!isFinite(hour) || !isFinite(minute) || minute < 0 || minute > 59) {
+    return null;
+  }
+  const normalizedHour = ((hour % 24) + 24) % 24;
+  const todayText = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'yyyy/MM/dd');
+  const date = new Date(todayText + ' ' + pad2_(normalizedHour) + ':' + pad2_(minute) + ':00 GMT+0900');
+  if (hour >= 24) {
+    date.setDate(date.getDate() + Math.floor(hour / 24));
+  }
+  return {
+    scheduledMs: date.getTime(),
+    text: pad2_(normalizedHour) + ':' + pad2_(minute)
+  };
+}
+
+function pad2_(value) {
+  return ('0' + Number(value)).slice(-2);
+}
+
+function setupBusTimetableSheet() {
+  const spreadsheet = openLifeBoardSpreadsheet_();
+  const sheet = getOrCreateSheet_(spreadsheet, CONFIG.SHEETS.BUS_TIMETABLE);
+  if (sheet.getLastRow() === 0) {
+    sheet.getRange(1, 1, 1, BUS_TIMETABLE_HEADERS.length).setValues([BUS_TIMETABLE_HEADERS]);
+  } else {
+    const existingHeaders = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), BUS_TIMETABLE_HEADERS.length)).getValues()[0];
+    const missingHeaders = BUS_TIMETABLE_HEADERS.filter(function (header) {
+      return existingHeaders.indexOf(header) === -1;
+    });
+    if (missingHeaders.length) {
+      sheet.getRange(1, existingHeaders.length + 1, 1, missingHeaders.length).setValues([missingHeaders]);
+    }
+  }
+  sheet.setFrozenRows(1);
+  autoResizeSafe_(sheet, BUS_TIMETABLE_HEADERS.length);
 }
 
 function fetchRouteSnapshot_(route) {

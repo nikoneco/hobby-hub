@@ -5,6 +5,7 @@ const CONFIG = {
   SHEETS: {
     BUS_ROUTES: 'bus_routes',
     BUS_SNAPSHOTS: 'bus_snapshots',
+    BUS_TIMETABLE: 'bus_timetable',
     RAIL_ROUTES: 'rail_routes',
     WEATHER_LOCATIONS: 'weather_locations',
     GARBAGE_RULES: 'garbage_rules',
