@@ -475,10 +475,7 @@ function fetchRouteSnapshot_(route) {
   const url = buildBusApiUrl_(route);
   const response = UrlFetchApp.fetch(url, {
     muteHttpExceptions: true,
-    headers: {
-      Accept: 'application/json',
-      'User-Agent': 'Mozilla/5.0'
-    }
+    headers: buildBusFetchHeaders_(route)
   });
   const status = response.getResponseCode();
   if (status < 200 || status >= 300) {
@@ -533,6 +530,15 @@ function buildBusApiUrl_(route) {
     language: 'ja'
   };
   return CONFIG.BUS.API_BASE_URL + CONFIG.BUS.CUSTOMER + '/busstops/approachings?' + toQueryString_(params);
+}
+
+function buildBusFetchHeaders_(route) {
+  return {
+    Accept: 'application/json, text/plain, */*',
+    'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
+    Referer: String(route.official_url || buildOfficialBusPageUrl_(route)),
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36'
+  };
 }
 
 function buildOfficialBusPageUrl_(route) {
