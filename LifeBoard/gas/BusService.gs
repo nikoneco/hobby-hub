@@ -367,7 +367,7 @@ function getStaticBusTimetableItems_(route) {
 function getTodayBusServiceTypes_() {
   const weekday = Number(Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'u'));
   if (weekday === 6) {
-    return ['everyday', 'saturday'];
+    return ['everyday', 'saturday', 'holiday'];
   }
   if (weekday === 7) {
     return ['everyday', 'holiday'];
