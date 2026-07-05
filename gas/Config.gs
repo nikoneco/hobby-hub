@@ -25,7 +25,7 @@ const CONFIG = {
       MODULE_ID: 'room_library',
       NAME: '趣味部屋図書館',
       DESCRIPTION: '本と資料を眺める趣味部屋の図書館',
-      WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbza7tfhqVYgNv_9N1WGj6hlE_8dBaMZCwuBuQKa4yfDrSeFODZTL63GE4R3g27eQAb_/exec',
+      WEB_APP_URL: 'https://nikoneco.github.io/hobby-room-library-PWA/',
       ICON: 'library',
       DISPLAY_ORDER: 2
     },
