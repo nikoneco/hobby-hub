@@ -13,9 +13,6 @@
         return target ? Object.assign({}, module, { target_url: target }) : module;
       }));
     };
-    if (typeof window.loadModules === 'function') {
-      window.loadModules();
-    }
   }
   document.querySelectorAll('#setupButton, .admin-tools').forEach((element) => {
     element.hidden = true;
