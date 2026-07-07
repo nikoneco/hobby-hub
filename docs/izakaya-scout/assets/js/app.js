@@ -1,0 +1,1343 @@
+const app = document.getElementById('app');
+  const bootstrap = JSON.parse(app.dataset.bootstrap || '{}');
+  const storageKey = 'izakayaScout.preferences.v2';
+  const recentAreasKey = 'izakayaScout.recentAreas.v1';
+  const state = {
+    preferences: loadPreferences(),
+    recentAreas: loadRecentAreas(),
+    searching: false,
+    visibleShops: [],
+    backupShops: [],
+    lastResultMeta: null,
+    resultPreferences: null,
+    cardSwipe: null,
+    toastAction: null,
+    toastTimer: null
+  };
+
+  const moodLabels = {
+    safe: '無難にうまい',
+    cheap: '安く飲む',
+    second: '二軒目',
+    quiet: '静かめ',
+    bar: 'バー寄り'
+  };
+
+  const scoutPresets = {
+    nearby: {
+      label: '近場で一杯',
+      mood: 'safe',
+      mustValues: ['walk5', 'openNow'],
+      foodValues: [],
+      drinkValues: []
+    },
+    cheap: {
+      label: '安くサクッと',
+      mood: 'cheap',
+      mustValues: ['walk5', 'openNow'],
+      foodValues: [],
+      drinkValues: []
+    },
+    quiet: {
+      label: '静かに飲む',
+      mood: 'quiet',
+      mustValues: ['privateRoom', 'card'],
+      foodValues: [],
+      drinkValues: ['wine']
+    },
+    yakitori: {
+      label: '焼き鳥気分',
+      mood: 'safe',
+      mustValues: ['walk5', 'openNow'],
+      foodValues: ['焼き鳥'],
+      drinkValues: ['sake']
+    },
+    bar: {
+      label: '二軒目バー',
+      mood: 'bar',
+      mustValues: ['midnight', 'card'],
+      foodValues: [],
+      drinkValues: ['cocktail']
+    }
+  };
+
+  const elements = {
+    areaInput: document.getElementById('areaInput'),
+    recentAreaList: document.getElementById('recentAreaList'),
+    smokingSelect: document.getElementById('smokingSelect'),
+    setupNotice: document.getElementById('setupNotice'),
+    moodShuffleButton: document.getElementById('moodShuffleButton'),
+    randomPresetButton: document.getElementById('randomPresetButton'),
+    searchButton: document.getElementById('searchButton'),
+    queryPreview: document.getElementById('queryPreview'),
+    scoutBrief: document.getElementById('scoutBrief'),
+    resultPanel: document.getElementById('resultPanel'),
+    rotateButton: document.getElementById('rotateButton'),
+    shareButton: document.getElementById('shareButton'),
+    resultCount: document.getElementById('resultCount'),
+    resultList: document.getElementById('resultList'),
+    actionToast: document.getElementById('actionToast'),
+    actionMessage: document.getElementById('actionMessage'),
+    actionUndoButton: document.getElementById('actionUndoButton')
+  };
+
+  function init() {
+    applySavedPreferences();
+    renderSetupNotice();
+    bindEvents();
+    renderRecentAreas();
+    renderPreview();
+  }
+
+  function bindEvents() {
+    elements.areaInput.addEventListener('input', handlePreferenceChange);
+    elements.smokingSelect.addEventListener('change', handlePreferenceChange);
+    document.querySelectorAll('input[name="mood"], .food-field input[type="checkbox"], .drink-field input[type="checkbox"], .chip-field input[type="checkbox"]').forEach((input) => {
+      input.addEventListener('change', handlePreferenceChange);
+    });
+    elements.moodShuffleButton.addEventListener('click', shuffleMood);
+    elements.randomPresetButton.addEventListener('click', applyRandomScoutPreset);
+    elements.searchButton.addEventListener('click', search);
+    elements.recentAreaList.addEventListener('click', handleRecentAreaClick);
+    elements.rotateButton.addEventListener('click', rotateCandidates);
+    elements.shareButton.addEventListener('click', shareVisibleCandidates);
+    elements.actionUndoButton.addEventListener('click', handleToastAction);
+    elements.resultList.addEventListener('click', handleResultListClick);
+    elements.resultList.addEventListener('pointerdown', handleCardPointerDown);
+    elements.resultList.addEventListener('pointermove', handleCardPointerMove);
+    elements.resultList.addEventListener('pointerup', handleCardPointerUp);
+    elements.resultList.addEventListener('pointercancel', cancelCardSwipe);
+    elements.resultList.addEventListener('lostpointercapture', cancelCardSwipe);
+    window.addEventListener('pointerup', handleCardPointerUp);
+    window.addEventListener('pointercancel', cancelCardSwipe);
+    document.querySelectorAll('.preset-field button[data-preset]').forEach((button) => {
+      button.addEventListener('click', () => applyScoutPreset(button.dataset.preset));
+    });
+  }
+
+  function applySavedPreferences() {
+    const defaults = bootstrap.defaults || {};
+    elements.areaInput.value = state.preferences.areaText || defaults.AREA_TEXT || '';
+    elements.smokingSelect.value = state.preferences.smokingPreference || defaults.SMOKING_PREFERENCE || '';
+
+    const mood = state.preferences.mood || defaults.MOOD || 'safe';
+    const moodInput = document.querySelector('input[name="mood"][value="' + cssEscape(mood) + '"]');
+    if (moodInput) {
+      moodInput.checked = true;
+    }
+
+    const checked = new Set(state.preferences.mustValues || state.preferences.checkedValues || []);
+    document.querySelectorAll('.chip-field input[type="checkbox"]').forEach((input) => {
+      input.checked = checked.has(input.value);
+    });
+
+    const foodValues = new Set(state.preferences.foodValues || state.preferences.foodTerms || []);
+    document.querySelectorAll('.food-field input[type="checkbox"]').forEach((input) => {
+      input.checked = foodValues.has(input.value);
+    });
+
+    const drinkValues = new Set(state.preferences.drinkValues || []);
+    document.querySelectorAll('.drink-field input[type="checkbox"]').forEach((input) => {
+      input.checked = drinkValues.has(input.value);
+    });
+  }
+
+  function handlePreferenceChange() {
+    state.preferences = collectPreferences();
+    savePreferences(state.preferences);
+    renderPreview();
+  }
+
+  function collectPreferences() {
+    const mustInputs = Array.from(document.querySelectorAll('.chip-field input[type="checkbox"]:checked'));
+    const mustValues = mustInputs.map((input) => input.value);
+    const foodInputs = Array.from(document.querySelectorAll('.food-field input[type="checkbox"]:checked'));
+    const foodValues = foodInputs.map((input) => input.value);
+    const drinkInputs = Array.from(document.querySelectorAll('.drink-field input[type="checkbox"]:checked'));
+    const drinkValues = drinkInputs.map((input) => input.value);
+    const features = {};
+    if (mustValues.includes('card')) features.card = true;
+    if (mustValues.includes('privateRoom')) features.privateRoom = true;
+    if (mustValues.includes('midnight')) features.midnight = true;
+    if (mustValues.includes('openNow')) features.openNow = true;
+    drinkValues.forEach((value) => {
+      features[value] = true;
+    });
+
+    const mood = getSelectedMood();
+    const smokingPreference = elements.smokingSelect.value;
+
+    return {
+      areaText: elements.areaInput.value.trim(),
+      mood,
+      moodLabel: moodLabels[mood] || '',
+      walkMinutesLimit: mustValues.includes('walk5') ? '5' : '',
+      walkLabel: mustValues.includes('walk5') ? '徒歩5分以内' : '',
+      smokingPreference,
+      smokingLabel: getSelectedSmokingLabel(),
+      features,
+      mustValues,
+      foodValues,
+      drinkValues,
+      foodTerms: foodValues
+    };
+  }
+
+  function renderSetupNotice() {
+    const setup = bootstrap.setup || {};
+    if (setup.hasApiKey) {
+      elements.setupNotice.classList.add('hidden');
+      return;
+    }
+    elements.setupNotice.classList.remove('hidden');
+    elements.setupNotice.textContent = 'Script Propertiesに HOTPEPPER_API_KEY を設定すると検索できます。';
+  }
+
+  function renderPreview() {
+    const preferences = collectPreferences();
+    const query = buildSearchingSummary(preferences);
+    elements.queryPreview.textContent = query || '場所と気分を入れて候補を出します。';
+    renderScoutBrief(preferences);
+    renderPresetState(preferences);
+  }
+
+  function getSelectedMood() {
+    const input = document.querySelector('input[name="mood"]:checked');
+    return input ? input.value : 'safe';
+  }
+
+  function shuffleMood() {
+    const moods = Object.keys(moodLabels);
+    const currentMood = getSelectedMood();
+    const candidates = moods.filter((mood) => mood !== currentMood);
+    const nextMood = candidates[Math.floor(Math.random() * candidates.length)] || currentMood;
+    const input = document.querySelector('input[name="mood"][value="' + cssEscape(nextMood) + '"]');
+    if (!input) {
+      return;
+    }
+    input.checked = true;
+    elements.moodShuffleButton.classList.add('is-rolling');
+    setTimeout(() => elements.moodShuffleButton.classList.remove('is-rolling'), 360);
+    handlePreferenceChange();
+    showActionToast('今夜は「' + (moodLabels[nextMood] || '気分まかせ') + '」で探します');
+    vibrate(12);
+  }
+
+  function applyScoutPreset(presetName) {
+    const preset = scoutPresets[presetName];
+    if (!preset) {
+      return;
+    }
+    setMoodValue(preset.mood);
+    setCheckedValues('.chip-field input[type="checkbox"]', preset.mustValues || []);
+    setCheckedValues('.food-field input[type="checkbox"]', preset.foodValues || []);
+    setCheckedValues('.drink-field input[type="checkbox"]', preset.drinkValues || []);
+    handlePreferenceChange();
+    showActionToast('「' + preset.label + '」で整えました');
+    vibrate(16);
+  }
+
+  function applyRandomScoutPreset() {
+    const current = findMatchingPreset(collectPreferences());
+    const presetNames = Object.keys(scoutPresets).filter((name) => name !== current);
+    const nextName = presetNames[Math.floor(Math.random() * presetNames.length)] || Object.keys(scoutPresets)[0];
+    elements.randomPresetButton.classList.add('is-rolling');
+    setTimeout(() => elements.randomPresetButton.classList.remove('is-rolling'), 420);
+    applyScoutPreset(nextName);
+  }
+
+  function renderPresetState(preferences) {
+    const activePreset = findMatchingPreset(preferences);
+    document.querySelectorAll('.preset-field button[data-preset]').forEach((button) => {
+      const isActive = button.dataset.preset === activePreset;
+      button.classList.toggle('is-active', isActive);
+      button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+  }
+
+  function findMatchingPreset(preferences) {
+    return Object.keys(scoutPresets).find((key) => {
+      const preset = scoutPresets[key];
+      return preferences.mood === preset.mood
+        && hasSameValues(preferences.mustValues || [], preset.mustValues || [])
+        && hasSameValues(preferences.foodValues || [], preset.foodValues || [])
+        && hasSameValues(preferences.drinkValues || [], preset.drinkValues || []);
+    }) || '';
+  }
+
+  function hasSameValues(left, right) {
+    if (left.length !== right.length) {
+      return false;
+    }
+    const rightSet = new Set(right);
+    return left.every((value) => rightSet.has(value));
+  }
+
+  function setMoodValue(mood) {
+    const input = document.querySelector('input[name="mood"][value="' + cssEscape(mood) + '"]');
+    if (input) {
+      input.checked = true;
+    }
+  }
+
+  function setCheckedValues(selector, values) {
+    const selected = new Set(values || []);
+    document.querySelectorAll(selector).forEach((input) => {
+      input.checked = selected.has(input.value);
+    });
+  }
+
+  function getSelectedSmokingLabel() {
+    if (!elements.smokingSelect.value) {
+      return '';
+    }
+    const option = elements.smokingSelect.options[elements.smokingSelect.selectedIndex];
+    return option ? option.textContent.trim() : '';
+  }
+
+  function formatMustLabels(values) {
+    const labels = {
+      card: 'カード可',
+      privateRoom: '個室',
+      midnight: '深夜',
+      openNow: '営業中'
+    };
+    return values.filter((value) => value !== 'walk5').map((value) => labels[value] || '');
+  }
+
+  function formatFoodLabels(values) {
+    return Array.isArray(values) ? values.filter(Boolean) : [];
+  }
+
+  function formatDrinkLabels(values) {
+    const labels = {
+      sake: '日本酒',
+      shochu: '焼酎',
+      wine: 'ワイン',
+      cocktail: 'カクテル'
+    };
+    return Array.isArray(values) ? values.map((value) => labels[value] || '').filter(Boolean) : [];
+  }
+
+  function renderScoutBrief(preferences) {
+    const mustLabels = formatMustLabels(preferences.mustValues || []);
+    const foodLabels = formatFoodLabels(preferences.foodValues || []);
+    const drinkLabels = formatDrinkLabels(preferences.drinkValues || []);
+    const moodHelperLabels = formatMoodHelperLabels(preferences);
+    const tasteLabels = foodLabels.concat(drinkLabels);
+    const priorityLabels = [preferences.walkLabel].concat(mustLabels, preferences.smokingLabel).filter(Boolean);
+    const areaLabel = preferences.areaText || '場所未入力';
+    const policyText = buildScoutBriefText(preferences, priorityLabels, tasteLabels, moodHelperLabels);
+    elements.scoutBrief.innerHTML = [
+      '<div class="scout-brief-head">',
+      '<span>今夜の方針</span>',
+      '<strong>' + escapeHtml(preferences.moodLabel || '無難にうまい') + '</strong>',
+      '</div>',
+      '<div class="scout-brief-chips">',
+      '<span>' + escapeHtml(areaLabel) + '</span>',
+      tasteLabels.map((label) => '<span>' + escapeHtml(label) + '</span>').join(''),
+      moodHelperLabels.map((label) => '<span>' + escapeHtml(label) + '</span>').join(''),
+      priorityLabels.map((label) => '<span>' + escapeHtml(label) + '</span>').join(''),
+      !priorityLabels.length && !tasteLabels.length && !moodHelperLabels.length ? '<span>条件ゆるめ</span>' : '',
+      '</div>',
+      '<p>' + escapeHtml(policyText) + '</p>'
+    ].join('');
+  }
+
+  function buildScoutBriefText(preferences, priorityLabels, tasteLabels, moodHelperLabels) {
+    const area = preferences.areaText ? preferences.areaText + 'で' : '場所を入れたら';
+    const mood = preferences.moodLabel || '無難にうまい';
+    const focusLabels = [].concat(tasteLabels || [], moodHelperLabels || []);
+    const foodText = focusLabels.length ? focusLabels.slice(0, 3).join('・') + 'も見ながら、' : '';
+    if (!priorityLabels.length) {
+      if (foodText) {
+        return area + foodText + mood + '候補を拾います。';
+      }
+      return area + mood + '候補を広めに拾います。';
+    }
+    const topPriorities = priorityLabels.slice(0, 3).join('・');
+    if ((preferences.mustValues || []).includes('walk5')) {
+      return area + foodText + topPriorities + 'を強めに見て、' + mood + '候補を絞ります。';
+    }
+    return area + foodText + topPriorities + 'を優先して、' + mood + '候補を並べます。';
+  }
+
+  function search() {
+    const payload = collectPreferences();
+    if (!payload.areaText) {
+      showError('駅名・地名を入力してね。');
+      elements.areaInput.focus();
+      return;
+    }
+
+    setSearching(true);
+    state.resultPreferences = payload;
+    renderSearchingState(payload);
+    scrollResultsIntoView();
+    google.script.run
+      .withSuccessHandler((response) => {
+        setSearching(false);
+        const data = unwrap(response);
+        rememberRecentArea(payload.areaText);
+        renderResults(data);
+      })
+      .withFailureHandler((error) => {
+        setSearching(false);
+        showError(error.message || String(error));
+      })
+      .apiSearchShops(payload);
+  }
+
+  function renderResults(data) {
+    elements.resultPanel.setAttribute('aria-busy', 'false');
+    resetCardSwipe();
+    state.lastResultMeta = data;
+    state.visibleShops = (data.shops || []).slice();
+    state.backupShops = (data.backupShops || []).slice();
+    hideActionToast();
+    elements.queryPreview.textContent = data.query || '';
+    renderShopList();
+    refreshResultCount();
+  }
+
+  function renderSearchingState(payload) {
+    resetCardSwipe();
+    state.visibleShops = [];
+    state.backupShops = [];
+    state.lastResultMeta = null;
+    state.resultPreferences = payload;
+    hideActionToast();
+    elements.resultPanel.setAttribute('aria-busy', 'true');
+    elements.resultCount.textContent = '選定中';
+    elements.rotateButton.disabled = true;
+    elements.shareButton.disabled = true;
+    elements.queryPreview.textContent = buildSearchingSummary(payload);
+    elements.resultList.innerHTML = [
+      '<div class="loading-scout" role="status">',
+      '<div class="loading-bars" aria-hidden="true"><span></span><span></span><span></span></div>',
+      '<div>',
+      '<strong>候補を選定中</strong>',
+      '<p>条件と気分に合う店を見ています。</p>',
+      '</div>',
+      '</div>'
+    ].join('');
+  }
+
+  function renderShopList() {
+    const shops = state.visibleShops;
+    resetCardSwipe();
+    elements.resultList.innerHTML = '';
+
+    if (!shops.length) {
+      elements.resultList.innerHTML = renderEmptyState();
+      return;
+    }
+
+    const budgetNotice = renderBudgetFallbackNotice();
+    if (budgetNotice) {
+      elements.resultList.insertAdjacentHTML('beforeend', budgetNotice);
+    }
+
+    shops.forEach((shop, index) => {
+      const card = renderShopCard(shop, index);
+      card.style.setProperty('--card-index', String(index));
+      elements.resultList.appendChild(card);
+    });
+  }
+
+  function renderBudgetFallbackNotice() {
+    const data = state.lastResultMeta || {};
+    const preferences = state.resultPreferences || state.preferences || {};
+    if (!preferences || preferences.mood !== 'cheap' || data.resultsBudgetFilterApplied !== false) {
+      return '';
+    }
+    const budgetCount = Number(data.resultsBudgetMatched || 0);
+    const message = budgetCount > 0
+      ? '3500円目安は' + budgetCount + '件だけだったので、少し広めに提案しています。'
+      : '3500円目安の候補が少なかったので、予算だけ少し広めに提案しています。';
+    return '<p class="result-note">' + escapeHtml(message) + '</p>';
+  }
+
+  function renderShopCard(shop, index) {
+    const card = document.createElement('article');
+    card.className = 'shop-card';
+    card.dataset.shopId = shop.id || '';
+    card.dataset.shopIndex = String(index);
+    const photo = shop.photo
+      ? '<img src="' + escapeHtml(shop.photo) + '" alt="">'
+      : '<div class="photo-placeholder">HP</div>';
+    const url = shop.urls && shop.urls.pc ? shop.urls.pc : '';
+    const telUrl = formatTelUrl(shop.tel);
+    card.innerHTML = [
+      '<div class="shop-photo">' + photo + '</div>',
+      '<div class="shop-body">',
+      '<div class="pick-line"><span>' + escapeHtml(formatPickLabel(index)) + '</span><em>' + escapeHtml(shop.pickReason || '') + '</em></div>',
+      '<div class="shop-meta"><span>' + escapeHtml(shop.genre || 'ジャンル未設定') + '</span><span>' + escapeHtml(shop.budget || '予算未設定') + '</span></div>',
+      '<h3>' + escapeHtml(shop.name || '名称未設定') + '</h3>',
+      renderDecisionStrip(shop),
+      renderMatchMeter(shop),
+      renderScoutNote(shop),
+      renderConditionTags(shop.conditionTags),
+      renderReasonTags(shop.reasonTags),
+      renderGlanceItems(shop),
+      shop.catchText ? '<p class="catch">' + escapeHtml(shop.catchText) + '</p>' : '',
+      '<details class="shop-details">',
+      '<summary>詳しく見る</summary>',
+      '<dl>',
+      detailRow('予算', shop.budget || ''),
+      detailRow('予算目安', formatBudgetEstimate(shop.budgetEstimatedYen)),
+      detailRow('最寄り', shop.station || ''),
+      detailRow('アクセス', shop.access || ''),
+      detailRow('徒歩目安', formatWalkMinutes(shop.walkMinutes)),
+      detailRow('住所', shop.address || '', shop.mapsUrl || ''),
+      detailRow('禁煙・喫煙', shop.nonSmoking || ''),
+      detailRow('個室', shop.privateRoom || ''),
+      detailRow('掘りごたつ', shop.horigotatsu || ''),
+      detailRow('座敷', shop.tatami || ''),
+      detailRow('飲み放題', shop.freeDrink || ''),
+      detailRow('カクテル', shop.cocktail || ''),
+      detailRow('ワイン', shop.wine || ''),
+      detailRow('日本酒', shop.sake || ''),
+      detailRow('焼酎', shop.shochu || ''),
+      detailRow('カード', shop.card || ''),
+      detailRow('対応カード', formatCreditCards(shop.creditCards)),
+      detailRow('電話', shop.tel || '', telUrl),
+      detailRow('営業状態', shop.openNow ? '営業中' : ''),
+      detailRow('営業時間', shop.open || ''),
+      detailRow('定休日', shop.close || ''),
+      '</dl>',
+      '</details>',
+      '<div class="shop-actions">',
+      shop.mapsUrl ? '<a class="shop-link map-link" href="' + escapeHtml(shop.mapsUrl) + '" target="_blank" rel="noopener">地図で見る</a>' : '',
+      shop.mapsDirectionsUrl ? '<a class="shop-link route-link" href="' + escapeHtml(shop.mapsDirectionsUrl) + '" target="_blank" rel="noopener">徒歩ルート</a>' : '',
+      telUrl ? '<a class="shop-link tel-link" href="' + escapeHtml(telUrl) + '">電話</a>' : '',
+      url ? '<a class="shop-link hp-link" href="' + escapeHtml(url) + '" target="_blank" rel="noopener">Hot Pepper</a>' : '',
+      state.backupShops.length ? '<button class="shop-link swap-link" type="button" data-replace-index="' + index + '">この店だけ別案</button>' : '',
+      '</div>',
+      '</div>'
+    ].join('');
+    return card;
+  }
+
+  function renderDecisionStrip(shop) {
+    const items = buildDecisionItems(shop);
+    if (!items.length) {
+      return '';
+    }
+    return [
+      '<div class="decision-strip">',
+      items.map((item) => '<span><strong>' + escapeHtml(item.label) + '</strong>' + escapeHtml(item.value) + '</span>').join(''),
+      '</div>'
+    ].join('');
+  }
+
+  function buildDecisionItems(shop) {
+    const preferences = state.resultPreferences || state.preferences || {};
+    const items = [];
+    const walkText = formatWalkMinutes(shop.walkMinutes);
+    if (walkText) {
+      items.push({ label: '距離', value: walkText });
+    }
+
+    const conditionText = buildPrimaryConditionText(shop);
+    if (conditionText) {
+      items.push({ label: '条件', value: conditionText });
+    }
+
+    const moodText = buildPrimaryMoodText(shop, preferences);
+    if (moodText) {
+      items.push({ label: '気分', value: moodText });
+    }
+
+    return items.slice(0, 3);
+  }
+
+  function buildPrimaryConditionText(shop) {
+    const tags = Array.isArray(shop.conditionTags) ? shop.conditionTags : [];
+    const usefulTags = tags.filter((tag) => !/^徒歩/.test(String(tag || '')));
+    if (usefulTags.length) {
+      return usefulTags.slice(0, 2).join('・');
+    }
+    if (isCardUsableText(shop.card)) {
+      return 'カード可';
+    }
+    if (shop.nonSmoking) {
+      return shop.nonSmoking;
+    }
+    return '';
+  }
+
+  function buildPrimaryMoodText(shop, preferences) {
+    const foodMatches = findSelectedFoodMatches(shop, preferences);
+    if (foodMatches.length) {
+      return foodMatches.slice(0, 2).join('・');
+    }
+    const budgetFit = formatCheapBudgetEvidence(shop, preferences);
+    if (budgetFit) {
+      return budgetFit;
+    }
+    return formatMoodEvidence(shop, preferences) || shop.pickReason || '';
+  }
+
+  function renderEmptyState() {
+    const data = state.lastResultMeta || {};
+    const preferences = state.resultPreferences || state.preferences || {};
+    const stages = buildEmptyStageItems(data, preferences);
+    const actions = buildRelaxActions(preferences);
+    return [
+      '<div class="empty-state">',
+      '<strong>この条件だと候補が出ませんでした。</strong>',
+      '<p>' + escapeHtml(buildEmptyHint(data, preferences)) + '</p>',
+      stages.length ? '<div class="empty-stages">' + stages.map((item) => '<span>' + escapeHtml(item) + '</span>').join('') + '</div>' : '',
+      actions.length ? '<div class="relax-actions">' + actions.map((action) => '<button type="button" data-relax="' + escapeHtml(action.key) + '">' + escapeHtml(action.label) + '</button>').join('') + '</div>' : '',
+      '</div>'
+    ].join('');
+  }
+
+  function buildEmptyHint(data, preferences) {
+    const mustValues = preferences && Array.isArray(preferences.mustValues) ? preferences.mustValues : [];
+    if (Number(data.resultsFetched || 0) === 0) {
+      return '検索語がかなり絞られているか、エリア内の該当店が少なそうです。少し広めにすると拾えるかもしれません。';
+    }
+    if (mustValues.includes('walk5') && Number(data.resultsWalkMatched || 0) === 0) {
+      return '徒歩5分以内がかなり強めに効いています。まずは徒歩条件を外すのが早そうです。';
+    }
+    if (preferences && preferences.smokingPreference && Number(data.resultsSmokingMatched || 0) === 0) {
+      return 'たばこ条件で候補が落ちています。今回は店詳細で確認する前提にすると広がります。';
+    }
+    if (preferences && preferences.mood === 'cheap' && Number(data.resultsBudgetMatched || 0) === 0) {
+      return '3500円目安で候補が落ちています。予算をゆるめて無難に探すと戻りそうです。';
+    }
+    if (mustValues.includes('openNow')) {
+      return '営業中・個室・カードなどのゆずれない条件が重なっている可能性があります。';
+    }
+    return '気分や料理、飲みたいものを少しゆるめると候補が戻りそうです。';
+  }
+
+  function buildEmptyStageItems(data, preferences) {
+    const mustValues = preferences && Array.isArray(preferences.mustValues) ? preferences.mustValues : [];
+    const items = [];
+    if (data.resultsFetched != null) items.push('取得 ' + Number(data.resultsFetched) + '件');
+    if (data.resultsAreaMatched != null && Number(data.resultsAreaMatched) !== Number(data.resultsFetched || 0)) {
+      items.push('地域補正後 ' + Number(data.resultsAreaMatched) + '件');
+    }
+    if (mustValues.includes('walk5') && data.resultsWalkMatched != null) {
+      items.push('徒歩条件後 ' + Number(data.resultsWalkMatched) + '件');
+    }
+    if (preferences && preferences.smokingPreference && data.resultsSmokingMatched != null) {
+      items.push('たばこ条件後 ' + Number(data.resultsSmokingMatched) + '件');
+    }
+    if (preferences && preferences.mood === 'cheap' && data.resultsBudgetMatched != null) {
+      items.push('予算目安後 ' + Number(data.resultsBudgetMatched) + '件');
+    }
+    if (data.resultsMatched != null) items.push('最終 ' + Number(data.resultsMatched) + '件');
+    return items;
+  }
+
+  function buildRelaxActions(preferences) {
+    const mustValues = preferences && Array.isArray(preferences.mustValues) ? preferences.mustValues : [];
+    const actions = [];
+    if (mustValues.includes('walk5')) actions.push({ key: 'walk5', label: '徒歩をゆるめる' });
+    if (mustValues.includes('openNow')) actions.push({ key: 'openNow', label: '営業中を外す' });
+    if (preferences && preferences.smokingPreference) actions.push({ key: 'smoking', label: 'たばこ条件を外す' });
+    if (mustValues.includes('privateRoom')) actions.push({ key: 'privateRoom', label: '個室を外す' });
+    if (mustValues.includes('card')) actions.push({ key: 'card', label: 'カード可を外す' });
+    if (mustValues.includes('midnight')) actions.push({ key: 'midnight', label: '深夜を外す' });
+    if (preferences && Array.isArray(preferences.drinkValues) && preferences.drinkValues.length) {
+      actions.push({ key: 'drink', label: '飲み物をゆるめる' });
+    }
+    if (preferences && Array.isArray(preferences.foodValues) && preferences.foodValues.length) {
+      actions.push({ key: 'food', label: '料理をゆるめる' });
+    }
+    if (preferences && preferences.mood === 'cheap') {
+      actions.push({ key: 'mood', label: '予算をゆるめる' });
+    } else if (preferences && preferences.mood && preferences.mood !== 'safe') {
+      actions.push({ key: 'mood', label: '無難に戻す' });
+    }
+    if (!actions.length) {
+      actions.push({ key: 'wide', label: '広めに探す' });
+    }
+    return actions.slice(0, 4);
+  }
+
+  function renderScoutNote(shop) {
+    const preferences = state.resultPreferences || state.preferences || {};
+    const pieces = [];
+    const foodMatches = findSelectedFoodMatches(shop, preferences).slice(0, 2);
+    const conditionMatches = Array.isArray(shop.conditionTags) ? shop.conditionTags.slice(0, 2) : [];
+    const moodText = formatCheapBudgetEvidence(shop, preferences) || formatMoodEvidence(shop, preferences);
+
+    if (foodMatches.length) {
+      pieces.push(foodMatches.join('・') + 'が合いそう');
+    }
+    if (conditionMatches.length) {
+      pieces.push(conditionMatches.join('・') + 'を確認');
+    }
+    if (moodText) {
+      pieces.push(moodText);
+    }
+    if (!pieces.length && shop.pickReason) {
+      pieces.push(shop.pickReason);
+    }
+    if (!pieces.length) {
+      return '';
+    }
+    return [
+      '<p class="scout-note">',
+      '<strong>選定メモ</strong>',
+      '<span>' + escapeHtml(pieces.slice(0, 3).join(' / ')) + '</span>',
+      '</p>'
+    ].join('');
+  }
+
+  function findSelectedFoodMatches(shop, preferences) {
+    const foodValues = Array.isArray(preferences.foodValues) ? preferences.foodValues : [];
+    if (!foodValues.length) {
+      return [];
+    }
+    const text = normalizeFoodText([
+      shop.name,
+      shop.genre,
+      shop.catchText,
+      shop.access
+    ].join(' '));
+    return foodValues.filter((food) => {
+      const pattern = getFoodPattern(food);
+      return pattern ? pattern.test(text) : text.includes(normalizeFoodText(food));
+    });
+  }
+
+  function getFoodPattern(food) {
+    const patterns = {
+      '焼き鳥': /焼き鳥|やきとり|焼鳥|串焼/,
+      '海鮮': /海鮮|魚|刺身|寿司|鮮魚/,
+      '肉': /肉|焼肉|ステーキ|ホルモン|牛|豚|鶏/,
+      '串揚げ': /串揚|串かつ|串カツ/,
+      'おでん': /おでん/
+    };
+    return patterns[food] || null;
+  }
+
+  function normalizeFoodText(value) {
+    return String(value || '')
+      .replace(/[０-９]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xfee0))
+      .replace(/[ァ-ン]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0x60))
+      .toLowerCase();
+  }
+
+  function formatMoodEvidence(shop, preferences) {
+    const mood = preferences.mood || 'safe';
+    const text = [
+      shop.name,
+      shop.genre,
+      shop.catchText,
+      shop.budget,
+      shop.access,
+      shop.privateRoom,
+      shop.horigotatsu,
+      shop.tatami,
+      shop.midnight,
+      shop.freeDrink,
+      shop.cocktail,
+      shop.wine,
+      shop.sake,
+      shop.shochu
+    ].join(' ');
+    if (mood === 'cheap' && /安|リーズナブル|せんべろ|コスパ|お得|飲み放題/.test(text)) {
+      return '安く飲む気分に近い';
+    }
+    if (mood === 'second' && /バー|カクテル|二次会|2次会|深夜|駅近/.test(text)) {
+      return '二軒目に寄せた候補';
+    }
+    if (mood === 'quiet' && /落ち着|隠れ家|個室|静|大人|ゆったり/.test(text)) {
+      return '静かめ要素あり';
+    }
+    if (mood === 'bar' && /バー|カクテル|ワイン|ダイニングバー/.test(text)) {
+      return 'バー寄り要素あり';
+    }
+    if (mood === 'safe') {
+      return '無難にうまい枠';
+    }
+    return '';
+  }
+
+  function formatCheapBudgetEvidence(shop, preferences) {
+    if (!preferences || preferences.mood !== 'cheap') {
+      return '';
+    }
+    const estimated = Number(shop.budgetEstimatedYen || 0);
+    if (estimated && estimated <= 3500) {
+      return estimated + '円目安';
+    }
+    if (shop.budget && /2000|3000|3500/.test(String(shop.budget))) {
+      return '安め予算';
+    }
+    return '';
+  }
+
+  function rotateCandidates() {
+    if (!state.visibleShops.length || !state.backupShops.length) {
+      return;
+    }
+    const visibleCount = state.visibleShops.length;
+    const currentVisible = state.visibleShops.slice();
+    const candidates = state.backupShops.concat(currentVisible);
+    state.visibleShops = candidates.slice(0, visibleCount);
+    state.backupShops = candidates.slice(visibleCount);
+    hideActionToast();
+    elements.rotateButton.classList.add('is-spinning');
+    setTimeout(() => elements.rotateButton.classList.remove('is-spinning'), 360);
+    renderShopList();
+    refreshResultCount();
+    showActionToast('別案を出しました');
+    vibrate(14);
+  }
+
+  function replaceCandidate(index) {
+    if (!state.backupShops.length || index < 0 || index >= state.visibleShops.length) {
+      return;
+    }
+    const oldShop = state.visibleShops[index];
+    const nextShop = state.backupShops.shift();
+    state.visibleShops.splice(index, 1, nextShop);
+    hideActionToast();
+    renderShopList();
+    refreshResultCount();
+    showActionToast('1件だけ差し替えました', {
+      label: '元に戻す',
+      onClick: () => undoReplaceCandidate(index, oldShop, nextShop)
+    });
+    vibrate(10);
+  }
+
+  function undoReplaceCandidate(index, oldShop, newShop) {
+    if (!oldShop || index < 0 || index >= state.visibleShops.length) {
+      hideActionToast();
+      return;
+    }
+    const currentShop = state.visibleShops[index];
+    if (newShop && currentShop && currentShop.id && newShop.id && currentShop.id !== newShop.id) {
+      hideActionToast();
+      return;
+    }
+    state.visibleShops.splice(index, 1, oldShop);
+    if (currentShop) {
+      state.backupShops.unshift(currentShop);
+    }
+    hideActionToast();
+    renderShopList();
+    refreshResultCount();
+    showActionToast('戻しました');
+    vibrate(8);
+  }
+
+  function handleCardPointerDown(event) {
+    if (state.searching || !state.backupShops.length || !event.isPrimary) {
+      return;
+    }
+    if (event.pointerType === 'mouse' && event.button !== 0) {
+      return;
+    }
+    if (isInteractiveSwipeTarget(event.target)) {
+      return;
+    }
+    const card = event.target.closest('.shop-card');
+    if (!card || !elements.resultList.contains(card)) {
+      return;
+    }
+    const index = Number(card.dataset.shopIndex);
+    if (!Number.isFinite(index)) {
+      return;
+    }
+    resetCardSwipe();
+    state.cardSwipe = {
+      card,
+      index,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      active: false
+    };
+    if (card.setPointerCapture) {
+      card.setPointerCapture(event.pointerId);
+    }
+  }
+
+  function handleCardPointerMove(event) {
+    const swipe = state.cardSwipe;
+    if (!swipe || swipe.pointerId !== event.pointerId) {
+      return;
+    }
+    const dx = event.clientX - swipe.startX;
+    const dy = event.clientY - swipe.startY;
+    if (!swipe.active && Math.abs(dy) > Math.abs(dx) * 1.25 && Math.abs(dy) > 14) {
+      cancelCardSwipe();
+      return;
+    }
+    if (!swipe.active && Math.abs(dx) < 10) {
+      return;
+    }
+    if (!swipe.active) {
+      swipe.active = true;
+      swipe.card.classList.add('is-swiping');
+      swipe.card.style.transition = 'none';
+    }
+    const offset = Math.max(-112, Math.min(28, dx));
+    swipe.card.style.transform = 'translateX(' + offset + 'px)';
+    swipe.card.classList.toggle('is-swipe-ready', offset < -76);
+    event.preventDefault();
+  }
+
+  function handleCardPointerUp(event) {
+    const swipe = state.cardSwipe;
+    if (!swipe || swipe.pointerId !== event.pointerId) {
+      return;
+    }
+    const dx = event.clientX - swipe.startX;
+    const shouldReplace = swipe.active && dx < -76;
+    const index = swipe.index;
+    resetCardSwipe();
+    if (shouldReplace) {
+      replaceCandidate(index);
+    }
+  }
+
+  function cancelCardSwipe() {
+    resetCardSwipe();
+  }
+
+  function resetCardSwipe() {
+    const swipe = state.cardSwipe;
+    if (!swipe) {
+      return;
+    }
+    swipe.card.style.transition = '';
+    swipe.card.style.transform = '';
+    swipe.card.classList.remove('is-swiping', 'is-swipe-ready');
+    if (swipe.card.releasePointerCapture && swipe.card.hasPointerCapture && swipe.card.hasPointerCapture(swipe.pointerId)) {
+      swipe.card.releasePointerCapture(swipe.pointerId);
+    }
+    state.cardSwipe = null;
+  }
+
+  function isInteractiveSwipeTarget(target) {
+    return Boolean(target && target.closest('a, button, input, select, textarea, summary, details, label'));
+  }
+
+  function shareVisibleCandidates() {
+    if (!state.visibleShops.length || state.searching) {
+      return;
+    }
+    const shareText = buildShareText();
+    const shareData = {
+      title: '居酒屋Scoutの候補',
+      text: shareText
+    };
+    if (navigator.share) {
+      navigator.share(shareData)
+        .then(() => showActionToast('候補を共有しました'))
+        .catch((error) => {
+          if (!error || error.name !== 'AbortError') {
+            copyShareText(shareText);
+          }
+        });
+      return;
+    }
+    copyShareText(shareText);
+  }
+
+  function buildShareText() {
+    const preferences = state.resultPreferences || state.preferences || {};
+    const header = [
+      '居酒屋Scout候補',
+      buildSearchingSummary(preferences)
+    ].filter(Boolean).join('\n');
+    const lines = state.visibleShops.map((shop, index) => {
+      const cheapBudgetEvidence = formatCheapBudgetEvidence(shop, preferences);
+      const budgetEstimate = formatBudgetEstimate(shop.budgetEstimatedYen);
+      const pieces = [
+        (index + 1) + '. ' + (shop.name || '名称未設定'),
+        shop.pickReason ? '理由: ' + shop.pickReason : '',
+        cheapBudgetEvidence ? '安く飲む: ' + cheapBudgetEvidence : '',
+        shop.budget ? '予算: ' + shop.budget : '',
+        budgetEstimate ? '予算目安: ' + budgetEstimate : '',
+        shop.mapsUrl ? '地図: ' + shop.mapsUrl : '',
+        shop.urls && shop.urls.pc ? 'HP: ' + shop.urls.pc : ''
+      ].filter(Boolean);
+      return pieces.join('\n');
+    });
+    return [header].concat(lines).join('\n\n');
+  }
+
+  function copyShareText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text)
+        .then(() => showActionToast('候補をコピーしました'))
+        .catch(() => showShareFallback(text));
+      return;
+    }
+    showShareFallback(text);
+  }
+
+  function showShareFallback(text) {
+    window.prompt('候補をコピーして共有してね。', text);
+  }
+
+  function hideActionToast() {
+    clearToastTimer();
+    elements.actionToast.classList.add('hidden');
+    elements.actionMessage.textContent = '';
+    elements.actionUndoButton.classList.add('hidden');
+    elements.actionUndoButton.textContent = '';
+    state.toastAction = null;
+  }
+
+  function showActionToast(message, action) {
+    clearToastTimer();
+    elements.actionMessage.textContent = message;
+    state.toastAction = action && typeof action.onClick === 'function' ? action : null;
+    if (state.toastAction) {
+      elements.actionUndoButton.textContent = state.toastAction.label || '実行';
+      elements.actionUndoButton.classList.remove('hidden');
+    } else {
+      elements.actionUndoButton.classList.add('hidden');
+      elements.actionUndoButton.textContent = '';
+    }
+    elements.actionToast.classList.remove('hidden');
+    state.toastTimer = setTimeout(hideActionToast, 3200);
+  }
+
+  function handleToastAction() {
+    const action = state.toastAction;
+    if (!action || typeof action.onClick !== 'function') {
+      return;
+    }
+    action.onClick();
+  }
+
+  function clearToastTimer() {
+    if (state.toastTimer) {
+      clearTimeout(state.toastTimer);
+      state.toastTimer = null;
+    }
+  }
+
+  function vibrate(duration) {
+    if (window.navigator && typeof window.navigator.vibrate === 'function') {
+      window.navigator.vibrate(duration);
+    }
+  }
+
+  function formatPickLabel(index) {
+    return ['本命', '対抗', '穴場'][index] || '候補';
+  }
+
+  function renderReasonTags(tags) {
+    if (!Array.isArray(tags) || !tags.length) {
+      return '';
+    }
+    return '<div class="reason-tags">' + tags.map((tag) => '<span>' + escapeHtml(tag) + '</span>').join('') + '</div>';
+  }
+
+  function renderConditionTags(tags) {
+    if (!Array.isArray(tags) || !tags.length) {
+      return '';
+    }
+    return '<div class="condition-tags"><strong>条件OK</strong>' + tags.map((tag) => '<span>' + escapeHtml(tag) + '</span>').join('') + '</div>';
+  }
+
+  function renderMatchMeter(shop) {
+    const expected = getExpectedConditionLabels(state.resultPreferences || state.preferences);
+    if (!expected.length) {
+      return '';
+    }
+    const matchedTags = Array.isArray(shop.conditionTags) ? shop.conditionTags : [];
+    const matched = expected.filter((label) => hasMatchedCondition(label, matchedTags));
+    const missing = expected.filter((label) => !hasMatchedCondition(label, matchedTags));
+    const percent = Math.round((matched.length / expected.length) * 100);
+    const className = percent === 100 ? 'match-meter is-full' : 'match-meter';
+    return [
+      '<div class="' + className + '">',
+      '<div class="match-meter-head"><span>条件一致</span><strong>' + matched.length + '/' + expected.length + '</strong></div>',
+      '<div class="match-track" aria-hidden="true"><i style="width: ' + percent + '%"></i></div>',
+      missing.length ? '<em>未確認: ' + escapeHtml(missing.slice(0, 3).join('、')) + '</em>' : '<em>ゆずれない条件クリア</em>',
+      '</div>'
+    ].join('');
+  }
+
+  function getExpectedConditionLabels(preferences) {
+    const values = preferences && Array.isArray(preferences.mustValues) ? preferences.mustValues : [];
+    return [
+      preferences && preferences.walkLabel,
+      ...formatMustLabels(values),
+      ...formatDrinkLabels(preferences && preferences.drinkValues),
+      preferences && preferences.smokingLabel
+    ].filter(Boolean);
+  }
+
+  function hasMatchedCondition(label, tags) {
+    const normalizedLabel = normalizeConditionLabel(label);
+    return tags.some((tag) => normalizeConditionLabel(tag) === normalizedLabel);
+  }
+
+  function normalizeConditionLabel(value) {
+    return String(value || '').replace(/\s+/g, '').trim();
+  }
+
+  function renderGlanceItems(shop) {
+    const items = [
+      formatWalkMinutes(shop.walkMinutes),
+      isCardUsableText(shop.card) ? 'カード可' : '',
+      shop.nonSmoking || '',
+      shop.openNow ? '営業中' : '',
+      shop.station ? shop.station + '駅' : ''
+    ].filter(Boolean).slice(0, 4);
+    if (!items.length) {
+      return '';
+    }
+    return '<div class="glance-row">' + items.map((item) => '<span>' + escapeHtml(item) + '</span>').join('') + '</div>';
+  }
+
+  function isCardUsableText(cardText) {
+    return /利用可|可|VISA|JCB|マスター|Master|AMEX|アメックス|DINERS/i.test(String(cardText || ''));
+  }
+
+  function formatBudgetEstimate(value) {
+    const estimated = Number(value || 0);
+    return estimated ? '約' + estimated.toLocaleString('ja-JP') + '円' : '';
+  }
+
+  function detailRow(label, value, href) {
+    if (!value) {
+      return '';
+    }
+    const body = href
+      ? '<a href="' + escapeHtml(href) + '" target="_blank" rel="noopener">' + escapeHtml(value) + '</a>'
+      : escapeHtml(value);
+    return '<div><dt>' + escapeHtml(label) + '</dt><dd>' + body + '</dd></div>';
+  }
+
+  function formatResultCount(data, visibleCount) {
+    const fetchedCount = Number(data.resultsFetched || visibleCount);
+    const base = visibleCount + '件提案';
+    const budgetCount = Number(data.resultsBudgetMatched || 0);
+    const reserveCount = state.backupShops.length;
+    if (reserveCount > 0) {
+      return base + formatBudgetCountSuffix(data, budgetCount) + ' / 控え' + reserveCount + '件 / 取得' + fetchedCount + '件';
+    }
+    if (fetchedCount !== visibleCount) {
+      return base + formatBudgetCountSuffix(data, budgetCount) + ' / 取得' + fetchedCount + '件 / 全' + data.resultsAvailable + '件';
+    }
+    return base + ' / 全' + data.resultsAvailable + '件';
+  }
+
+  function formatBudgetCountSuffix(data, budgetCount) {
+    const preferences = state.resultPreferences || state.preferences || {};
+    const beforeBudgetCount = Number(data.resultsSmokingMatched || data.resultsMatched || 0);
+    if (!preferences || preferences.mood !== 'cheap' || budgetCount === beforeBudgetCount) {
+      return '';
+    }
+    return ' / 予算目安' + budgetCount + '件';
+  }
+
+  function refreshResultCount() {
+    elements.resultCount.textContent = formatResultCount(state.lastResultMeta || {}, state.visibleShops.length);
+    elements.rotateButton.disabled = !state.visibleShops.length || !state.backupShops.length;
+    elements.shareButton.disabled = !state.visibleShops.length;
+  }
+
+  function formatCreditCards(creditCards) {
+    return Array.isArray(creditCards) ? creditCards.join('、') : '';
+  }
+
+  function formatTelUrl(tel) {
+    const digits = String(tel || '').replace(/[^\d+]/g, '');
+    return digits ? 'tel:' + digits : '';
+  }
+
+  function formatWalkMinutes(walkMinutes) {
+    if (walkMinutes == null || walkMinutes === '') {
+      return '';
+    }
+    return Number(walkMinutes) === 0 ? '1分未満' : '徒歩' + walkMinutes + '分';
+  }
+
+  function setSearching(searching) {
+    state.searching = searching;
+    elements.searchButton.disabled = searching;
+    elements.searchButton.textContent = searching ? '選定中' : '候補を3つ出す';
+  }
+
+  function unwrap(response) {
+    if (!response || !response.ok) {
+      const message = response && response.error ? response.error.message : 'Unknown error';
+      throw new Error(message);
+    }
+    return response.data;
+  }
+
+  function showError(message) {
+    elements.resultPanel.setAttribute('aria-busy', 'false');
+    resetCardSwipe();
+    state.visibleShops = [];
+    state.backupShops = [];
+    state.lastResultMeta = null;
+    state.resultPreferences = null;
+    hideActionToast();
+    elements.rotateButton.disabled = true;
+    elements.shareButton.disabled = true;
+    elements.resultCount.textContent = 'エラー';
+    elements.resultList.innerHTML = '<p class="empty">' + escapeHtml(message) + '</p>';
+  }
+
+  function buildSearchingSummary(payload) {
+    return [
+      payload.areaText,
+      payload.moodLabel,
+      ...formatMoodHelperLabels(payload),
+      ...formatFoodLabels(payload.foodValues || []),
+      ...formatDrinkLabels(payload.drinkValues || []),
+      payload.walkLabel,
+      payload.smokingLabel,
+      ...formatMustLabels(payload.mustValues || [])
+    ].filter(Boolean).join(' / ') || '場所と気分を入れて候補を出します。';
+  }
+
+  function formatMoodHelperLabels(preferences) {
+    if (!preferences || preferences.mood !== 'cheap') {
+      return [];
+    }
+    return ['3500円目安'];
+  }
+
+  function handleResultListClick(event) {
+    const replaceButton = event.target.closest('button[data-replace-index]');
+    if (replaceButton && elements.resultList.contains(replaceButton) && !state.searching) {
+      replaceCandidate(Number(replaceButton.dataset.replaceIndex));
+      return;
+    }
+
+    const button = event.target.closest('button[data-relax]');
+    if (!button || !elements.resultList.contains(button) || state.searching) {
+      return;
+    }
+    relaxSearchCondition(button.dataset.relax || '');
+  }
+
+  function relaxSearchCondition(action) {
+    if (action === 'walk5' || action === 'openNow' || action === 'privateRoom' || action === 'midnight' || action === 'card') {
+      setMustChecked(action, false);
+    } else if (action === 'smoking') {
+      elements.smokingSelect.value = '';
+    } else if (action === 'drink') {
+      setCheckedValues('.drink-field input[type="checkbox"]', []);
+    } else if (action === 'food') {
+      setCheckedValues('.food-field input[type="checkbox"]', []);
+    } else if (action === 'mood') {
+      setMoodValue('safe');
+    } else if (action === 'wide') {
+      setMoodValue('safe');
+      elements.smokingSelect.value = '';
+      setCheckedValues('.chip-field input[type="checkbox"]', []);
+      setCheckedValues('.drink-field input[type="checkbox"]', []);
+      setCheckedValues('.food-field input[type="checkbox"]', []);
+    } else {
+      return;
+    }
+    handlePreferenceChange();
+    showActionToast('条件を少しゆるめました');
+    search();
+  }
+
+  function setMustChecked(value, checked) {
+    const input = document.querySelector('.chip-field input[value="' + cssEscape(value) + '"]');
+    if (input) {
+      input.checked = checked;
+    }
+  }
+
+  function handleRecentAreaClick(event) {
+    const button = event.target.closest('button[data-area]');
+    if (!button) {
+      return;
+    }
+    elements.areaInput.value = button.dataset.area || '';
+    handlePreferenceChange();
+    elements.areaInput.focus();
+    vibrate(6);
+  }
+
+  function rememberRecentArea(areaText) {
+    const area = String(areaText || '').trim();
+    if (!area) {
+      return;
+    }
+    state.recentAreas = [area].concat(state.recentAreas.filter((item) => item !== area)).slice(0, 5);
+    saveRecentAreas(state.recentAreas);
+    renderRecentAreas();
+  }
+
+  function renderRecentAreas() {
+    if (!state.recentAreas.length) {
+      elements.recentAreaList.classList.add('hidden');
+      elements.recentAreaList.innerHTML = '';
+      return;
+    }
+    elements.recentAreaList.classList.remove('hidden');
+    elements.recentAreaList.innerHTML = [
+      '<span>最近</span>',
+      state.recentAreas.map((area) => '<button type="button" data-area="' + escapeHtml(area) + '">' + escapeHtml(area) + '</button>').join('')
+    ].join('');
+  }
+
+  function scrollResultsIntoView() {
+    if (!elements.resultPanel || !elements.resultPanel.scrollIntoView) {
+      return;
+    }
+    requestAnimationFrame(() => {
+      elements.resultPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
+  function loadPreferences() {
+    try {
+      return JSON.parse(localStorage.getItem(storageKey) || '{}');
+    } catch (error) {
+      return {};
+    }
+  }
+
+  function savePreferences(preferences) {
+    localStorage.setItem(storageKey, JSON.stringify(preferences));
+  }
+
+  function loadRecentAreas() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(recentAreasKey) || '[]');
+      return Array.isArray(parsed) ? parsed.filter(Boolean).slice(0, 5) : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function saveRecentAreas(areas) {
+    localStorage.setItem(recentAreasKey, JSON.stringify(areas));
+  }
+
+  function cssEscape(value) {
+    if (window.CSS && CSS.escape) {
+      return CSS.escape(value);
+    }
+    return String(value).replace(/"/g, '\\"');
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  init();

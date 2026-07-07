@@ -1,0 +1,583 @@
+const app = document.getElementById('app');
+  const bootstrap = JSON.parse(app.dataset.bootstrap || '{}');
+  const appState = bootstrap.data || {};
+  let selectedQuestionId = '';
+  let currentQuestions = [];
+  let currentDetailsByQuestionId = {};
+  let currentDetail = null;
+  let answerRevealed = false;
+  let questionListExpanded = false;
+  let loadedAtaKey = null;
+  let questionLoadRequestId = 0;
+
+  function normalizeAtaKey(value) {
+    const text = String(value || '').trim().toUpperCase();
+    if (/^5X$/.test(text)) return '5X';
+    if (/^7X$/.test(text)) return '7X';
+    return text.replace(/\D/g, '');
+  }
+
+  function renderAtaFilterOptions() {
+    const select = document.getElementById('ataFilter');
+    const currentValue = select.value;
+    const existingAtas = Array.from(select.options || [])
+      .map((option) => normalizeAtaKey(option.value))
+      .filter(Boolean);
+    const atas = Array.from(new Set(existingAtas.concat((appState.preparedAtas || [])
+      .map((ata) => normalizeAtaKey(ata))
+      .filter(Boolean))))
+      .sort(compareAtaKeys);
+
+    select.innerHTML = '';
+    const allOption = document.createElement('option');
+    allOption.value = '';
+    allOption.textContent = 'ATA All';
+    select.appendChild(allOption);
+
+    atas.forEach((ata) => {
+      const option = document.createElement('option');
+      option.value = ata;
+      option.textContent = 'ATA ' + ata;
+      select.appendChild(option);
+    });
+
+    if (atas.includes(currentValue)) {
+      select.value = currentValue;
+    }
+  }
+
+  function compareAtaKeys(a, b) {
+    const numberA = ataSortValue(a);
+    const numberB = ataSortValue(b);
+    if (numberA !== numberB) return numberA - numberB;
+    return String(a).localeCompare(String(b));
+  }
+
+  function ataSortValue(value) {
+    const key = normalizeAtaKey(value);
+    if (key === '5X') return 59;
+    if (key === '7X') return 79;
+    return Number(String(key).replace(/\D/g, ''));
+  }
+
+  function unwrap(response) {
+    if (!response || !response.ok) {
+      const message = response && response.error ? response.error.message : 'Unknown error';
+      throw new Error(message);
+    }
+    return response.data;
+  }
+
+  function getSelectedAtaKey() {
+    return normalizeAtaKey(document.getElementById('ataFilter').value);
+  }
+
+  function getSelectedAtaLabel() {
+    const ata = getSelectedAtaKey();
+    return ata ? 'ATA ' + ata : 'ATA All';
+  }
+
+  function setQuestionLoadState(state, message, countText) {
+    const panel = document.getElementById('questionLoadPanel');
+    const status = document.getElementById('questionLoadStatus');
+    const count = document.getElementById('questionLoadCount');
+    const loadButton = document.getElementById('loadQuestions');
+    const randomButton = document.getElementById('randomQuestionButton');
+    const toggleButton = document.getElementById('toggleQuestionListButton');
+    panel.className = 'load-panel is-' + state;
+    status.textContent = message;
+    count.textContent = countText || '';
+    loadButton.disabled = state === 'loading';
+    randomButton.disabled = state === 'loading';
+    toggleButton.disabled = state === 'loading';
+  }
+
+  function resetStudySurface(message) {
+    currentDetail = null;
+    answerRevealed = false;
+    const questionDetail = document.getElementById('questionDetail');
+    questionDetail.className = 'empty-state';
+    questionDetail.textContent = message || '問題を選択するか、ランダム出題を押してね。';
+    document.getElementById('confirmedAnswers').innerHTML = '';
+    document.getElementById('answerNotes').innerHTML = '';
+    document.getElementById('candidateList').textContent = '候補ページはここに表示します。';
+    setAnswerVisibility(false);
+  }
+
+  function setAnswerVisibility(revealed) {
+    const hasQuestion = Boolean(currentDetail && currentDetail.question);
+    const revealButton = document.getElementById('revealAnswerButton');
+    const hint = document.getElementById('revealHint');
+    const placeholder = document.getElementById('answerRevealPlaceholder');
+    const confirmed = document.getElementById('confirmedAnswers');
+    const notes = document.getElementById('answerNotes');
+    const candidates = document.getElementById('candidateDetails');
+
+    revealButton.disabled = !hasQuestion;
+    placeholder.classList.toggle('is-hidden', Boolean(revealed && hasQuestion));
+    confirmed.classList.toggle('is-hidden', !revealed);
+    notes.classList.toggle('is-hidden', !revealed);
+    candidates.classList.toggle('is-hidden', !revealed);
+
+    if (!hasQuestion) {
+      revealButton.textContent = '回答を見る';
+      hint.textContent = '問題を選ぶと回答確認できます。';
+      placeholder.textContent = '問題を解いたら「回答を見る」で確認します。';
+      return;
+    }
+
+    if (revealed) {
+      revealButton.textContent = '回答を隠す';
+      hint.textContent = '答え合わせ中。次の問題ではまた隠れます。';
+      placeholder.textContent = '';
+    } else {
+      revealButton.textContent = '回答を見る';
+      hint.textContent = '回答はまだ隠れています。頭の中で答えてから確認してね。';
+      placeholder.textContent = '準備できたら「回答を見る」でAI回答と根拠候補を確認します。';
+    }
+  }
+
+  function markQuestionsPending() {
+    questionLoadRequestId += 1;
+    const label = getSelectedAtaLabel();
+    if (loadedAtaKey === getSelectedAtaKey()) {
+      setQuestionLoadState('loaded', label + ' 読み込み済み', currentQuestions.length + '問');
+      return;
+    }
+    currentDetailsByQuestionId = {};
+    resetStudySurface(label + ' の問題はまだ読み込んでいません。');
+    const countText = currentQuestions.length ? '表示中: ' + currentQuestions.length + '問' : '未読み込み';
+    setQuestionLoadState('pending', label + ' を選択中。読み込みを押すと問題一覧を更新します。', countText);
+  }
+
+  function loadQuestions() {
+    const ata = document.getElementById('ataFilter').value;
+    const requestId = ++questionLoadRequestId;
+    const label = getSelectedAtaLabel();
+    setQuestionLoadState('loading', label + ' を読み込み中...', '読み込み中');
+    resetStudySurface(label + ' の問題を読み込み中...');
+    document.getElementById('questionList').textContent = '問題を読み込み中...';
+    google.script.run
+      .withSuccessHandler((response) => {
+        if (requestId !== questionLoadRequestId) return;
+        const data = unwrap(response);
+        const questions = Array.isArray(data) ? data : (data.questions || []);
+        currentDetailsByQuestionId = Array.isArray(data) ? {} : (data.detailsById || {});
+        renderQuestions(questions);
+        loadedAtaKey = normalizeAtaKey(ata);
+        setQuestionLoadState('loaded', label + ' 読み込み完了', questions.length + '問');
+        if (questions.length) {
+          const questionDetail = document.getElementById('questionDetail');
+          questionDetail.className = 'empty-state';
+          questionDetail.textContent = '準備できました。「次のランダム問題」で始めます。';
+        }
+      })
+      .withFailureHandler((error) => {
+        if (requestId !== questionLoadRequestId) return;
+        document.getElementById('questionList').textContent = '読み込みに失敗しました。';
+        setQuestionLoadState('failed', label + ' の読み込みに失敗しました。', '要確認');
+        showError(error);
+      })
+      .apiGetQuestionsBundle({ ata });
+  }
+
+  function renderQuestions(questions) {
+    currentQuestions = questions;
+    const root = document.getElementById('questionList');
+    root.innerHTML = '';
+    if (!questions.length) {
+      root.textContent = '問題がまだありません。管理/取込ツールから取込状態を確認してね。';
+      syncQuestionListVisibility();
+      setQuestionLoadState('loaded', getSelectedAtaLabel() + ' 読み込み完了', '0問');
+      return;
+    }
+    questions.forEach((question) => {
+      const button = document.createElement('button');
+      button.className = 'question-button';
+      button.innerHTML = '<strong>' + escapeHtml(question.question_text) + '</strong><span class="status">' + escapeHtml(question.check_status) + '</span>';
+      button.addEventListener('click', () => loadDetail(question.question_id));
+      root.appendChild(button);
+    });
+    syncQuestionListVisibility();
+  }
+
+  function toggleQuestionList() {
+    questionListExpanded = !questionListExpanded;
+    syncQuestionListVisibility();
+  }
+
+  function syncQuestionListVisibility() {
+    const root = document.getElementById('questionList');
+    const button = document.getElementById('toggleQuestionListButton');
+    root.classList.toggle('is-collapsed', !questionListExpanded);
+    button.setAttribute('aria-expanded', questionListExpanded ? 'true' : 'false');
+    button.textContent = questionListExpanded ? '問題一覧を隠す' : '問題一覧';
+  }
+
+  function loadDetail(questionId, forceRefresh) {
+    selectedQuestionId = questionId;
+    if (!forceRefresh && currentDetailsByQuestionId[questionId]) {
+      renderDetail(currentDetailsByQuestionId[questionId]);
+      return;
+    }
+    resetStudySurface('問題詳細を読み込み中...');
+    google.script.run
+      .withSuccessHandler((response) => {
+        const detail = unwrap(response);
+        if (detail && detail.question && detail.question.question_id) {
+          currentDetailsByQuestionId[detail.question.question_id] = detail;
+        }
+        renderDetail(detail);
+      })
+      .withFailureHandler((error) => {
+        document.getElementById('questionDetail').textContent = '問題詳細の読み込みに失敗しました。';
+        showError(error);
+      })
+      .apiGetQuestionDetail(questionId);
+  }
+
+  function renderDetail(detail) {
+    currentDetail = detail;
+    answerRevealed = false;
+    const question = detail.question;
+    const questionDetail = document.getElementById('questionDetail');
+    questionDetail.className = 'question-content';
+    questionDetail.innerHTML = [
+      '<div class="question-meta">',
+      '<span class="status">' + escapeHtml(question.check_status) + '</span>',
+      '<span>ATA ' + escapeHtml(question.ata) + '</span>',
+      '<span>' + escapeHtml(question.section_name || '') + '</span>',
+      '</div>',
+      '<h3>' + escapeHtml(question.question_text) + '</h3>'
+    ].join('');
+    document.getElementById('confirmedAnswers').innerHTML = '';
+    document.getElementById('answerNotes').innerHTML = '';
+    document.getElementById('candidateList').textContent = '回答表示後に候補ページを確認できます。';
+    resetAnswerEditor();
+    setAnswerVisibility(false);
+  }
+
+  function toggleAnswerReveal() {
+    if (!currentDetail) {
+      showError(new Error('先に問題を選んでね。'));
+      return;
+    }
+    answerRevealed = !answerRevealed;
+    if (answerRevealed) {
+      renderConfirmedAnswers(currentDetail.confirmedAnswers || []);
+      renderAnswerNotes(currentDetail.answerNotes || []);
+      renderCandidates(currentDetail.candidates || {});
+    }
+    setAnswerVisibility(answerRevealed);
+  }
+
+  function renderConfirmedAnswers(answers) {
+    const root = document.getElementById('confirmedAnswers');
+    root.innerHTML = '';
+    const heading = document.createElement('h3');
+    heading.textContent = 'Confirmed Answer';
+    root.appendChild(heading);
+    if (!answers.length) {
+      const empty = document.createElement('p');
+      empty.className = 'muted';
+      empty.textContent = '確定回答はまだありません。';
+      root.appendChild(empty);
+      return;
+    }
+    answers.forEach((answer) => {
+      const item = document.createElement('article');
+      item.className = 'answer-card confirmed';
+      item.innerHTML = [
+        '<div class="answer-meta">' + escapeHtml(answer.evidence_page_codes || '') + '</div>',
+        '<pre>' + escapeHtml(answer.final_answer_text || '') + '</pre>'
+      ].join('');
+      root.appendChild(item);
+    });
+  }
+
+  function renderAnswerNotes(notes) {
+    const root = document.getElementById('answerNotes');
+    root.innerHTML = '';
+    const heading = document.createElement('h3');
+    heading.textContent = 'AI / Draft Answers';
+    root.appendChild(heading);
+    if (!notes.length) {
+      const empty = document.createElement('p');
+      empty.className = 'muted';
+      empty.textContent = 'まだ回答案はありません。ChatGPT/Codexの回答を貼って保存できます。';
+      root.appendChild(empty);
+      return;
+    }
+    notes.forEach((note, index) => {
+      const details = document.createElement('details');
+      details.className = 'answer-card';
+      details.open = index === 0;
+      details.innerHTML = [
+        '<summary><span>回答案 ' + (index + 1) + '</span><span class="status">' + escapeHtml(note.status || 'draft') + '</span></summary>',
+        '<div class="answer-meta">' + escapeHtml(note.source_type || '') + ' / ' + escapeHtml(note.evidence_page_codes || '') + '</div>',
+        '<pre>' + escapeHtml(note.answer_text || '') + '</pre>',
+        '<div class="toolbar"><button type="button" data-note-id="' + escapeHtml(note.note_id) + '">編集</button></div>'
+      ].join('');
+      details.querySelector('button').addEventListener('click', () => loadNoteIntoEditor(note));
+      root.appendChild(details);
+    });
+  }
+
+  function renderCandidates(groups) {
+    const labels = {
+      best: '本命候補',
+      related_figure: '関連図',
+      general_reference: 'General参照',
+      neighbor: '近接ページ',
+      manual: '手動候補',
+      reviewed_reference: '確認済み根拠'
+    };
+    const root = document.getElementById('candidateList');
+    root.innerHTML = '';
+    const keys = Object.keys(groups || {});
+    if (!keys.length) {
+      root.textContent = '候補ページはまだありません。';
+      return;
+    }
+    keys.forEach((key) => {
+      const heading = document.createElement('h3');
+      heading.textContent = labels[key] || key;
+      root.appendChild(heading);
+      groups[key].forEach((candidate) => {
+        const item = document.createElement('div');
+        item.className = 'candidate';
+        const driveUrl = String(candidate.drive_url || '').trim();
+        const linkHtml = driveUrl
+          ? '<a class="candidate-link" href="' + escapeHtml(driveUrl) + '" target="_blank" rel="noopener">PDFを開く</a>'
+          : '<span class="candidate-link is-muted">ページコード確認用</span>';
+        item.innerHTML = [
+          '<div class="candidate-head">',
+          '<div class="candidate-code">' + escapeHtml(candidate.page_code) + '</div>',
+          linkHtml,
+          '</div>',
+          '<strong>' + escapeHtml(candidate.title || '') + '</strong>',
+          '<p class="muted">' + escapeHtml(candidate.excerpt || '') + '</p>'
+        ].join('');
+        root.appendChild(item);
+      });
+    });
+  }
+
+  function buildPrompt() {
+    if (!selectedQuestionId) {
+      showError(new Error('先に問題を選んでね。'));
+      return;
+    }
+    google.script.run
+      .withSuccessHandler((response) => {
+        document.getElementById('promptOutput').value = unwrap(response);
+      })
+      .withFailureHandler(showError)
+      .apiBuildReviewPrompt(selectedQuestionId);
+  }
+
+  function inferCsvTarget(fileName) {
+    const name = String(fileName || '').toLowerCase();
+    if (name.includes('textbook_pages')) return 'textbook_pages';
+    if (name.includes('textbook_sections')) return 'textbook_sections';
+    if (name.includes('question_bank')) return 'question_bank';
+    if (name.includes('candidate_links')) return 'candidate_links';
+    if (name.includes('answer_notes')) return 'answer_notes';
+    if (name.includes('term_dictionary')) return 'term_dictionary';
+    if (name.includes('source_files')) return 'source_files';
+    return document.getElementById('csvTarget').value;
+  }
+
+  function importCsv() {
+    const fileInput = document.getElementById('csvFile');
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) {
+      showError(new Error('CSVファイルを選んでね。'));
+      return;
+    }
+    const target = inferCsvTarget(file.name);
+    document.getElementById('csvTarget').value = target;
+    document.getElementById('importStatus').textContent = '読み込み中...';
+    const reader = new FileReader();
+    reader.onload = () => {
+      google.script.run
+        .withSuccessHandler((response) => {
+          const result = unwrap(response);
+          document.getElementById('importStatus').textContent =
+            result.sheet_name + ' に ' + result.imported_rows + ' 行取り込みました。';
+          if (result.sheet_name === 'question_bank') loadQuestions();
+        })
+        .withFailureHandler((error) => {
+          document.getElementById('importStatus').textContent = '';
+          showError(error);
+        })
+        .apiImportCsv({
+          sheet_name: target,
+          csv_text: reader.result,
+          mode: document.getElementById('csvReplace').checked ? 'replace' : 'append'
+        });
+    };
+    reader.onerror = () => showError(new Error('CSVを読めませんでした。'));
+    reader.readAsText(file, 'utf-8');
+  }
+
+  function importPreparedAta() {
+    const ata = document.getElementById('ataFilter').value;
+    if (!ata) {
+      showError(new Error('Prepared import needs a selected ATA.'));
+      return;
+    }
+    document.getElementById('preparedImportStatus').textContent = 'ATA' + ata + ' prepared data import running...';
+    google.script.run
+      .withSuccessHandler((response) => {
+        const result = unwrap(response);
+        const total = result.imported.reduce((sum, item) => sum + Number(item.imported_rows || 0), 0);
+        document.getElementById('preparedImportStatus').textContent =
+          'ATA' + result.ata + ' prepared data imported. Total ' + total + ' rows.';
+        loadQuestions();
+      })
+      .withFailureHandler((error) => {
+        document.getElementById('preparedImportStatus').textContent = '';
+        showError(error);
+      })
+      .apiImportPreparedAtaData(ata);
+  }
+
+  function loadNoteIntoEditor(note) {
+    document.getElementById('activeNoteId').value = note.note_id || '';
+    document.getElementById('answerSource').value = note.source_type || 'manual_user';
+    document.getElementById('answerEvidencePages').value = note.evidence_page_codes || '';
+    document.getElementById('answerText').value = note.answer_text || '';
+    const tools = document.querySelector('.admin-tools');
+    if (tools) tools.open = true;
+  }
+
+  function resetAnswerEditor() {
+    document.getElementById('activeNoteId').value = '';
+    document.getElementById('answerSource').value = 'chatgpt_manual';
+    document.getElementById('answerEvidencePages').value = '';
+    document.getElementById('answerText').value = '';
+  }
+
+  function collectAnswerPayload() {
+    if (!selectedQuestionId) throw new Error('先に問題を選んでね。');
+    const answerText = document.getElementById('answerText').value.trim();
+    if (!answerText) throw new Error('回答本文が空です。');
+    return {
+      question_id: selectedQuestionId,
+      answer_text: answerText,
+      final_answer_text: answerText,
+      evidence_page_codes: document.getElementById('answerEvidencePages').value.trim(),
+      evidence_page_ids: '',
+      evidence_excerpts: '',
+      source_type: document.getElementById('answerSource').value,
+      status: 'reviewed_ok'
+    };
+  }
+
+  function saveDraft() {
+    let payload;
+    try {
+      payload = collectAnswerPayload();
+    } catch (error) {
+      showError(error);
+      return;
+    }
+    const noteId = document.getElementById('activeNoteId').value;
+    const runner = google.script.run
+      .withSuccessHandler((response) => {
+        unwrap(response);
+        delete currentDetailsByQuestionId[selectedQuestionId];
+        loadDetail(selectedQuestionId, true);
+      })
+      .withFailureHandler(showError);
+    if (noteId) {
+      runner.apiUpdateAnswerNote(noteId, payload);
+    } else {
+      runner.apiSaveAnswerNote(payload);
+    }
+  }
+
+  function adoptAnswer() {
+    let payload;
+    try {
+      payload = collectAnswerPayload();
+    } catch (error) {
+      showError(error);
+      return;
+    }
+    google.script.run
+      .withSuccessHandler((response) => {
+        unwrap(response);
+        delete currentDetailsByQuestionId[selectedQuestionId];
+        loadDetail(selectedQuestionId, true);
+      })
+      .withFailureHandler(showError)
+      .apiSaveConfirmedAnswer(payload);
+  }
+
+  function runSetup() {
+    google.script.run
+      .withSuccessHandler((response) => {
+        const data = unwrap(response);
+        alert('初期設定完了: ' + data.study737Db.url);
+        loadQuestions();
+      })
+      .withFailureHandler(showError)
+      .setupProject();
+  }
+
+  function showError(error) {
+    alert(error.message || String(error));
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function loadRandomQuestion() {
+    const selectedAta = getSelectedAtaKey();
+    if (currentQuestions.length && loadedAtaKey === selectedAta) {
+      const question = currentQuestions[Math.floor(Math.random() * currentQuestions.length)];
+      loadDetail(question.question_id);
+      return;
+    }
+    selectedQuestionId = '';
+    resetStudySurface('ランダム問題を読み込み中...');
+    google.script.run
+      .withSuccessHandler((response) => {
+        const detail = unwrap(response);
+        if (detail && detail.question && detail.question.question_id) {
+          currentDetailsByQuestionId[detail.question.question_id] = detail;
+        }
+        renderDetail(detail);
+      })
+      .withFailureHandler((error) => {
+        document.getElementById('questionDetail').textContent = 'ランダム問題の読み込みに失敗しました。';
+        showError(error);
+      })
+      .apiGetRandomQuestionDetail({ ata: selectedAta });
+  }
+
+  document.getElementById('setupButton').addEventListener('click', runSetup);
+  document.getElementById('ataFilter').addEventListener('change', markQuestionsPending);
+  document.getElementById('loadQuestions').addEventListener('click', loadQuestions);
+  document.getElementById('randomQuestionButton').addEventListener('click', loadRandomQuestion);
+  document.getElementById('toggleQuestionListButton').addEventListener('click', toggleQuestionList);
+  document.getElementById('revealAnswerButton').addEventListener('click', toggleAnswerReveal);
+  document.getElementById('importPreparedButton').addEventListener('click', importPreparedAta);
+  document.getElementById('promptButton').addEventListener('click', buildPrompt);
+  document.getElementById('saveDraftButton').addEventListener('click', saveDraft);
+  document.getElementById('adoptButton').addEventListener('click', adoptAnswer);
+  document.getElementById('clearDraftButton').addEventListener('click', resetAnswerEditor);
+  document.getElementById('importCsvButton').addEventListener('click', importCsv);
+
+  renderAtaFilterOptions();
+  syncQuestionListVisibility();
+  setAnswerVisibility(false);
+  markQuestionsPending();

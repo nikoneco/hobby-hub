@@ -1,0 +1,95 @@
+const app = document.getElementById('app');
+  const bootstrap = JSON.parse(app.dataset.bootstrap || '{}');
+
+  function unwrap(response) {
+    if (!response || !response.ok) {
+      const message = response && response.error ? response.error.message : 'Unknown error';
+      throw new Error(message);
+    }
+    return response.data;
+  }
+
+  function renderModules(modules) {
+    const root = document.getElementById('modules');
+    root.innerHTML = '';
+    root.className = 'module-grid';
+    if (!modules.length) {
+      root.textContent = '登録済みのアプリがありません。初期設定を実行してね。';
+      root.className = 'muted';
+      return;
+    }
+    modules.forEach((module) => {
+      const button = document.createElement('button');
+      const hasUrl = Boolean(module.target_url);
+      button.className = hasUrl ? 'module-card' : 'module-card disabled';
+      button.disabled = !hasUrl;
+      button.type = 'button';
+      button.setAttribute('aria-label', (module.module_name || 'アプリ') + 'を開く');
+      button.innerHTML = [
+        '<span class="module-icon">' + escapeHtml(getIconLabel(module)) + '</span>',
+        '<span class="module-body">',
+        '<strong>' + escapeHtml(module.module_name) + '</strong>',
+        '<span>' + escapeHtml(module.description || '') + '</span>',
+        hasUrl ? '<em>開く</em>' : '<em>WebアプリURL未設定</em>',
+        '</span>'
+      ].join('');
+      if (hasUrl) {
+        button.addEventListener('click', () => {
+          window.open(module.target_url, '_blank', 'noopener');
+        });
+      }
+      root.appendChild(button);
+    });
+  }
+
+  function getIconLabel(module) {
+    const id = String(module.module_id || '');
+    if (id === 'study737') {
+      return '737';
+    }
+    if (id === 'room_library') {
+      return 'LIB';
+    }
+    if (id === 'lifeboard') {
+      return 'LIF';
+    }
+    if (id === 'izakaya_scout') {
+      return '居酒';
+    }
+    return String(module.icon || 'APP').slice(0, 3).toUpperCase();
+  }
+
+  function loadModules() {
+    google.script.run
+      .withSuccessHandler((response) => renderModules(unwrap(response)))
+      .withFailureHandler(showError)
+      .apiGetModules();
+  }
+
+  function runSetup() {
+    google.script.run
+      .withSuccessHandler((response) => {
+        const data = unwrap(response);
+        alert('初期設定が完了しました: ' + data.hobbyHubMaster.url);
+        loadModules();
+      })
+      .withFailureHandler(showError)
+      .setupProject();
+  }
+
+  function showError(error) {
+    alert(error.message || String(error));
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  renderModules((bootstrap.data && bootstrap.data.modules) || []);
+  document.getElementById('setupButton').addEventListener('click', runSetup);
+  document.getElementById('refreshButton').addEventListener('click', loadModules);
