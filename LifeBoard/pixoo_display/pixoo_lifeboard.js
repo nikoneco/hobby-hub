@@ -22,6 +22,9 @@ const MISAKI_KUTEN = {
   '休': [21, 57],
   '中': [35, 70],
   'け': [4, 17],
+  '次': [28, 1],
+  '駅': [17, 56],
+  '前': [33, 16],
   'ゴ': [5, 20],
   'ミ': [5, 63],
   '今': [26, 3],
@@ -297,9 +300,14 @@ function drawRoutePanel(frame, config, options) {
   drawText(frame, time, 4, config.y + 9, COLORS.white, 2);
   drawText(frame, delay, 45, config.y + 9, delayColor);
   drawText(frame, remaining, 45, config.y + 16, remainingColor(item.remainingMinutes));
-  drawText(frame, location, 4, config.y + 25, COLORS.cyan);
+  if (!drawMixedText(frame, location, 4, config.y + 24, COLORS.cyan, options)) {
+    drawText(frame, location, 4, config.y + 24, COLORS.cyan);
+  }
   if (next) {
-    drawText(frame, 'NXT ' + shortTime(next.predictedDepartureText || next.scheduledDepartureText), 30, config.y + 25, COLORS.muted);
+    const nextText = '次 ' + shortTime(next.predictedDepartureText || next.scheduledDepartureText);
+    if (!drawMixedText(frame, nextText, 31, config.y + 24, COLORS.white, options)) {
+      drawText(frame, 'NXT ' + shortTime(next.predictedDepartureText || next.scheduledDepartureText), 30, config.y + 24, COLORS.white);
+    }
   }
 }
 
@@ -748,7 +756,7 @@ function remainingColor(value) {
 
 function normalizeLocation(previousStops, locationText) {
   if (previousStops !== '' && previousStops != null && !Number.isNaN(Number(previousStops))) {
-    return Math.max(0, Number(previousStops)) + 'STP';
+    return Math.max(0, Number(previousStops)) + '駅前';
   }
   if (String(locationText || '').indexOf('出発前') >= 0) {
     return 'DEP';
