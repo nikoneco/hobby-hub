@@ -143,6 +143,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   would need a separate resident loop runner, not the standard task interval.
 - When JR has an issue, the bus panel stays visible and the lower 3 rows are
   used as a fixed `JR ALERT` page instead of the normal `JR/WX/GB` rows.
+- The top clock line shows `YYYY/MM/DD HH:MM`.
 - The bus panel header is rendered as `バス` when Misaki Gothic is available.
   If LifeBoard calendar data contains a TimeTree work symbol for today, a short
   work marker is shown beside it, such as `D勤`, `D勤中`, `明け`, `休日`,

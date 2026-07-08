@@ -265,9 +265,6 @@ function renderLifeBoardFrame(snapshot, lifeData, options) {
   const workStatus = buildWorkStatus(lifeData);
 
   drawText(frame, nowText(), 0, 0, stale ? COLORS.amber : COLORS.white);
-  if (stale) {
-    drawText(frame, 'OLD', 38, 0, COLORS.amber);
-  }
 
   drawRoutePanel(frame, {
     y: 8,
@@ -796,7 +793,8 @@ function ageMinutes(isoText) {
 
 function nowText() {
   const date = new Date();
-  return pad2(date.getHours()) + ':' + pad2(date.getMinutes());
+  return date.getFullYear() + '/' + pad2(date.getMonth() + 1) + '/' + pad2(date.getDate()) + ' '
+    + pad2(date.getHours()) + ':' + pad2(date.getMinutes());
 }
 
 function pad2(value) {
