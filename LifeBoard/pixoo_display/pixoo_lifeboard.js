@@ -67,6 +67,7 @@ const COLORS = {
   cyan: [70, 220, 240],
   amber: [255, 155, 35],
   red: [255, 55, 55],
+  pink: [255, 70, 170],
   purple: [170, 110, 255]
 };
 
@@ -291,7 +292,8 @@ function drawRoutePanel(frame, config, options) {
     drawText(frame, 'BUS', 3, config.y, config.accent);
   }
   if (config.workStatus && config.workStatus.mixedText) {
-    drawMixedText(frame, config.workStatus.mixedText, 24, config.y, config.workStatus.color || COLORS.purple, options);
+    const workX = Math.max(24, SIZE - mixedTextWidth(config.workStatus.mixedText));
+    drawMixedText(frame, config.workStatus.mixedText, workX, config.y, config.workStatus.color || COLORS.blue, options);
   }
 
   if (!item) {
@@ -350,14 +352,14 @@ function buildWorkStatus(lifeData) {
   const yesterdayShift = findShiftForDate(events, yesterday);
   const activeShift = activeShiftCode(now, todayShift, yesterdayShift);
   if (activeShift) {
-    return { mixedText: activeShift + '勤中', color: COLORS.purple };
+    return { mixedText: activeShift + '勤中', color: COLORS.pink };
   }
 
   if (!todayShift) {
     return null;
   }
   if (todayShift === '/') {
-    return { mixedText: '明け', color: COLORS.cyan };
+    return { mixedText: '明け', color: COLORS.green };
   }
   if (todayShift === 'H') {
     return { mixedText: '休日', color: COLORS.green };
@@ -366,9 +368,9 @@ function buildWorkStatus(lifeData) {
     return { mixedText: '勤 有給', color: COLORS.green };
   }
   if (todayShift === '10H') {
-    return { mixedText: '勤 10H', color: COLORS.purple };
+    return { mixedText: '勤 10H', color: COLORS.blue };
   }
-  return { mixedText: todayShift + '勤', color: COLORS.purple };
+  return { mixedText: todayShift + '勤', color: COLORS.blue };
 }
 
 function collectCalendarEvents(calendar) {
@@ -663,6 +665,24 @@ function drawMixedText(frame, text, x, y, rgb, options) {
     }
   }
   return cursor > x;
+}
+
+function mixedTextWidth(text) {
+  let width = 0;
+  for (const character of String(text || '')) {
+    if (MISAKI_KUTEN[character]) {
+      width += 8;
+      continue;
+    }
+    if (FONT_3X5[String(character).toUpperCase()]) {
+      width += 4;
+      continue;
+    }
+    if (character === ' ') {
+      width += 2;
+    }
+  }
+  return width;
 }
 
 function drawMisakiGlyph(frame, font, ku, ten, x, y, rgb) {
