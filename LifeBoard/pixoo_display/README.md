@@ -148,6 +148,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   If LifeBoard calendar data contains a TimeTree work symbol for today, a short
   work marker is shown beside it, such as `D勤`, `D勤中`, `明け`, `休日`,
   `勤 有給`, or `勤 10H`.
+- The main bus time shows the scheduled departure time. Delay and remaining
+  time are shown separately, such as `19:42 +2分 / 3分後`.
 - Weather (`WX`) shows today's high temperature and a compact Japanese weather
   label, such as `WX 30C 雨`. The label is rounded to `晴れ`, `くもり`, `雨`,
   `強雨`, or `雪`.
