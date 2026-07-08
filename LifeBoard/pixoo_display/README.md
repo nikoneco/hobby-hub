@@ -137,6 +137,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
 - When JR has an issue, the lower 3 rows alternate between the normal
   `JR/WX/GB` page and a `JR ALERT` page. The alternation interval follows
   `LIFEBOARD_PIXOO_PAGE_SECONDS`, default `60`.
+- The bus panel header is rendered as `バス` when Misaki Gothic is available.
+  If LifeBoard calendar data contains a TimeTree work symbol for today, a short
+  work marker is shown beside it, such as `D勤`, `D勤中`, `明け`, `休日`,
+  `勤 有給`, or `勤 10H`.
 - Weather (`WX`) shows today's high temperature and a compact Japanese weather
   label, such as `WX 30C 雨`. The label is rounded to `晴れ`, `くもり`, `雨`,
   `強雨`, or `雪`.
@@ -146,6 +150,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   non-burnable garbage is `NON`, and recyclables/resource garbage is `RES`.
 - Japanese garbage labels are rendered as compact phrases such as `ゴミ今日可燃`
   or `ゴミ明日資源`.
-- The display is ASCII-only at 64x64: route labels are shortened to `HOME>STA`
-  and status labels are shortened for legibility except the garbage row when
-  Misaki Gothic is available.
+- At 64x64, status labels are kept short for legibility. Japanese labels are
+  used only where the Misaki Gothic bitmap font is available; otherwise the
+  script falls back to compact ASCII labels.

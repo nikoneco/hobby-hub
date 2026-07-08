@@ -13,6 +13,15 @@ const DEFAULT_PNG_PREVIEW = path.resolve(__dirname, '..', 'data', 'pixoo_preview
 const DEFAULT_MISAKI_GOTHIC = path.resolve(__dirname, '..', 'misaki_png_2021-05-05a', 'misaki_gothic.png');
 
 const MISAKI_KUTEN = {
+  'バ': [5, 48],
+  'ス': [5, 25],
+  '勤': [22, 48],
+  '務': [44, 19],
+  '有': [45, 13],
+  '給': [21, 75],
+  '休': [21, 57],
+  '中': [35, 70],
+  'け': [4, 17],
   'ゴ': [5, 20],
   'ミ': [5, 63],
   '今': [26, 3],
@@ -237,6 +246,7 @@ function renderLifeBoardFrame(snapshot, lifeData, options) {
   const age = snapshot.generatedAt ? ageMinutes(snapshot.generatedAt) : '';
   const stale = age !== '' && age >= 15;
   const railStatus = buildRailStatus(lifeData);
+  const workStatus = buildWorkStatus(lifeData);
 
   drawText(frame, nowTextWithSeconds(), 0, 0, stale ? COLORS.amber : COLORS.white);
   if (stale) {
@@ -247,9 +257,9 @@ function renderLifeBoardFrame(snapshot, lifeData, options) {
   drawRoutePanel(frame, {
     y: 8,
     accent: COLORS.green,
-    label: 'HOME>STA',
-    route: home
-  });
+    route: home,
+    workStatus
+  }, options);
   drawLine(frame, 0, 37, 63, 37, COLORS.dim);
   if (railStatus.issue && isAlternatePageDue(options.pageIntervalSeconds)) {
     drawRailAlertPage(frame, railStatus);
@@ -262,10 +272,15 @@ function renderLifeBoardFrame(snapshot, lifeData, options) {
   return frame;
 }
 
-function drawRoutePanel(frame, config) {
+function drawRoutePanel(frame, config, options) {
   const item = firstItem(config.route);
   drawRect(frame, 0, config.y, 1, 24, config.accent);
-  drawText(frame, config.label, 3, config.y, config.accent);
+  if (!drawJapaneseText(frame, 'バス', 3, config.y, config.accent, options)) {
+    drawText(frame, 'BUS', 3, config.y, config.accent);
+  }
+  if (config.workStatus && config.workStatus.mixedText) {
+    drawMixedText(frame, config.workStatus.mixedText, 24, config.y, config.workStatus.color || COLORS.purple, options);
+  }
 
   if (!item) {
     drawText(frame, 'NO DATA', 6, config.y + 11, COLORS.amber, 2);
@@ -302,6 +317,127 @@ function drawRailAlertPage(frame, railStatus) {
   drawText(frame, 'JR ALERT', 0, 40, railStatus.color || COLORS.amber);
   drawText(frame, fitText(railStatus.line + ' ' + railStatus.code, 16), 0, 48, railStatus.color || COLORS.amber);
   drawText(frame, 'CHECK WEB', 0, 56, COLORS.white);
+}
+
+function buildWorkStatus(lifeData) {
+  const calendar = lifeData && lifeData.calendar ? lifeData.calendar : null;
+  const events = collectCalendarEvents(calendar);
+  if (!events.length) {
+    return null;
+  }
+
+  const now = new Date();
+  const today = localDateKey(now);
+  const yesterday = localDateKey(addDays(now, -1));
+  const todayShift = findShiftForDate(events, today);
+  const yesterdayShift = findShiftForDate(events, yesterday);
+  const activeShift = activeShiftCode(now, todayShift, yesterdayShift);
+  if (activeShift) {
+    return { mixedText: activeShift + '勤中', color: COLORS.purple };
+  }
+
+  if (!todayShift) {
+    return null;
+  }
+  if (todayShift === '/') {
+    return { mixedText: '明け', color: COLORS.cyan };
+  }
+  if (todayShift === 'H') {
+    return { mixedText: '休日', color: COLORS.green };
+  }
+  if (todayShift === 'AL' || todayShift === 'SV') {
+    return { mixedText: '勤 有給', color: COLORS.green };
+  }
+  if (todayShift === '10H') {
+    return { mixedText: '勤 10H', color: COLORS.purple };
+  }
+  return { mixedText: todayShift + '勤', color: COLORS.purple };
+}
+
+function collectCalendarEvents(calendar) {
+  const sources = [];
+  if (calendar && Array.isArray(calendar.headerEvents)) {
+    sources.push(calendar.headerEvents);
+  }
+  if (calendar && Array.isArray(calendar.events)) {
+    sources.push(calendar.events);
+  }
+  const seen = new Set();
+  const events = [];
+  sources.flat().forEach((event) => {
+    const date = String(event && event.date || '');
+    const title = String(event && event.title || '').trim();
+    if (!date || !title) {
+      return;
+    }
+    const key = date + '\n' + title;
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    events.push({ date, title });
+  });
+  return events;
+}
+
+function findShiftForDate(events, dateKey) {
+  const shifts = events
+    .filter((event) => event.date === dateKey)
+    .map((event) => normalizeWorkShiftTitle(event.title))
+    .filter(Boolean);
+  if (!shifts.length) {
+    return '';
+  }
+  const priority = ['10H', 'AL', 'SV', 'N', 'S', 'D', '/', 'H'];
+  return priority.find((shift) => shifts.includes(shift)) || shifts[0];
+}
+
+function normalizeWorkShiftTitle(title) {
+  const text = String(title || '').trim().toUpperCase();
+  if (!text) return '';
+  if (/\bAL\b|有給|年休/.test(text)) return 'AL';
+  if (/\bSV\b/.test(text)) return 'SV';
+  if (/10H/.test(text)) return '10H';
+  if (/^D\b|D勤/.test(text)) return 'D';
+  if (/^S\b|S勤/.test(text)) return 'S';
+  if (/^N\b|N勤|夜勤/.test(text)) return 'N';
+  if (text === '/' || /明け|明/.test(text)) return '/';
+  if (/^H\b|休日|休み|休/.test(text)) return 'H';
+  return '';
+}
+
+function activeShiftCode(now, todayShift, yesterdayShift) {
+  const minutes = (now.getHours() * 60) + now.getMinutes();
+  if (todayShift === 'D' && minutes >= toMinutes(7, 45) && minutes < toMinutes(17, 48)) {
+    return 'D';
+  }
+  if (todayShift === 'S' && minutes >= toMinutes(15, 0)) {
+    return 'S';
+  }
+  if ((yesterdayShift === 'S' || (!yesterdayShift && todayShift === 'N')) && minutes < toMinutes(1, 0)) {
+    return 'S';
+  }
+  if (todayShift === 'N' && minutes >= toMinutes(21, 30)) {
+    return 'N';
+  }
+  if ((yesterdayShift === 'N' || (!yesterdayShift && todayShift === '/')) && minutes < toMinutes(8, 9)) {
+    return 'N';
+  }
+  return '';
+}
+
+function toMinutes(hours, minutes) {
+  return (hours * 60) + minutes;
+}
+
+function localDateKey(date) {
+  return date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate());
+}
+
+function addDays(date, days) {
+  const copy = new Date(date.getTime());
+  copy.setDate(copy.getDate() + days);
+  return copy;
 }
 
 function isAlternatePageDue(pageIntervalSeconds) {
