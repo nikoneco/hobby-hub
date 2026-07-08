@@ -25,7 +25,6 @@ const MISAKI_KUTEN = {
   '次': [28, 1],
   '駅': [17, 56],
   '前': [33, 16],
-  '分': [42, 12],
   'ゴ': [5, 20],
   'ミ': [5, 63],
   '今': [26, 3],
@@ -304,16 +303,14 @@ function drawRoutePanel(frame, config, options) {
   }
 
   const scheduledTime = shortTime(item.scheduledDepartureText || item.predictedDepartureText || '--:--');
-  const delay = normalizeDelayWithUnit(item.delayText);
+  const delay = normalizeDelay(item.delayText);
   const delayColor = delay === 'OK' ? COLORS.green : COLORS.amber;
   const remaining = normalizeRemaining(item.remainingMinutes);
   const location = normalizeLocation(item.previousStops, item.locationText);
   const next = nextItem(config.route);
 
   drawText(frame, scheduledTime, 4, config.y + 9, COLORS.white, 2);
-  if (!drawMixedText(frame, delay, 43, config.y + 9, delayColor, options)) {
-    drawText(frame, fitText(delay, 5), 43, config.y + 10, delayColor);
-  }
+  drawText(frame, delay, 45, config.y + 9, delayColor);
   drawText(frame, remaining, 48, config.y + 16, remainingColor(item.remainingMinutes));
   if (!drawMixedText(frame, location, 4, config.y + 22, COLORS.cyan, options)) {
     drawText(frame, location, 4, config.y + 22, COLORS.cyan);
@@ -755,11 +752,6 @@ function normalizeDelay(value) {
   }
   const match = text.match(/([+-]?\d+)/);
   return match ? '+' + Math.abs(Number(match[1])) : 'DLY';
-}
-
-function normalizeDelayWithUnit(value) {
-  const normalized = normalizeDelay(value);
-  return normalized === 'OK' ? 'OK' : normalized + '分';
 }
 
 function normalizeRemaining(value) {
