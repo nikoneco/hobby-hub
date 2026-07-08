@@ -336,11 +336,11 @@ function drawRoutePanel(frame, config, options) {
 }
 
 function drawBusEndedMessage(frame, y, options) {
-  if (drawMixedText(frame, '本日のバスは', 8, y + 10, COLORS.amber, options)) {
-    drawMixedText(frame, '終わりました！', 4, y + 20, COLORS.amber, options);
+  if (drawMixedText(frame, '本日のバスは', 8, y + 10, COLORS.cyan, options)) {
+    drawMixedText(frame, '終わりました！', 4, y + 20, COLORS.pink, options);
     return;
   }
-  drawText(frame, 'BUS DONE', 8, y + 13, COLORS.amber);
+  drawText(frame, 'BUS DONE', 8, y + 13, COLORS.cyan);
 }
 
 function drawStatusLine(frame, y, status, options) {
