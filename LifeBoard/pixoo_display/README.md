@@ -127,6 +127,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
 
 - Pixoo64 receives a raw 64x64 RGB frame through its local HTTP API.
 - This script intentionally uses only Node.js built-in APIs.
+- If `LifeBoard\misaki_png_2021-05-05a\misaki_gothic.png` exists, the garbage
+  row is rendered with Misaki Gothic bitmap Japanese text. If the font PNG is
+  missing, the display falls back to ASCII labels.
 - Keep NAVITIME fetches on the existing bus-fetch cadence. Pixoo display pushes
   can run every 1 minute because they do not fetch NAVITIME.
 - Windows Task Scheduler repetition is minute-based. A 30 second Pixoo push loop
@@ -138,5 +141,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   tomorrow (`TMR`) so the display helps with the next preparation cycle.
 - Garbage labels are shortened for Pixoo64: burnable garbage is `BURN`,
   non-burnable garbage is `NON`, and recyclables/resource garbage is `RES`.
+- Japanese garbage labels are rendered as compact phrases such as `ゴミ今日可燃`
+  or `ゴミ明日資源`.
 - The display is ASCII-only at 64x64: route labels are shortened to `HOME>STA`
-  and status labels are shortened for legibility.
+  and status labels are shortened for legibility except the garbage row when
+  Misaki Gothic is available.

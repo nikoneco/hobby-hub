@@ -10,6 +10,31 @@ const PIXELS = SIZE * SIZE;
 const DEFAULT_INPUT = path.resolve(__dirname, '..', 'data', 'bus_snapshot.json');
 const DEFAULT_PREVIEW = path.resolve(__dirname, '..', 'data', 'pixoo_preview.svg');
 const DEFAULT_PNG_PREVIEW = path.resolve(__dirname, '..', 'data', 'pixoo_preview_64.png');
+const DEFAULT_MISAKI_GOTHIC = path.resolve(__dirname, '..', 'misaki_png_2021-05-05a', 'misaki_gothic.png');
+
+const MISAKI_KUTEN = {
+  'ゴ': [5, 20],
+  'ミ': [5, 63],
+  '今': [26, 3],
+  '日': [38, 92],
+  '明': [44, 32],
+  '可': [18, 36],
+  '燃': [39, 19],
+  '不': [41, 52],
+  '資': [27, 81],
+  '源': [24, 27],
+  '無': [44, 21],
+  'し': [4, 23],
+  'プ': [5, 55],
+  'ラ': [5, 73],
+  '紙': [27, 70],
+  '缶': [20, 44],
+  'ペ': [5, 58],
+  'ッ': [5, 35],
+  'ト': [5, 40]
+};
+
+let misakiFontCache = null;
 
 const COLORS = {
   black: [0, 0, 0],
@@ -104,6 +129,7 @@ function parseArgs(args) {
     input: process.env.LIFEBOARD_PIXOO_INPUT || DEFAULT_INPUT,
     lifeInput: process.env.LIFEBOARD_PIXOO_LIFE_INPUT || '',
     lifeUrl: process.env.LIFEBOARD_PIXOO_LIFE_URL || process.env.LIFEBOARD_IMPORT_URL || '',
+    fontPng: process.env.LIFEBOARD_PIXOO_FONT_PNG || DEFAULT_MISAKI_GOTHIC,
     preview: process.env.LIFEBOARD_PIXOO_PREVIEW || DEFAULT_PREVIEW,
     pngPreview: process.env.LIFEBOARD_PIXOO_PNG_PREVIEW || '',
     pixooIp: process.env.PIXOO_IP || '',
@@ -120,6 +146,7 @@ function parseArgs(args) {
     else if (arg === '--input') options.input = args[++i];
     else if (arg === '--life-input') options.lifeInput = args[++i];
     else if (arg === '--life-url') options.lifeUrl = args[++i];
+    else if (arg === '--font-png') options.fontPng = args[++i];
     else if (arg === '--preview') options.preview = args[++i];
     else if (arg === '--png-preview') options.pngPreview = args[++i] || DEFAULT_PNG_PREVIEW;
     else if (arg === '--no-preview') options.noPreview = true;
@@ -136,6 +163,9 @@ function parseArgs(args) {
   options.input = path.resolve(options.input);
   if (options.lifeInput) {
     options.lifeInput = path.resolve(options.lifeInput);
+  }
+  if (options.fontPng) {
+    options.fontPng = path.resolve(options.fontPng);
   }
   if (options.preview) {
     options.preview = path.resolve(options.preview);
@@ -217,7 +247,7 @@ function renderLifeBoardFrame(snapshot, lifeData, options) {
   } else {
     drawStatusLine(frame, 40, railStatus);
     drawStatusLine(frame, 48, buildWeatherStatus(lifeData));
-    drawStatusLine(frame, 56, buildGarbageStatus(lifeData));
+    drawStatusLine(frame, 56, buildGarbageStatus(lifeData), options);
   }
 
   return frame;
@@ -249,7 +279,10 @@ function drawRoutePanel(frame, config) {
   }
 }
 
-function drawStatusLine(frame, y, status) {
+function drawStatusLine(frame, y, status, options) {
+  if (status.jpText && drawJapaneseText(frame, status.jpText, 0, y, status.color || COLORS.white, options)) {
+    return;
+  }
   drawText(frame, fitText(status.text, 16), 0, y, status.color || COLORS.white);
 }
 
@@ -349,11 +382,19 @@ function buildGarbageStatus(lifeData) {
     return { text: 'GB ?', color: COLORS.muted };
   }
   const target = chooseGarbageDisplayDay(days);
-  const text = summarizeGarbageDay(target.day);
-  if (text) {
-    return { text: 'GB ' + target.label + ' ' + text, color: target.isTomorrow ? COLORS.cyan : COLORS.amber };
+  const summary = summarizeGarbageDay(target.day);
+  if (summary.text) {
+    return {
+      text: 'GB ' + target.label + ' ' + summary.text,
+      jpText: 'ゴミ' + target.jpLabel + summary.jpText,
+      color: target.isTomorrow ? COLORS.cyan : COLORS.amber
+    };
   }
-  return { text: 'GB ' + target.label + ' NONE', color: COLORS.green };
+  return {
+    text: 'GB ' + target.label + ' NONE',
+    jpText: 'ゴミ' + target.jpLabel + '無し',
+    color: COLORS.green
+  };
 }
 
 function chooseGarbageDisplayDay(days) {
@@ -362,32 +403,87 @@ function chooseGarbageDisplayDay(days) {
   const today = days[0] || null;
   const tomorrow = days[1] || null;
   if (now.getHours() >= switchHour) {
-    return { label: 'TMR', day: tomorrow, isTomorrow: true };
+    return { label: 'TMR', jpLabel: '明日', day: tomorrow, isTomorrow: true };
   }
-  const todayText = summarizeGarbageDay(today);
-  if (todayText || !tomorrow) {
-    return { label: 'TDY', day: today, isTomorrow: false };
+  const todaySummary = summarizeGarbageDay(today);
+  if (todaySummary.text || !tomorrow) {
+    return { label: 'TDY', jpLabel: '今日', day: today, isTomorrow: false };
   }
-  return { label: 'TMR', day: tomorrow, isTomorrow: true };
+  return { label: 'TMR', jpLabel: '明日', day: tomorrow, isTomorrow: true };
 }
 
 function summarizeGarbageDay(day) {
   const items = day && Array.isArray(day.items) ? day.items : [];
-  const labels = Array.from(new Set(items.map((item) => normalizeGarbageLabel(item && item.label)).filter(Boolean)));
-  return labels.slice(0, 2).join('+');
+  const labels = [];
+  items.forEach((item) => {
+    const label = normalizeGarbageLabel(item && item.label);
+    if (label && !labels.some((existing) => existing.text === label.text)) {
+      labels.push(label);
+    }
+  });
+  const limited = labels.slice(0, 2);
+  return {
+    text: limited.map((label) => label.text).join('+'),
+    jpText: limited.map((label) => label.jpText).join('')
+  };
 }
 
 function normalizeGarbageLabel(value) {
   const text = String(value || '');
   if (!text) return '';
-  if (/プラ|plastic/i.test(text)) return 'PLA';
-  if (/ペット|PET/i.test(text)) return 'PET';
-  if (/資源|resource|recycl/i.test(text)) return 'RES';
-  if (/古紙|紙|paper/i.test(text)) return 'PAPER';
-  if (/びん|ビン|瓶|缶|can|bottle/i.test(text)) return 'CAN';
-  if (/不燃|燃やさない|燃えない|non/i.test(text)) return 'NON';
-  if (/可燃|燃やす|燃える|burn|combust/i.test(text)) return 'BURN';
-  return 'ITEM';
+  if (/プラ|plastic/i.test(text)) return { text: 'PLA', jpText: 'プラ' };
+  if (/ペット|PET/i.test(text)) return { text: 'PET', jpText: 'ペット' };
+  if (/資源|resource|recycl/i.test(text)) return { text: 'RES', jpText: '資源' };
+  if (/古紙|紙|paper/i.test(text)) return { text: 'PAPER', jpText: '紙' };
+  if (/びん|ビン|瓶|缶|can|bottle/i.test(text)) return { text: 'CAN', jpText: '缶' };
+  if (/不燃|燃やさない|燃えない|non/i.test(text)) return { text: 'NON', jpText: '不燃' };
+  if (/可燃|燃やす|燃える|burn|combust/i.test(text)) return { text: 'BURN', jpText: '可燃' };
+  return { text: 'ITEM', jpText: '資源' };
+}
+
+function drawJapaneseText(frame, text, x, y, rgb, options) {
+  const font = loadMisakiFont(options && options.fontPng);
+  if (!font) {
+    return false;
+  }
+  let cursor = x;
+  for (const character of String(text || '')) {
+    if (cursor + 8 > SIZE) {
+      break;
+    }
+    const kuten = MISAKI_KUTEN[character];
+    if (!kuten) {
+      cursor += 8;
+      continue;
+    }
+    drawMisakiGlyph(frame, font, kuten[0], kuten[1], cursor, y, rgb);
+    cursor += 8;
+  }
+  return cursor > x;
+}
+
+function drawMisakiGlyph(frame, font, ku, ten, x, y, rgb) {
+  const sourceX = (ten - 1) * 8;
+  const sourceY = (ku - 1) * 8;
+  for (let yy = 0; yy < 8; yy += 1) {
+    for (let xx = 0; xx < 8; xx += 1) {
+      const pixel = getRgbaPixel(font, sourceX + xx, sourceY + yy);
+      if (pixel && pixel[3] > 0 && ((pixel[0] + pixel[1] + pixel[2]) / 3) < 128) {
+        setPixel(frame, x + xx, y + yy, rgb);
+      }
+    }
+  }
+}
+
+function loadMisakiFont(fontPath) {
+  if (!fontPath || !fs.existsSync(fontPath)) {
+    return null;
+  }
+  if (misakiFontCache && misakiFontCache.path === fontPath) {
+    return misakiFontCache;
+  }
+  misakiFontCache = Object.assign({ path: fontPath }, readPngImage(fontPath));
+  return misakiFontCache;
 }
 
 function extractRoundedNumber(value) {
@@ -669,6 +765,170 @@ function writePngPreview(frame, outputPath) {
     pngChunk('IEND', Buffer.alloc(0))
   ];
   fs.writeFileSync(outputPath, Buffer.concat([signature].concat(chunks)));
+}
+
+function readPngImage(inputPath) {
+  const buffer = fs.readFileSync(inputPath);
+  const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  if (!buffer.slice(0, 8).equals(signature)) {
+    throw new Error('Invalid PNG signature: ' + inputPath);
+  }
+  let offset = 8;
+  let width = 0;
+  let height = 0;
+  let bitDepth = 0;
+  let colorType = 0;
+  let palette = null;
+  let transparency = null;
+  const idat = [];
+
+  while (offset < buffer.length) {
+    const length = buffer.readUInt32BE(offset);
+    const type = buffer.slice(offset + 4, offset + 8).toString('ascii');
+    const data = buffer.slice(offset + 8, offset + 8 + length);
+    offset += 12 + length;
+    if (type === 'IHDR') {
+      width = data.readUInt32BE(0);
+      height = data.readUInt32BE(4);
+      bitDepth = data[8];
+      colorType = data[9];
+      if (data[10] !== 0 || data[11] !== 0 || data[12] !== 0) {
+        throw new Error('Unsupported PNG format: ' + inputPath);
+      }
+    } else if (type === 'PLTE') {
+      palette = data;
+    } else if (type === 'tRNS') {
+      transparency = data;
+    } else if (type === 'IDAT') {
+      idat.push(data);
+    } else if (type === 'IEND') {
+      break;
+    }
+  }
+
+  if (bitDepth !== 1 && bitDepth !== 8) {
+    throw new Error('Unsupported PNG bit depth ' + bitDepth + ': ' + inputPath);
+  }
+  const bitsPerPixel = pngBitsPerPixel(colorType, bitDepth);
+  const bytesPerPixel = Math.max(1, Math.ceil(bitsPerPixel / 8));
+  const scanlineLength = Math.ceil(width * bitsPerPixel / 8);
+  const inflated = zlib.inflateSync(Buffer.concat(idat));
+  const rgba = Buffer.alloc(width * height * 4);
+  let sourceOffset = 0;
+  let previous = Buffer.alloc(scanlineLength);
+
+  for (let y = 0; y < height; y += 1) {
+    const filter = inflated[sourceOffset];
+    sourceOffset += 1;
+    const raw = Buffer.from(inflated.slice(sourceOffset, sourceOffset + scanlineLength));
+    sourceOffset += scanlineLength;
+    const row = unfilterPngRow(raw, previous, filter, bytesPerPixel);
+    for (let x = 0; x < width; x += 1) {
+      const pixel = decodePngPixel(row, x, colorType, bitDepth, palette, transparency);
+      const target = ((y * width) + x) * 4;
+      rgba[target] = pixel[0];
+      rgba[target + 1] = pixel[1];
+      rgba[target + 2] = pixel[2];
+      rgba[target + 3] = pixel[3];
+    }
+    previous = row;
+  }
+  return { width, height, rgba };
+}
+
+function pngBytesPerPixel(colorType) {
+  if (colorType === 0) return 1;
+  if (colorType === 2) return 3;
+  if (colorType === 3) return 1;
+  if (colorType === 4) return 2;
+  if (colorType === 6) return 4;
+  throw new Error('Unsupported PNG color type: ' + colorType);
+}
+
+function pngBitsPerPixel(colorType, bitDepth) {
+  if (colorType === 0) return bitDepth;
+  if (colorType === 2) return bitDepth * 3;
+  if (colorType === 3) return bitDepth;
+  if (colorType === 4) return bitDepth * 2;
+  if (colorType === 6) return bitDepth * 4;
+  throw new Error('Unsupported PNG color type: ' + colorType);
+}
+
+function unfilterPngRow(raw, previous, filter, bytesPerPixel) {
+  const row = Buffer.alloc(raw.length);
+  for (let i = 0; i < raw.length; i += 1) {
+    const left = i >= bytesPerPixel ? row[i - bytesPerPixel] : 0;
+    const up = previous[i] || 0;
+    const upLeft = i >= bytesPerPixel ? previous[i - bytesPerPixel] || 0 : 0;
+    let value;
+    if (filter === 0) value = raw[i];
+    else if (filter === 1) value = raw[i] + left;
+    else if (filter === 2) value = raw[i] + up;
+    else if (filter === 3) value = raw[i] + Math.floor((left + up) / 2);
+    else if (filter === 4) value = raw[i] + paethPredictor(left, up, upLeft);
+    else throw new Error('Unsupported PNG filter: ' + filter);
+    row[i] = value & 0xff;
+  }
+  return row;
+}
+
+function paethPredictor(left, up, upLeft) {
+  const estimate = left + up - upLeft;
+  const leftDistance = Math.abs(estimate - left);
+  const upDistance = Math.abs(estimate - up);
+  const upLeftDistance = Math.abs(estimate - upLeft);
+  if (leftDistance <= upDistance && leftDistance <= upLeftDistance) return left;
+  if (upDistance <= upLeftDistance) return up;
+  return upLeft;
+}
+
+function decodePngPixel(row, x, colorType, bitDepth, palette, transparency) {
+  if (colorType === 0) {
+    if (bitDepth === 1) {
+      const byte = row[Math.floor(x / 8)];
+      const bit = (byte >> (7 - (x % 8))) & 1;
+      const value = bit ? 255 : 0;
+      return [value, value, value, 255];
+    }
+    const value = row[x];
+    return [value, value, value, 255];
+  }
+  if (bitDepth !== 8) {
+    throw new Error('Unsupported PNG bit depth/color type combination: ' + bitDepth + '/' + colorType);
+  }
+  if (colorType === 2) {
+    const offset = x * 3;
+    return [row[offset], row[offset + 1], row[offset + 2], 255];
+  }
+  if (colorType === 3) {
+    const index = row[x];
+    const paletteOffset = index * 3;
+    return [
+      palette ? palette[paletteOffset] || 0 : 0,
+      palette ? palette[paletteOffset + 1] || 0 : 0,
+      palette ? palette[paletteOffset + 2] || 0 : 0,
+      transparency && index < transparency.length ? transparency[index] : 255
+    ];
+  }
+  if (colorType === 4) {
+    const offset = x * 2;
+    return [row[offset], row[offset], row[offset], row[offset + 1]];
+  }
+  const offset = x * 4;
+  return [row[offset], row[offset + 1], row[offset + 2], row[offset + 3]];
+}
+
+function getRgbaPixel(image, x, y) {
+  if (!image || x < 0 || y < 0 || x >= image.width || y >= image.height) {
+    return null;
+  }
+  const offset = ((y * image.width) + x) * 4;
+  return [
+    image.rgba[offset],
+    image.rgba[offset + 1],
+    image.rgba[offset + 2],
+    image.rgba[offset + 3]
+  ];
 }
 
 function pngChunk(type, data) {
