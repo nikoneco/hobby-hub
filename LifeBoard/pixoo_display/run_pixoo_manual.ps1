@@ -2,6 +2,7 @@ param(
   [switch]$DryRun,
   [switch]$SkipBusFetch,
   [switch]$NoPreview,
+  [switch]$PngPreview,
   [int]$Brightness = -1
 )
 
@@ -13,6 +14,7 @@ $repoRoot = Resolve-Path (Join-Path $lifeBoardDir '..')
 $busFetcherDir = Join-Path $lifeBoardDir 'bus_fetcher'
 $busScript = Join-Path $busFetcherDir 'sync_bus_snapshot.js'
 $pixooScript = Join-Path $scriptDir 'pixoo_lifeboard.js'
+$pngPreviewPath = Join-Path $lifeBoardDir 'data\pixoo_preview_64.png'
 $localConfig = Join-Path $scriptDir 'pixoo_display.local.ps1'
 $busLocalConfig = Join-Path $busFetcherDir 'bus_fetcher.local.ps1'
 $timeTreeBat = Join-Path $lifeBoardDir 'tools\sync_timetree_calendar.local.bat'
@@ -102,6 +104,10 @@ try {
   }
   if ($NoPreview) {
     $pixooArgs += '--no-preview'
+  }
+  if ($PngPreview) {
+    $pixooArgs += '--png-preview'
+    $pixooArgs += ('"{0}"' -f $pngPreviewPath)
   }
   if ($Brightness -ge 0) {
     $pixooArgs += '--brightness'

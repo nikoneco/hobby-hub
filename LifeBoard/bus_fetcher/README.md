@@ -45,25 +45,6 @@ $env:LIFEBOARD_IMPORT_TOKEN = "your-token"
 $env:LIFEBOARD_IMPORT_URL = "<GAS_WEB_APP_URL>"
 ```
 
-## Optional Pixoo64 output
-
-If `LifeBoard\pixoo_display\pixoo_display.local.ps1` exists and sets
-`PIXOO_IP`, the existing bus fetch task also pushes the latest snapshot to
-Pixoo64 after a successful LifeBoard post.
-
-Example:
-
-```powershell
-$env:PIXOO_IP = "192.168.1.50"
-$env:PIXOO_BRIGHTNESS = "35"
-```
-
-To run the bus fetcher without Pixoo for one manual run:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\bus_fetcher\run_manual.ps1 -NoPixoo
-```
-
 Manual runs append logs to:
 
 ```text

@@ -25,6 +25,7 @@ Example:
 ```powershell
 $env:PIXOO_IP = "192.168.1.50"
 $env:PIXOO_BRIGHTNESS = "35"
+$env:LIFEBOARD_PIXOO_PAGE_SECONDS = "60"
 ```
 
 `run_pixoo_manual.ps1` also reads the existing bus fetcher local config:
@@ -50,10 +51,10 @@ This reads the latest local snapshot and writes:
 LifeBoard\data\pixoo_preview.svg
 ```
 
-To also write an actual 64x64 PNG preview:
+To also write an actual 64x64 PNG preview through the PowerShell runner:
 
 ```powershell
-node .\LifeBoard\pixoo_display\pixoo_lifeboard.js --png-preview .\LifeBoard\data\pixoo_preview_64.png
+powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\run_pixoo_manual.ps1 -DryRun -SkipBusFetch -PngPreview
 ```
 
 ## Fetch bus data and preview
@@ -85,23 +86,53 @@ Manual Pixoo runs append logs to:
 LifeBoard\logs\pixoo_manual.log
 ```
 
-## Existing scheduled task
+## Scheduled task
 
-The existing hidden bus fetcher task runs:
+Pixoo updates should be separate from NAVITIME fetches. Register the hidden
+Pixoo display task with a 1 minute interval:
 
-```text
-LifeBoard\bus_fetcher\run_manual.ps1
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\register_task.ps1
 ```
 
-That runner now also reads `pixoo_display.local.ps1`. If `PIXOO_IP` is set, the
-task pushes the latest frame to Pixoo64 after a successful bus fetch and
-LifeBoard post. If `PIXOO_IP` is not set, it logs a skip and continues normally.
+The task is registered as:
+
+```text
+\LifeBoard\LifeBoard Pixoo Display
+```
+
+It runs `run_hidden.vbs`, which launches:
+
+```text
+run_pixoo_manual.ps1 -SkipBusFetch -NoPreview
+```
+
+So NAVITIME is not fetched by this task. It only reads the latest local
+`bus_snapshot.json`, reads LifeBoard's web API for JR/weather/garbage if
+`LIFEBOARD_IMPORT_URL` is available, and pushes the composed frame to Pixoo64.
+
+To start immediately after registration:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\register_task.ps1 -RunNow
+```
+
+To remove it:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\unregister_task.ps1
+```
 
 ## Notes
 
 - Pixoo64 receives a raw 64x64 RGB frame through its local HTTP API.
 - This script intentionally uses only Node.js built-in APIs.
-- Keep refreshes around the existing bus-fetch cadence, such as 1 to 5 minutes.
-  Pixoo libraries warn against pushing frames more than once per second.
+- Keep NAVITIME fetches on the existing bus-fetch cadence. Pixoo display pushes
+  can run every 1 minute because they do not fetch NAVITIME.
+- Windows Task Scheduler repetition is minute-based. A 30 second Pixoo push loop
+  would need a separate resident loop runner, not the standard task interval.
+- When JR has an issue, the lower 3 rows alternate between the normal
+  `JR/WX/GB` page and a `JR ALERT` page. The alternation interval follows
+  `LIFEBOARD_PIXOO_PAGE_SECONDS`, default `60`.
 - The display is ASCII-only at 64x64: route labels are shortened to `HOME>STA`
-  and `STA>HOME`.
+  and status labels are shortened for legibility.

@@ -1,6 +1,5 @@
 param(
-  [switch]$DryRun,
-  [switch]$NoPixoo
+  [switch]$DryRun
 )
 
 $ErrorActionPreference = 'Stop'
@@ -9,9 +8,6 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Resolve-Path (Join-Path $scriptDir '..\..')
 $nodeScript = Join-Path $scriptDir 'sync_bus_snapshot.js'
 $localConfig = Join-Path $scriptDir 'bus_fetcher.local.ps1'
-$pixooDir = Join-Path $repoRoot 'LifeBoard\pixoo_display'
-$pixooScript = Join-Path $pixooDir 'pixoo_lifeboard.js'
-$pixooLocalConfig = Join-Path $pixooDir 'pixoo_display.local.ps1'
 $timeTreeBat = Join-Path $repoRoot 'LifeBoard\tools\sync_timetree_calendar.local.bat'
 $logDir = Join-Path $repoRoot 'LifeBoard\logs'
 $logPath = Join-Path $logDir 'bus_fetcher_manual.log'
@@ -71,9 +67,6 @@ function Invoke-LoggedNode {
 if (Test-Path -LiteralPath $localConfig) {
   . $localConfig
 }
-if (Test-Path -LiteralPath $pixooLocalConfig) {
-  . $pixooLocalConfig
-}
 
 if (-not $env:LIFEBOARD_IMPORT_TOKEN) {
   $env:LIFEBOARD_IMPORT_TOKEN = Get-BatSetting -Path $timeTreeBat -Name 'LIFEBOARD_IMPORT_TOKEN'
@@ -88,22 +81,6 @@ Push-Location $repoRoot
 try {
   $arguments = ('"{0}" {1}' -f $nodeScript, $modeFlag)
   $exitCode = Invoke-LoggedNode -StepName 'bus-fetch' -Arguments $arguments
-
-  if ($exitCode -eq 0 -and -not $DryRun -and -not $NoPixoo) {
-    if ($env:PIXOO_IP -and (Test-Path -LiteralPath $pixooScript)) {
-      $pixooArgs = @('"{0}"' -f $pixooScript, '--push', '--no-preview')
-      if ($env:PIXOO_BRIGHTNESS) {
-        $pixooArgs += '--brightness'
-        $pixooArgs += $env:PIXOO_BRIGHTNESS
-      }
-      $pixooExitCode = Invoke-LoggedNode -StepName 'pixoo-push' -Arguments ($pixooArgs -join ' ')
-      if ($pixooExitCode -ne 0) {
-        $exitCode = $pixooExitCode
-      }
-    } else {
-      Add-Content -Path $logPath -Encoding UTF8 -Value ('[{0}] Skip Pixoo push: PIXOO_IP is not set.' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))
-    }
-  }
 } catch {
   Add-Content -Path $logPath -Encoding UTF8 -Value ('[{0}] ERROR {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $_.Exception.Message)
   $exitCode = 1
