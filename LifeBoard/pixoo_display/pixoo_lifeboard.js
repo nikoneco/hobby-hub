@@ -29,6 +29,14 @@ const MISAKI_KUTEN = {
   'ミ': [5, 63],
   '今': [26, 3],
   '日': [38, 92],
+  '本': [43, 60],
+  'の': [4, 46],
+  'は': [4, 47],
+  '終': [29, 10],
+  'わ': [4, 79],
+  'ま': [4, 62],
+  'た': [4, 31],
+  '！': [1, 10],
   '明': [44, 32],
   '可': [18, 36],
   '燃': [39, 19],
@@ -296,6 +304,11 @@ function drawRoutePanel(frame, config, options) {
     drawMixedText(frame, config.workStatus.mixedText, workX, config.y, config.workStatus.color || COLORS.blue, options);
   }
 
+  if (!item && config.route && Array.isArray(config.route.items)) {
+    drawBusEndedMessage(frame, config.y, options);
+    return;
+  }
+
   if (!item) {
     drawText(frame, 'NO DATA', 6, config.y + 11, COLORS.amber, 2);
     return;
@@ -320,6 +333,14 @@ function drawRoutePanel(frame, config, options) {
       drawText(frame, 'NXT ' + shortTime(next.predictedDepartureText || next.scheduledDepartureText), 30, config.y + 22, COLORS.white);
     }
   }
+}
+
+function drawBusEndedMessage(frame, y, options) {
+  if (drawMixedText(frame, '本日のバスは', 8, y + 10, COLORS.amber, options)) {
+    drawMixedText(frame, '終わりました！', 4, y + 20, COLORS.amber, options);
+    return;
+  }
+  drawText(frame, 'BUS DONE', 8, y + 13, COLORS.amber);
 }
 
 function drawStatusLine(frame, y, status, options) {

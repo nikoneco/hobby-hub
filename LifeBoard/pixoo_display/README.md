@@ -151,6 +151,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   active work is pink, and leave/off/10H states are blue.
 - The main bus time shows the scheduled departure time. Delay and remaining
   time are shown separately, such as `19:42 +2 / 3M`.
+- When the home-to-station route has no remaining bus items for the day, the
+  bus panel shows `本日のバスは` / `終わりました！`.
 - Weather (`WX`) shows today's high temperature and a compact Japanese weather
   label, such as `WX 30C 雨`. The label is rounded to `晴れ`, `くもり`, `雨`,
   `強雨`, or `雪`.
