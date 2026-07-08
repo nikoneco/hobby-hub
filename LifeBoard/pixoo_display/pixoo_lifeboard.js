@@ -35,7 +35,12 @@ const MISAKI_KUTEN = {
   '晴': [32, 18],
   '雨': [17, 11],
   '雲': [17, 32],
-  '雪': [32, 67]
+  '雪': [32, 67],
+  'れ': [4, 76],
+  'く': [4, 15],
+  'も': [4, 66],
+  'り': [4, 74],
+  '強': [22, 15]
 };
 
 let misakiFontCache = null;
@@ -377,14 +382,17 @@ function normalizeWeatherGlyph(location) {
   if (/snow|雪/.test(text)) {
     return { ascii: 'SNOW', jpText: '雪', color: COLORS.white };
   }
+  if (/heavy|storm|thunder|強|大雨|激し|雷/.test(text)) {
+    return { ascii: 'HEAVY', jpText: '強雨', color: COLORS.red };
+  }
   if (/rain|storm|shower|雨|傘|折|雷/.test(text)) {
     return { ascii: 'RAIN', jpText: '雨', color: COLORS.amber };
   }
   if (/cloud|fog|雲|くもり|曇/.test(text)) {
-    return { ascii: 'CLOUD', jpText: '雲', color: COLORS.muted };
+    return { ascii: 'CLOUD', jpText: 'くもり', color: COLORS.muted };
   }
   if (/clear|晴|快晴/.test(text)) {
-    return { ascii: 'SUN', jpText: '晴', color: COLORS.blue };
+    return { ascii: 'SUN', jpText: '晴れ', color: COLORS.blue };
   }
   return { ascii: '?', jpText: '', color: COLORS.muted };
 }

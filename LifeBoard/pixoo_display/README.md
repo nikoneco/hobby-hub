@@ -138,7 +138,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   `JR/WX/GB` page and a `JR ALERT` page. The alternation interval follows
   `LIFEBOARD_PIXOO_PAGE_SECONDS`, default `60`.
 - Weather (`WX`) shows today's high temperature and a compact Japanese weather
-  glyph, such as `WX 30C 雨`. The glyph is rounded to `晴`, `雨`, `雲`, or `雪`.
+  label, such as `WX 30C 雨`. The label is rounded to `晴れ`, `くもり`, `雨`,
+  `強雨`, or `雪`.
 - Garbage (`GB`) shows today (`TDY`) before 09:00. From 09:00 onward, it shows
   tomorrow (`TMR`) so the display helps with the next preparation cycle.
 - Garbage labels are shortened for Pixoo64: burnable garbage is `BURN`,
