@@ -157,6 +157,7 @@ function parseArgs(args) {
     pixooIp: process.env.PIXOO_IP || '',
     brightness: process.env.PIXOO_BRIGHTNESS ? Number(process.env.PIXOO_BRIGHTNESS) : '',
     pageIntervalSeconds: process.env.LIFEBOARD_PIXOO_PAGE_SECONDS ? Number(process.env.LIFEBOARD_PIXOO_PAGE_SECONDS) : 60,
+    animateBusBar: process.env.LIFEBOARD_PIXOO_ANIMATE_BUS_BAR === '1',
     push: false,
     noPreview: false,
     help: false
@@ -176,6 +177,7 @@ function parseArgs(args) {
     else if (arg === '--pixoo-ip') options.pixooIp = args[++i];
     else if (arg === '--brightness') options.brightness = Number(args[++i]);
     else if (arg === '--page-seconds') options.pageIntervalSeconds = Number(args[++i]);
+    else if (arg === '--animate-bus-bar') options.animateBusBar = true;
     else throw new Error('Unknown argument: ' + arg);
   }
 
@@ -244,7 +246,7 @@ function readSnapshot(inputPath) {
 }
 
 function renderLifeBoardFrames(snapshot, lifeData, options) {
-  if (!hasApproachingBus(snapshot)) {
+  if (!options.animateBusBar || !hasApproachingBus(snapshot)) {
     return [renderLifeBoardFrame(snapshot, lifeData, options)];
   }
   return [
@@ -1207,7 +1209,7 @@ function printSummary(snapshot, lifeData, options) {
     preview: options.preview || null,
     pngPreview: options.pngPreview || null,
     pixooIp: options.push ? options.pixooIp : null,
-    animationFrames: hasApproachingBus(snapshot) ? 2 : 1,
+    animationFrames: options.animateBusBar && hasApproachingBus(snapshot) ? 2 : 1,
     generatedAt: snapshot.generatedAt || '',
     status: {
       rail: rail.text,
@@ -1249,7 +1251,7 @@ function printHelp() {
     '  --page-seconds N    Alternation interval for the lower Pixoo page.',
     '',
     'Environment:',
-    '  PIXOO_IP, PIXOO_BRIGHTNESS, LIFEBOARD_IMPORT_URL, LIFEBOARD_PIXOO_INPUT, LIFEBOARD_PIXOO_LIFE_INPUT, LIFEBOARD_PIXOO_LIFE_URL, LIFEBOARD_PIXOO_PAGE_SECONDS, LIFEBOARD_PIXOO_PREVIEW, LIFEBOARD_PIXOO_PNG_PREVIEW'
+    '  PIXOO_IP, PIXOO_BRIGHTNESS, LIFEBOARD_IMPORT_URL, LIFEBOARD_PIXOO_INPUT, LIFEBOARD_PIXOO_LIFE_INPUT, LIFEBOARD_PIXOO_LIFE_URL, LIFEBOARD_PIXOO_PAGE_SECONDS, LIFEBOARD_PIXOO_ANIMATE_BUS_BAR, LIFEBOARD_PIXOO_PREVIEW, LIFEBOARD_PIXOO_PNG_PREVIEW'
   ].join('\n'));
 }
 
