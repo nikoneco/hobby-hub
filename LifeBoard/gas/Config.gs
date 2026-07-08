@@ -1,7 +1,9 @@
 const CONFIG = {
   APP_NAME: 'LifeBoard',
   TIMEZONE: 'Asia/Tokyo',
-  SPREADSHEET_ID: '1-vYY2ekc3UCz8_QKYpR4dXUt2uQ9y6gJRLM_Qccrcg0',
+  PROPERTIES: {
+    SPREADSHEET_ID: 'LIFEBOARD_SPREADSHEET_ID'
+  },
   SHEETS: {
     BUS_ROUTES: 'bus_routes',
     BUS_SNAPSHOTS: 'bus_snapshots',
@@ -131,3 +133,26 @@ const CONFIG = {
     ]
   }
 };
+
+function getScriptProperty_(key) {
+  return PropertiesService.getScriptProperties().getProperty(key);
+}
+
+function getRequiredScriptProperty_(key) {
+  const value = getScriptProperty_(key);
+  if (!value) {
+    throw new Error('Script Property is not configured: ' + key);
+  }
+  return value;
+}
+
+function setScriptProperty_(key, value) {
+  PropertiesService.getScriptProperties().setProperty(key, value);
+}
+
+function assertPrivateMutationAllowed_() {
+  const enabled = String(getScriptProperty_('ALLOW_PRIVATE_MUTATIONS') || '').toLowerCase();
+  if (enabled !== 'true') {
+    throw new Error('Private mutation APIs are disabled for the public web app.');
+  }
+}

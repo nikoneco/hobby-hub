@@ -6,7 +6,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const DEFAULT_ICS_PATH = 'C:\\Users\\aqua_\\my_calendar.ics';
-const DEFAULT_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxgGdT-E3xm8XKNklnKwzPDxkE4kXHt-xh1n0eOlTST6APtbbZ4jOAJ_kw_BIGLbg_jxg/exec';
+const DEFAULT_WEB_APP_URL = '';
 
 function main() {
   const options = parseArgs(process.argv.slice(2));

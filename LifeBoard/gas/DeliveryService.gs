@@ -181,6 +181,7 @@ function stripDeliveryInternalFields_(item) {
 }
 
 function authorizeDeliveryAccess() {
+  assertPrivateMutationAllowed_();
   GmailApp.search('newer_than:1d', 0, 1);
   return {
     ok: true,

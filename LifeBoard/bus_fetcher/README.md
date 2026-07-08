@@ -42,7 +42,7 @@ Example:
 
 ```powershell
 $env:LIFEBOARD_IMPORT_TOKEN = "your-token"
-$env:LIFEBOARD_IMPORT_URL = "https://script.google.com/macros/s/.../exec"
+$env:LIFEBOARD_IMPORT_URL = "<GAS_WEB_APP_URL>"
 ```
 
 Manual runs append logs to:

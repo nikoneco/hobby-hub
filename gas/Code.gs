@@ -3,12 +3,6 @@ function doGet(e) {
     return handleWebAppJsonpRequest_(e.parameter.api, e.parameter);
   }
 
-  if (e && e.parameter && e.parameter.action === 'setup') {
-    return ContentService
-      .createTextOutput(JSON.stringify(setupProject()))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-
   const template = HtmlService.createTemplateFromFile('index');
   template.bootstrapJson = JSON.stringify(getClientBootstrap_());
   return template
@@ -33,6 +27,7 @@ function getClientBootstrap_() {
 
 function setupProject() {
   return safeRun_('setupProject', function () {
+    assertPrivateMutationAllowed_();
     return setupProject_();
   });
 }

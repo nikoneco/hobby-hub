@@ -73,9 +73,9 @@ function buildStudyModule_() {
     display_order: 1,
     icon: 'book-open',
     target_url: app.WEB_APP_URL,
-    app_folder_id: app.FOLDER_ID,
-    script_id: app.SCRIPT_ID,
-    db_spreadsheet_id: app.DB_SPREADSHEET_ID
+    app_folder_id: '',
+    script_id: '',
+    db_spreadsheet_id: ''
   };
 }
 
@@ -121,8 +121,8 @@ function buildIzakayaScoutModule_() {
     display_order: app.DISPLAY_ORDER,
     icon: app.ICON,
     target_url: app.WEB_APP_URL,
-    app_folder_id: app.FOLDER_ID,
-    script_id: app.SCRIPT_ID,
+    app_folder_id: '',
+    script_id: '',
     db_spreadsheet_id: ''
   };
 }

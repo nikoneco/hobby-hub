@@ -1,5 +1,11 @@
 .clasprc.json
+.clasp.json
+**/.clasp.json
 LOCAL_URLS.md
+.env
+.env.*
+*.local
+secrets.*
 node_modules/
 data/*.csv
 data/*.xlsx

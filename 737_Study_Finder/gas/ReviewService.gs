@@ -1,4 +1,5 @@
 function addToReviewQueue(payload) {
+  assertPrivateMutationAllowed_();
   const spreadsheet = openStudySpreadsheet_();
   const sheet = getSheet_(spreadsheet, 'review_queue');
   const review = {
@@ -28,6 +29,7 @@ function getReviewQueue() {
 }
 
 function markReviewed(reviewId) {
+  assertPrivateMutationAllowed_();
   const spreadsheet = openStudySpreadsheet_();
   const sheet = getSheet_(spreadsheet, 'review_queue');
   return updateObjectById_(sheet, 'review_id', reviewId, {

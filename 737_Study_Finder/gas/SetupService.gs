@@ -132,15 +132,15 @@ const STUDY_SCHEMA = {
 function getSetupStatus() {
   return {
     study737DbId: getScriptProperty_(CONFIG.PROPERTIES.STUDY737_DB_ID) || '',
-    study737FolderId: CONFIG.DRIVE.STUDY737_FOLDER_ID
+    study737FolderId: getScriptProperty_(CONFIG.PROPERTIES.STUDY737_FOLDER_ID) || ''
   };
 }
 
 function setupProject_() {
-  setScriptProperty_(CONFIG.PROPERTIES.STUDY737_FOLDER_ID, CONFIG.DRIVE.STUDY737_FOLDER_ID);
+  const folderId = getRequiredScriptProperty_(CONFIG.PROPERTIES.STUDY737_FOLDER_ID);
 
   const study = ensureSpreadsheetInFolder_(
-    CONFIG.DRIVE.STUDY737_FOLDER_ID,
+    folderId,
     CONFIG.SPREADSHEETS.STUDY737_DB_TITLE
   );
   setScriptProperty_(CONFIG.PROPERTIES.STUDY737_DB_ID, study.getId());

@@ -9,6 +9,7 @@ const DAILY_STATION_TEXT_MAX_BYTES_ = 300;
 
 function checkSwitchBotSetup() {
   const result = safeRun_('checkSwitchBotSetup', function () {
+    assertPrivateMutationAllowed_();
     const properties = PropertiesService.getScriptProperties();
     return {
       tokenConfigured: !!properties.getProperty(SWITCHBOT_PROPERTY_NAMES_.TOKEN),
@@ -24,6 +25,7 @@ function checkSwitchBotSetup() {
 
 function listSwitchBotDevices() {
   const result = safeRun_('listSwitchBotDevices', function () {
+    assertPrivateMutationAllowed_();
     const response = switchBotRequest_('/devices', 'get');
     const body = response.body || {};
     const devices = (body.deviceList || []).map(formatSwitchBotDevice_);
@@ -40,6 +42,7 @@ function listSwitchBotDevices() {
 
 function setDailyStationDeviceId(deviceId) {
   const result = safeRun_('setDailyStationDeviceId', function () {
+    assertPrivateMutationAllowed_();
     const normalized = String(deviceId || '').trim();
     if (!normalized) {
       throw new Error('deviceId is required');
@@ -58,6 +61,7 @@ function setDailyStationDeviceId(deviceId) {
 
 function testDailyStationText(text) {
   const result = safeRun_('testDailyStationText', function () {
+    assertPrivateMutationAllowed_();
     return sendDailyStationText_(text || buildDailyStationProbeText_());
   });
   console.log(JSON.stringify(result, null, 2));
@@ -66,6 +70,7 @@ function testDailyStationText(text) {
 
 function testDailyStationTextWithTime() {
   const result = safeRun_('testDailyStationTextWithTime', function () {
+    assertPrivateMutationAllowed_();
     const timeText = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'M/d H:mm:ss');
     return sendDailyStationText_('LifeBoardテスト ' + timeText + ' | 自動折り返し確認');
   });
@@ -75,6 +80,7 @@ function testDailyStationTextWithTime() {
 
 function testDailyStationTransitSample() {
   const result = safeRun_('testDailyStationTransitSample', function () {
+    assertPrivateMutationAllowed_();
     const timeText = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'H:mm:ss');
     return sendDailyStationText_('JR山手線 朝ラッシュ:通常運行 通勤予想42分 | バス 始発6:00 終発22:30 現在:3駅先 | 更新' + timeText);
   });
@@ -84,6 +90,7 @@ function testDailyStationTransitSample() {
 
 function testDailyStationQuote(text) {
   const result = safeRun_('testDailyStationQuote', function () {
+    assertPrivateMutationAllowed_();
     return sendDailyStationCommand_('customQuote', text || buildDailyStationProbeText_());
   });
   console.log(JSON.stringify(result, null, 2));
@@ -92,6 +99,7 @@ function testDailyStationQuote(text) {
 
 function cancelDailyStationCustomText() {
   const result = safeRun_('cancelDailyStationCustomText', function () {
+    assertPrivateMutationAllowed_();
     return sendDailyStationCommand_('cancelCustom', 'default');
   });
   console.log(JSON.stringify(result, null, 2));
@@ -100,6 +108,7 @@ function cancelDailyStationCustomText() {
 
 function clearDailyStationPage() {
   const result = safeRun_('clearDailyStationPage', function () {
+    assertPrivateMutationAllowed_();
     return sendDailyStationCommand_('customPage', '', { allowEmpty: true });
   });
   console.log(JSON.stringify(result, null, 2));
@@ -108,6 +117,7 @@ function clearDailyStationPage() {
 
 function getDailyStationStatus() {
   const result = safeRun_('getDailyStationStatus', function () {
+    assertPrivateMutationAllowed_();
     const deviceId = getSwitchBotScriptProperty_(SWITCHBOT_PROPERTY_NAMES_.DAILY_STATION_DEVICE_ID);
     return switchBotRequest_('/devices/' + encodeURIComponent(deviceId) + '/status', 'get');
   });

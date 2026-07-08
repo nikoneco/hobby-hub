@@ -3,22 +3,6 @@ function doGet(e) {
     return handleWebAppJsonpRequest_(e.parameter.api, e.parameter);
   }
 
-  if (e && e.parameter && e.parameter.action === 'setup') {
-    return ContentService
-      .createTextOutput(JSON.stringify(setupProject()))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-  if (e && e.parameter && e.parameter.action === 'importAta24') {
-    return ContentService
-      .createTextOutput(JSON.stringify(importPreparedAta24Data()))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-  if (e && e.parameter && e.parameter.action === 'importAta') {
-    return ContentService
-      .createTextOutput(JSON.stringify(importPreparedAtaData(e.parameter.ata || '24')))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-
   const template = HtmlService.createTemplateFromFile('index');
   template.bootstrapJson = JSON.stringify(getClientBootstrap_());
   return template
@@ -43,6 +27,7 @@ function getClientBootstrap_() {
 
 function setupProject() {
   return safeRun_('setupProject', function () {
+    assertPrivateMutationAllowed_();
     return setupProject_();
   });
 }
@@ -79,24 +64,28 @@ function apiBuildReviewPrompt(questionId) {
 
 function apiSaveAnswerNote(payload) {
   return safeRun_('apiSaveAnswerNote', function () {
+    assertPrivateMutationAllowed_();
     return saveAnswerNote(payload || {});
   });
 }
 
 function apiUpdateAnswerNote(noteId, payload) {
   return safeRun_('apiUpdateAnswerNote', function () {
+    assertPrivateMutationAllowed_();
     return updateAnswerNote(noteId, payload || {});
   });
 }
 
 function apiSaveConfirmedAnswer(payload) {
   return safeRun_('apiSaveConfirmedAnswer', function () {
+    assertPrivateMutationAllowed_();
     return saveConfirmedAnswer(payload || {});
   });
 }
 
 function apiImportCsv(payload) {
   return safeRun_('apiImportCsv', function () {
+    assertPrivateMutationAllowed_();
     return importCsvText(payload || {});
   });
 }
@@ -110,6 +99,7 @@ function apiImportPreparedAta32Data() {
 }
 
 function apiImportPreparedAtaData(ata) {
+  assertPrivateMutationAllowed_();
   return importPreparedAtaData(ata || '24');
 }
 

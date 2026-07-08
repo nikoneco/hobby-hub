@@ -4,7 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const DEFAULT_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxgGdT-E3xm8XKNklnKwzPDxkE4kXHt-xh1n0eOlTST6APtbbZ4jOAJ_kw_BIGLbg_jxg/exec';
+const DEFAULT_WEB_APP_URL = '';
 const API_BASE_URL = 'https://transfer-cloud.navitime.biz/apiv1/keiseibus-group/busstops/approachings';
 const PAGE_BASE_URL = 'https://transfer-cloud.navitime.biz/keiseibus-group/approachings';
 const MAX_ITEMS_PER_ROUTE = 3;

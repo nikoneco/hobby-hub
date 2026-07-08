@@ -1,5 +1,5 @@
 function openLifeBoardSpreadsheet_() {
-  return SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
+  return SpreadsheetApp.openById(getRequiredScriptProperty_(CONFIG.PROPERTIES.SPREADSHEET_ID));
 }
 
 function getSheetByName_(spreadsheet, sheetName) {

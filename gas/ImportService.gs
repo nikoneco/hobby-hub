@@ -12,6 +12,7 @@ const IMPORTABLE_STUDY_SHEETS = [
 ];
 
 function importCsvText(payload) {
+  assertPrivateMutationAllowed_();
   const sheetName = payload.sheet_name || payload.sheetName;
   const csvText = normalizeCsvText_(payload.csv_text || payload.csvText || '');
   const mode = payload.mode || 'replace';
@@ -52,6 +53,7 @@ function importCsvText(payload) {
 }
 
 function importTextbookPagesFromRows(rows) {
+  assertPrivateMutationAllowed_();
   const spreadsheet = openStudySpreadsheet_();
   const sheet = getSheet_(spreadsheet, 'textbook_pages');
   rows.forEach(function (row) {
@@ -61,6 +63,7 @@ function importTextbookPagesFromRows(rows) {
 }
 
 function importQuestionsFromRows(rows) {
+  assertPrivateMutationAllowed_();
   const spreadsheet = openStudySpreadsheet_();
   const sheet = getSheet_(spreadsheet, 'question_bank');
   rows.forEach(function (row) {

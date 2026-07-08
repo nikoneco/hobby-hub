@@ -3,9 +3,6 @@ function doGet(e) {
     return handleWebAppJsonpRequest_(e.parameter.api, e.parameter);
   }
 
-  if (e && e.parameter && e.parameter.action === 'setupCalendarImportToken') {
-    return handleCalendarTokenSetupGet_(e);
-  }
   const template = HtmlService.createTemplateFromFile('index');
   template.bootstrapJson = JSON.stringify(getClientBootstrap_());
   return template
@@ -31,7 +28,6 @@ function include(filename) {
 
 function getClientBootstrap_() {
   return safeRun_('getClientBootstrap_', function () {
-    setupBusTimetableSheet();
     return {
       appName: CONFIG.APP_NAME,
       busRoutes: getBusRoutes_(),
@@ -44,7 +40,6 @@ function getClientBootstrap_() {
 
 function apiGetLifeBoardData() {
   return safeRun_('apiGetLifeBoardData', function () {
-    setupBusTimetableSheet();
     return {
       bus: getBusSnapshot_(),
       rail: getRailSnapshot_(),

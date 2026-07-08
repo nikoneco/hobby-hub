@@ -248,6 +248,7 @@ function jsonOutput_(payload) {
 }
 
 function setCalendarImportToken(token) {
+  assertPrivateMutationAllowed_();
   if (!token) {
     throw new Error('token is required');
   }

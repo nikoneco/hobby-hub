@@ -19,15 +19,15 @@ const MASTER_SCHEMA = {
 function getSetupStatus() {
   return {
     hobbyHubMasterId: getScriptProperty_(CONFIG.PROPERTIES.HOBBY_HUB_MASTER_ID) || '',
-    hobbyHubFolderId: CONFIG.DRIVE.HOBBY_HUB_FOLDER_ID
+    hobbyHubFolderId: getScriptProperty_(CONFIG.PROPERTIES.HOBBY_HUB_FOLDER_ID) || ''
   };
 }
 
 function setupProject_() {
-  setScriptProperty_(CONFIG.PROPERTIES.HOBBY_HUB_FOLDER_ID, CONFIG.DRIVE.HOBBY_HUB_FOLDER_ID);
+  const folderId = getRequiredScriptProperty_(CONFIG.PROPERTIES.HOBBY_HUB_FOLDER_ID);
 
   const master = ensureSpreadsheetInFolder_(
-    CONFIG.DRIVE.HOBBY_HUB_FOLDER_ID,
+    folderId,
     CONFIG.SPREADSHEETS.HOBBY_HUB_MASTER_TITLE
   );
   setScriptProperty_(CONFIG.PROPERTIES.HOBBY_HUB_MASTER_ID, master.getId());

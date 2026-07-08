@@ -447,6 +447,7 @@ function pad2_(value) {
 }
 
 function setupBusTimetableSheet() {
+  assertPrivateMutationAllowed_();
   const spreadsheet = openLifeBoardSpreadsheet_();
   const sheet = getOrCreateSheet_(spreadsheet, CONFIG.SHEETS.BUS_TIMETABLE);
   if (sheet.getLastRow() === 0) {

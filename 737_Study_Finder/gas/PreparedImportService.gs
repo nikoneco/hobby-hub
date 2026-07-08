@@ -1,14 +1,17 @@
 function importPreparedAtaData(ata) {
   return safeRun_('importPreparedAtaData', function () {
+    assertPrivateMutationAllowed_();
     return importPreparedAtaData_(ata || '24');
   });
 }
 
 function importPreparedAta24Data() {
+  assertPrivateMutationAllowed_();
   return importPreparedAtaData('24');
 }
 
 function importPreparedAtaData_(ata) {
+  assertPrivateMutationAllowed_();
   const ataValue = normalizeAtaKey_(ata);
   if (!ataValue) {
     throw new Error('ATA is required.');

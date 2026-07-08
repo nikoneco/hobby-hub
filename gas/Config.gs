@@ -1,25 +1,23 @@
 const CONFIG = {
   APP_NAME: '趣味HUB',
-  DRIVE: {
-    APP_DEVELOPMENT_FOLDER_ID: '1BuqpoZrJ7Gs5IRNN6MYMi8FPbAdyC_Gl',
-    HOBBY_HUB_FOLDER_ID: '1SwPwcWiMtferxSYN_22EXbescxpTOukQ'
-  },
   SPREADSHEETS: {
     HOBBY_HUB_MASTER_TITLE: 'HobbyHub_Master'
   },
   PROPERTIES: {
     HOBBY_HUB_MASTER_ID: 'HOBBY_HUB_MASTER_ID',
-    HOBBY_HUB_FOLDER_ID: 'HOBBY_HUB_FOLDER_ID'
+    HOBBY_HUB_FOLDER_ID: 'HOBBY_HUB_FOLDER_ID',
+    STUDY737_FOLDER_ID: 'STUDY737_FOLDER_ID',
+    STUDY737_SCRIPT_ID: 'STUDY737_SCRIPT_ID',
+    STUDY737_DB_ID: 'STUDY737_DB_ID',
+    IZAKAYA_SCOUT_FOLDER_ID: 'IZAKAYA_SCOUT_FOLDER_ID',
+    IZAKAYA_SCOUT_SCRIPT_ID: 'IZAKAYA_SCOUT_SCRIPT_ID'
   },
   APPS: {
     STUDY737: {
       MODULE_ID: 'study737',
       NAME: '737 Study Finder',
       DESCRIPTION: '737-800の学習ノートと問題検索',
-      WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbzPwkINDY--2PUYQg5xGoPDtkCLYvGoItobfEJocINxBFviRzcCrxb7Iu5lylirQ7tLOg/exec',
-      FOLDER_ID: '1173fD2V7ftdfXSdo1HAeLIaiKQL5H4pX',
-      SCRIPT_ID: '1qOkLEui2ZCfWIAEsW7AW7v4ZwZFl8K1i6UtWG1_LaayRR4eFf6DLM1K-',
-      DB_SPREADSHEET_ID: '11YODNUHgln3dL_wADeR7va4EfAltIzY68lQxNGvBpto'
+      WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbzPwkINDY--2PUYQg5xGoPDtkCLYvGoItobfEJocINxBFviRzcCrxb7Iu5lylirQ7tLOg/exec'
     },
     ROOM_LIBRARY: {
       MODULE_ID: 'room_library',
@@ -42,8 +40,6 @@ const CONFIG = {
       NAME: '居酒屋Scout',
       DESCRIPTION: '場所と気分から、今夜の居酒屋候補を3つに絞る',
       WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbwzeUjS7KakeQJbJNE83WupMhVT9Qid2gWHh-9jw0hepywdAE5Y5RIgPEUcCnEFEOE/exec',
-      FOLDER_ID: '1o5UTjEEwogCUxdVL7vEL0bqdBaeAHFwz',
-      SCRIPT_ID: '1Q_h7s1zPIiyC7vSq5o9_a_5H1giDsmLzGQTYYrD8QR4R7BkOaPWMw9NP',
       ICON: 'map',
       DISPLAY_ORDER: 4
     }
@@ -58,6 +54,21 @@ function getScriptProperty_(key) {
   return PropertiesService.getScriptProperties().getProperty(key);
 }
 
+function getRequiredScriptProperty_(key) {
+  const value = getScriptProperty_(key);
+  if (!value) {
+    throw new Error('Script Property is not configured: ' + key);
+  }
+  return value;
+}
+
 function setScriptProperty_(key, value) {
   PropertiesService.getScriptProperties().setProperty(key, value);
+}
+
+function assertPrivateMutationAllowed_() {
+  const enabled = String(getScriptProperty_('ALLOW_PRIVATE_MUTATIONS') || '').toLowerCase();
+  if (enabled !== 'true') {
+    throw new Error('Private mutation APIs are disabled for the public web app.');
+  }
 }

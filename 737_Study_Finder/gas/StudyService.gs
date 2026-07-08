@@ -90,6 +90,7 @@ function getRandomQuestionDetail(filters) {
 }
 
 function saveAnswerNote(payload) {
+  assertPrivateMutationAllowed_();
   const spreadsheet = openStudySpreadsheet_();
   const sheet = getSheet_(spreadsheet, 'answer_notes');
   if (!payload.question_id) {
@@ -114,6 +115,7 @@ function saveAnswerNote(payload) {
 }
 
 function updateAnswerNote(noteId, payload) {
+  assertPrivateMutationAllowed_();
   if (!noteId) {
     throw new Error('note_id is required.');
   }
@@ -137,6 +139,7 @@ function updateAnswerNote(noteId, payload) {
 }
 
 function saveConfirmedAnswer(payload) {
+  assertPrivateMutationAllowed_();
   const spreadsheet = openStudySpreadsheet_();
   const sheet = getSheet_(spreadsheet, 'confirmed_answers');
   if (!payload.question_id) {
@@ -160,11 +163,13 @@ function saveConfirmedAnswer(payload) {
 }
 
 function holdQuestion(questionId) {
+  assertPrivateMutationAllowed_();
   updateQuestionStatus(questionId, CONFIG.STATUS.HOLD);
   return true;
 }
 
 function updateQuestionStatus(questionId, status, confirmedAnswerId) {
+  assertPrivateMutationAllowed_();
   const spreadsheet = openStudySpreadsheet_();
   const sheet = getSheet_(spreadsheet, 'question_bank');
   const patch = {
