@@ -38,8 +38,12 @@
     "target_url": "./izakaya-scout/"
   }
 ];
+  window.hobbyHubOpenModuleUrl = (url) => {
+    window.location.assign(url);
+  };
   const pageTargets = {
     study737: './737-study-finder/',
+    room_library: './room-library/',
     izakaya_scout: './izakaya-scout/',
     lifeboard: './lifeboard/'
   };

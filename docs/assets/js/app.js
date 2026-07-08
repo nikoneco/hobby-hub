@@ -34,12 +34,18 @@ const app = document.getElementById('app');
         '</span>'
       ].join('');
       if (hasUrl) {
-        button.addEventListener('click', () => {
-          window.open(module.target_url, '_blank', 'noopener');
-        });
+        button.addEventListener('click', () => openModuleUrl(module.target_url));
       }
       root.appendChild(button);
     });
+  }
+
+  function openModuleUrl(url) {
+    if (typeof window.hobbyHubOpenModuleUrl === 'function') {
+      window.hobbyHubOpenModuleUrl(url);
+      return;
+    }
+    window.open(url, '_blank', 'noopener');
   }
 
   function getIconLabel(module) {
