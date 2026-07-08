@@ -7,6 +7,7 @@ const zlib = require('zlib');
 
 const SIZE = 64;
 const PIXELS = SIZE * SIZE;
+const BUS_DEPARTURE_GRACE_MS = 2 * 60 * 1000;
 const DEFAULT_INPUT = path.resolve(__dirname, '..', 'data', 'bus_snapshot.json');
 const DEFAULT_PREVIEW = path.resolve(__dirname, '..', 'data', 'pixoo_preview.svg');
 const DEFAULT_PNG_PREVIEW = path.resolve(__dirname, '..', 'data', 'pixoo_preview_64.png');
@@ -293,7 +294,8 @@ function renderLifeBoardFrame(snapshot, lifeData, options) {
 }
 
 function drawRoutePanel(frame, config, options) {
-  const item = firstItem(config.route);
+  const items = getDisplayBusItems(config.route);
+  const item = items[0] || null;
   const barColor = options && options.busBarBlinkOn === false ? COLORS.dim : config.accent;
   drawRect(frame, 0, config.y, 1, 29, barColor);
   if (!drawJapaneseText(frame, 'バス', 3, config.y, config.accent, options)) {
@@ -317,13 +319,13 @@ function drawRoutePanel(frame, config, options) {
   const scheduledTime = shortTime(item.scheduledDepartureText || item.predictedDepartureText || '--:--');
   const delay = normalizeDelay(item.delayText);
   const delayColor = delay === 'OK' ? COLORS.green : COLORS.amber;
-  const remaining = normalizeRemaining(item.remainingMinutes);
+  const remaining = normalizeRemaining(item.adjustedRemainingMinutes);
   const location = normalizeLocation(item.previousStops, item.locationText);
-  const next = nextItem(config.route);
+  const next = items[1] || null;
 
   drawText(frame, scheduledTime, 4, config.y + 9, COLORS.white, 2);
   drawText(frame, delay, 45, config.y + 9, delayColor);
-  drawText(frame, remaining, 48, config.y + 16, remainingColor(item.remainingMinutes));
+  drawText(frame, remaining, 48, config.y + 16, remainingColor(item.adjustedRemainingMinutes));
   if (!drawMixedText(frame, location, 4, config.y + 22, COLORS.cyan, options)) {
     drawText(frame, location, 4, config.y + 22, COLORS.cyan);
   }
@@ -752,20 +754,50 @@ function fitText(value, maxChars) {
   return text.length > maxChars ? text.slice(0, maxChars) : text;
 }
 
-function firstItem(route) {
-  const items = route && Array.isArray(route.items) ? route.items : [];
-  return items[0] || null;
+function getDisplayBusItems(route) {
+  if (!route || !Array.isArray(route.items)) {
+    return [];
+  }
+  const countdownBaseAt = route.countdownBaseAt || route.sourceUpdatedAt || '';
+  return route.items
+    .filter((item) => !isBusExpired(item, countdownBaseAt))
+    .map((item) => Object.assign({}, item, {
+      adjustedRemainingMinutes: adjustRemainingMinutes(item.remainingMinutes, countdownBaseAt)
+    }));
 }
 
-function nextItem(route) {
-  const items = route && Array.isArray(route.items) ? route.items : [];
-  return items[1] || null;
+function adjustRemainingMinutes(baseMinutes, countdownBaseAt) {
+  const minutes = Number(baseMinutes);
+  if (!Number.isFinite(minutes)) {
+    return baseMinutes;
+  }
+  const baseMs = Date.parse(countdownBaseAt || '');
+  const elapsedMinutes = Number.isFinite(baseMs) ? Math.max(0, Math.floor((Date.now() - baseMs) / 60000)) : 0;
+  return Math.max(0, Math.round(minutes - elapsedMinutes));
+}
+
+function isBusExpired(item, countdownBaseAt) {
+  const expiresAt = getBusExpiresAt(item, countdownBaseAt);
+  return Number.isFinite(expiresAt) && Date.now() > expiresAt;
+}
+
+function getBusExpiresAt(item, countdownBaseAt) {
+  const departureMs = Date.parse(item && (item.predictedDepartureTime || item.scheduledDepartureTime) || '');
+  if (Number.isFinite(departureMs)) {
+    return departureMs + BUS_DEPARTURE_GRACE_MS;
+  }
+  const baseMinutes = Number(item && item.remainingMinutes);
+  const baseMs = Date.parse(countdownBaseAt || '');
+  if (Number.isFinite(baseMinutes) && Number.isFinite(baseMs)) {
+    return baseMs + (baseMinutes * 60 * 1000) + BUS_DEPARTURE_GRACE_MS;
+  }
+  return null;
 }
 
 function hasApproachingBus(snapshot) {
   const routes = Array.isArray(snapshot && snapshot.routes) ? snapshot.routes : [];
   const home = routes.find((route) => route.routeId === 'home_to_station') || routes[0] || null;
-  const item = firstItem(home);
+  const item = getDisplayBusItems(home)[0] || null;
   if (!item) {
     return false;
   }
@@ -1253,14 +1285,14 @@ function printSummary(snapshot, lifeData, options) {
       garbage: garbage.text
     },
     routes: routes.map((route) => {
-      const item = firstItem(route);
+      const item = getDisplayBusItems(route)[0] || null;
       return {
         routeId: route.routeId,
         label: route.label,
         first: item ? {
           time: item.predictedDepartureText || item.scheduledDepartureText || '',
           delay: item.delayText || '',
-          remaining: item.remainingText || '',
+          remaining: normalizeRemaining(item.adjustedRemainingMinutes),
           location: item.locationText || ''
         } : null
       };
