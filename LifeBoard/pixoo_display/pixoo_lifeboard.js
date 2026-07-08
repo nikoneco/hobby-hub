@@ -255,7 +255,6 @@ function renderLifeBoardFrame(snapshot, lifeData, options) {
   if (stale) {
     drawText(frame, 'OLD', 38, 0, COLORS.amber);
   }
-  drawLine(frame, 0, 6, 63, 6, COLORS.dim);
 
   drawRoutePanel(frame, {
     y: 8,
@@ -263,7 +262,6 @@ function renderLifeBoardFrame(snapshot, lifeData, options) {
     route: home,
     workStatus
   }, options);
-  drawLine(frame, 0, 37, 63, 37, COLORS.dim);
   if (railStatus.issue && isAlternatePageDue(options.pageIntervalSeconds)) {
     drawRailAlertPage(frame, railStatus);
   } else {
