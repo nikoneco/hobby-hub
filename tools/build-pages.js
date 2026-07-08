@@ -5,6 +5,7 @@ const zlib = require('zlib');
 const ROOT = path.resolve(__dirname, '..');
 const DOCS = path.join(ROOT, 'docs');
 const PAGES_BASE = '/hobby-hub/';
+const BUILD_VERSION = '20260708-startup-fix';
 
 const APPS = [
   {
@@ -149,9 +150,9 @@ function buildApp(app) {
     '<link rel="stylesheet" href="./assets/css/pwa.css">'
   ].join('\n    '));
   html = html.replace(/<\?!=\s*include\('script'\);\s*\?>/g, [
-    '<script src="./assets/js/gas-run-shim.js"></script>',
-    '<script src="./assets/js/app.js"></script>',
-    '<script src="./assets/js/pwa-client.js"></script>'
+    '<script src="./assets/js/gas-run-shim.js?v=' + BUILD_VERSION + '"></script>',
+    '<script src="./assets/js/app.js?v=' + BUILD_VERSION + '"></script>',
+    '<script src="./assets/js/pwa-client.js?v=' + BUILD_VERSION + '"></script>'
   ].join('\n    '));
   html = html.replace(/data-bootstrap='\s*<\?=\s*bootstrapJson\s*;?\s*\?>'/g, "data-bootstrap='" + escapeAttr(JSON.stringify(app.bootstrap)) + "'");
   html = html.replace(/<\/head>/i, [
@@ -196,6 +197,7 @@ function writeSharedPwaFiles() {
 function buildGasRunShim(app) {
   return `(() => {
   const GAS_ENDPOINT = ${JSON.stringify(app.gasEndpoint)};
+  const STATIC_RESPONSES = ${JSON.stringify(buildStaticResponses(app), null, 2)};
   let requestSeq = 0;
 
   function encodeArgs(args) {
@@ -207,6 +209,13 @@ function buildGasRunShim(app) {
   }
 
   function callJsonp(method, args, successHandler, failureHandler) {
+    if (Object.prototype.hasOwnProperty.call(STATIC_RESPONSES, method)) {
+      window.setTimeout(() => {
+        if (successHandler) successHandler(STATIC_RESPONSES[method]);
+      }, 0);
+      return;
+    }
+
     const callbackName = '__gasJsonp_' + Date.now() + '_' + (++requestSeq);
     const script = document.createElement('script');
     const timeout = window.setTimeout(() => {
@@ -257,6 +266,20 @@ function buildGasRunShim(app) {
 })();`;
 }
 
+function buildStaticResponses(app) {
+  if (app.pwaMode !== 'hub') {
+    return {};
+  }
+  const modulesResponse = {
+    ok: true,
+    data: app.bootstrap.data.modules
+  };
+  return {
+    modules: modulesResponse,
+    apiGetModules: modulesResponse
+  };
+}
+
 function buildPwaClient(app) {
   return `(() => {
   document.documentElement.classList.add('is-pages-pwa', 'pwa-${app.pwaMode}');
@@ -275,7 +298,8 @@ function buildPwaClient(app) {
 
 function buildModeScript(app) {
   if (app.pwaMode === 'hub') {
-    return `const pageTargets = {
+    return `const staticModules = ${JSON.stringify(app.bootstrap.data.modules, null, 2)};
+  const pageTargets = {
     study737: './737-study-finder/',
     izakaya_scout: './izakaya-scout/',
     lifeboard: './lifeboard/'
@@ -288,6 +312,7 @@ function buildModeScript(app) {
         return target ? Object.assign({}, module, { target_url: target }) : module;
       }));
     };
+    window.renderModules(staticModules);
   }
   document.querySelectorAll('#setupButton, .admin-tools').forEach((element) => {
     element.hidden = true;
@@ -366,7 +391,7 @@ function buildOfflineHtml() {
 }
 
 function buildServiceWorker() {
-  const cacheName = 'hobby-hub-pwa-' + Date.now();
+  const cacheName = 'hobby-hub-pwa-' + BUILD_VERSION;
   const urls = [
     PAGES_BASE,
     PAGES_BASE + 'index.html',

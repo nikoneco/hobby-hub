@@ -1,5 +1,43 @@
 (() => {
   document.documentElement.classList.add('is-pages-pwa', 'pwa-hub');
+  const staticModules = [
+  {
+    "module_id": "study737",
+    "module_name": "737 Study Finder",
+    "description": "737-800の学習ノートと問題検索",
+    "enabled": true,
+    "display_order": 1,
+    "icon": "book-open",
+    "target_url": "./737-study-finder/"
+  },
+  {
+    "module_id": "room_library",
+    "module_name": "趣味部屋図書館",
+    "description": "本と資料を眺める趣味部屋の図書館",
+    "enabled": true,
+    "display_order": 2,
+    "icon": "library",
+    "target_url": "https://nikoneco.github.io/hobby-room-library-PWA/"
+  },
+  {
+    "module_id": "lifeboard",
+    "module_name": "LifeBoard",
+    "description": "朝のバス、天気、電車状況をまとめて確認",
+    "enabled": true,
+    "display_order": 3,
+    "icon": "morning",
+    "target_url": "./lifeboard/"
+  },
+  {
+    "module_id": "izakaya_scout",
+    "module_name": "居酒屋Scout",
+    "description": "場所と気分から、今夜の居酒屋候補を3つに絞る",
+    "enabled": true,
+    "display_order": 4,
+    "icon": "map",
+    "target_url": "./izakaya-scout/"
+  }
+];
   const pageTargets = {
     study737: './737-study-finder/',
     izakaya_scout: './izakaya-scout/',
@@ -13,6 +51,7 @@
         return target ? Object.assign({}, module, { target_url: target }) : module;
       }));
     };
+    window.renderModules(staticModules);
   }
   document.querySelectorAll('#setupButton, .admin-tools').forEach((element) => {
     element.hidden = true;

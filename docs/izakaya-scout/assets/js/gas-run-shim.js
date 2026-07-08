@@ -1,5 +1,6 @@
 (() => {
   const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwzeUjS7KakeQJbJNE83WupMhVT9Qid2gWHh-9jw0hepywdAE5Y5RIgPEUcCnEFEOE/exec";
+  const STATIC_RESPONSES = {};
   let requestSeq = 0;
 
   function encodeArgs(args) {
@@ -11,6 +12,13 @@
   }
 
   function callJsonp(method, args, successHandler, failureHandler) {
+    if (Object.prototype.hasOwnProperty.call(STATIC_RESPONSES, method)) {
+      window.setTimeout(() => {
+        if (successHandler) successHandler(STATIC_RESPONSES[method]);
+      }, 0);
+      return;
+    }
+
     const callbackName = '__gasJsonp_' + Date.now() + '_' + (++requestSeq);
     const script = document.createElement('script');
     const timeout = window.setTimeout(() => {
