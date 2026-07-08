@@ -359,18 +359,18 @@ function buildWorkStatus(lifeData) {
     return null;
   }
   if (todayShift === '/') {
-    return { mixedText: '明け', color: COLORS.green };
+    return { mixedText: '明け', color: COLORS.blue };
   }
   if (todayShift === 'H') {
-    return { mixedText: '休日', color: COLORS.green };
+    return { mixedText: '休日', color: COLORS.blue };
   }
   if (todayShift === 'AL' || todayShift === 'SV') {
-    return { mixedText: '勤 有給', color: COLORS.green };
+    return { mixedText: '有給', color: COLORS.blue };
   }
   if (todayShift === '10H') {
-    return { mixedText: '勤 10H', color: COLORS.blue };
+    return { mixedText: '10H', color: COLORS.blue };
   }
-  return { mixedText: todayShift + '勤', color: COLORS.blue };
+  return { mixedText: todayShift + '勤', color: COLORS.green };
 }
 
 function collectCalendarEvents(calendar) {

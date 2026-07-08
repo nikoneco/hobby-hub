@@ -147,8 +147,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
 - The bus panel header is rendered as `バス` when Misaki Gothic is available.
   If LifeBoard calendar data contains a TimeTree work symbol for today, a short
   work marker is shown beside it, such as `D勤`, `D勤中`, `明け`, `休日`,
-  `勤 有給`, or `勤 10H`. The marker is right-aligned; regular work is blue,
-  active work is pink, and off/leave states are green.
+  `有給`, or `10H`. The marker is right-aligned; regular work is green,
+  active work is pink, and leave/off/10H states are blue.
 - The main bus time shows the scheduled departure time. Delay and remaining
   time are shown separately, such as `19:42 +2 / 3M`.
 - Weather (`WX`) shows today's high temperature and a compact Japanese weather
