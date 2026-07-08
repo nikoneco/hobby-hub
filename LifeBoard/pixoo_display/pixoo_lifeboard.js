@@ -275,7 +275,7 @@ function renderLifeBoardFrame(snapshot, lifeData, options) {
     route: home,
     workStatus
   }, options);
-  if (railStatus.issue && isAlternatePageDue(options.pageIntervalSeconds)) {
+  if (railStatus.issue) {
     drawRailAlertPage(frame, railStatus);
   } else {
     drawStatusLine(frame, 40, railStatus);
@@ -458,12 +458,6 @@ function addDays(date, days) {
   const copy = new Date(date.getTime());
   copy.setDate(copy.getDate() + days);
   return copy;
-}
-
-function isAlternatePageDue(pageIntervalSeconds) {
-  const seconds = Number(pageIntervalSeconds);
-  const interval = Number.isFinite(seconds) && seconds >= 15 ? seconds : 60;
-  return Math.floor(Date.now() / (interval * 1000)) % 2 === 1;
 }
 
 function buildRailStatus(lifeData) {
