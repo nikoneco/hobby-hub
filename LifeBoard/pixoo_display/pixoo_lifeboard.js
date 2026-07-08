@@ -31,7 +31,11 @@ const MISAKI_KUTEN = {
   '缶': [20, 44],
   'ペ': [5, 58],
   'ッ': [5, 35],
-  'ト': [5, 40]
+  'ト': [5, 40],
+  '晴': [32, 18],
+  '雨': [17, 11],
+  '雲': [17, 32],
+  '雪': [32, 67]
 };
 
 let misakiFontCache = null;
@@ -246,7 +250,7 @@ function renderLifeBoardFrame(snapshot, lifeData, options) {
     drawRailAlertPage(frame, railStatus);
   } else {
     drawStatusLine(frame, 40, railStatus);
-    drawStatusLine(frame, 48, buildWeatherStatus(lifeData));
+    drawStatusLine(frame, 48, buildWeatherStatus(lifeData), options);
     drawStatusLine(frame, 56, buildGarbageStatus(lifeData), options);
   }
 
@@ -280,6 +284,9 @@ function drawRoutePanel(frame, config) {
 }
 
 function drawStatusLine(frame, y, status, options) {
+  if (status.mixedText && drawMixedText(frame, status.mixedText, 0, y, status.color || COLORS.white, options)) {
+    return;
+  }
   if (status.jpText && drawJapaneseText(frame, status.jpText, 0, y, status.color || COLORS.white, options)) {
     return;
   }
@@ -350,30 +357,36 @@ function buildWeatherStatus(lifeData) {
   if (!location) {
     return { text: 'WX ?', color: COLORS.muted };
   }
-  const temp = extractRoundedNumber(location.temperatureText);
-  const advice = normalizeUmbrellaText(location.umbrellaText);
+  const high = extractHighTemperature(location.highLowText);
+  const temp = high === '' ? extractRoundedNumber(location.temperatureText) : high;
+  const weather = normalizeWeatherGlyph(location);
   const tempText = temp === '' ? '--C' : String(temp) + 'C';
   return {
-    text: 'WX ' + tempText + ' ' + advice.label,
-    color: advice.color
+    text: 'WX ' + tempText + ' ' + weather.ascii,
+    mixedText: temp === '' ? '' : 'WX ' + temp + 'C ' + weather.jpText,
+    color: weather.color
   };
 }
 
-function normalizeUmbrellaText(value) {
-  const text = String(value || '');
-  if (text.indexOf('不要') >= 0 || text.toUpperCase().indexOf('NONE') >= 0) {
-    return { label: 'CLEAR', color: COLORS.blue };
+function normalizeWeatherGlyph(location) {
+  const weatherClass = String(location && location.weatherClass || '').toLowerCase();
+  const status = String(location && location.statusText || '');
+  const nowcast = String(location && location.rainNowcast && location.rainNowcast.rainNowcastText || '');
+  const umbrella = String(location && location.umbrellaText || '');
+  const text = [weatherClass, status, nowcast, umbrella].join(' ');
+  if (/snow|雪/.test(text)) {
+    return { ascii: 'SNOW', jpText: '雪', color: COLORS.white };
   }
-  if (text.indexOf('折') >= 0) {
-    return { label: 'FOLD', color: COLORS.amber };
+  if (/rain|storm|shower|雨|傘|折|雷/.test(text)) {
+    return { ascii: 'RAIN', jpText: '雨', color: COLORS.amber };
   }
-  if (text.indexOf('傘') >= 0 || text.indexOf('雨具') >= 0 || text.indexOf('雨') >= 0) {
-    return { label: 'RAIN', color: COLORS.amber };
+  if (/cloud|fog|雲|くもり|曇/.test(text)) {
+    return { ascii: 'CLOUD', jpText: '雲', color: COLORS.muted };
   }
-  if (text.indexOf('不可') >= 0 || text === '-') {
-    return { label: '?', color: COLORS.muted };
+  if (/clear|晴|快晴/.test(text)) {
+    return { ascii: 'SUN', jpText: '晴', color: COLORS.blue };
   }
-  return { label: 'WX', color: COLORS.white };
+  return { ascii: '?', jpText: '', color: COLORS.muted };
 }
 
 function buildGarbageStatus(lifeData) {
@@ -462,6 +475,38 @@ function drawJapaneseText(frame, text, x, y, rgb, options) {
   return cursor > x;
 }
 
+function drawMixedText(frame, text, x, y, rgb, options) {
+  const font = loadMisakiFont(options && options.fontPng);
+  if (!font) {
+    return false;
+  }
+  let cursor = x;
+  for (const character of String(text || '')) {
+    const kuten = MISAKI_KUTEN[character];
+    if (kuten) {
+      if (cursor + 8 > SIZE) {
+        break;
+      }
+      drawMisakiGlyph(frame, font, kuten[0], kuten[1], cursor, y, rgb);
+      cursor += 8;
+      continue;
+    }
+    const glyph = FONT_3X5[String(character).toUpperCase()];
+    if (glyph) {
+      if (cursor + 3 > SIZE) {
+        break;
+      }
+      drawText(frame, character, cursor, y + 1, rgb);
+      cursor += 4;
+      continue;
+    }
+    if (character === ' ') {
+      cursor += 2;
+    }
+  }
+  return cursor > x;
+}
+
 function drawMisakiGlyph(frame, font, ku, ten, x, y, rgb) {
   const sourceX = (ten - 1) * 8;
   const sourceY = (ku - 1) * 8;
@@ -492,6 +537,15 @@ function extractRoundedNumber(value) {
     return '';
   }
   return Math.round(Number(match[0]));
+}
+
+function extractHighTemperature(value) {
+  const text = String(value || '');
+  const numbers = text.match(/-?\d+(?:\.\d+)?/g);
+  if (!numbers || !numbers.length) {
+    return '';
+  }
+  return Math.round(Number(numbers[numbers.length - 1]));
 }
 
 function fitText(value, maxChars) {

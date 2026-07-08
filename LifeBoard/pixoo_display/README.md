@@ -128,8 +128,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
 - Pixoo64 receives a raw 64x64 RGB frame through its local HTTP API.
 - This script intentionally uses only Node.js built-in APIs.
 - If `LifeBoard\misaki_png_2021-05-05a\misaki_gothic.png` exists, the garbage
-  row is rendered with Misaki Gothic bitmap Japanese text. If the font PNG is
-  missing, the display falls back to ASCII labels.
+  row and the weather glyph are rendered with Misaki Gothic bitmap Japanese text.
+  If the font PNG is missing, the display falls back to ASCII labels.
 - Keep NAVITIME fetches on the existing bus-fetch cadence. Pixoo display pushes
   can run every 1 minute because they do not fetch NAVITIME.
 - Windows Task Scheduler repetition is minute-based. A 30 second Pixoo push loop
@@ -137,6 +137,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
 - When JR has an issue, the lower 3 rows alternate between the normal
   `JR/WX/GB` page and a `JR ALERT` page. The alternation interval follows
   `LIFEBOARD_PIXOO_PAGE_SECONDS`, default `60`.
+- Weather (`WX`) shows today's high temperature and a compact Japanese weather
+  glyph, such as `WX 30C 雨`. The glyph is rounded to `晴`, `雨`, `雲`, or `雪`.
 - Garbage (`GB`) shows today (`TDY`) before 09:00. From 09:00 onward, it shows
   tomorrow (`TMR`) so the display helps with the next preparation cycle.
 - Garbage labels are shortened for Pixoo64: burnable garbage is `BURN`,
