@@ -126,20 +126,21 @@ async function main() {
 
   const snapshot = readSnapshot(options.input);
   const lifeData = await readLifeBoardData(options);
-  const frame = renderLifeBoardFrame(snapshot, lifeData, options);
+  const frames = renderLifeBoardFrames(snapshot, lifeData, options);
+  const previewFrame = frames[0];
 
   if (options.preview) {
-    writeSvgPreview(frame, options.preview);
+    writeSvgPreview(previewFrame, options.preview);
   }
   if (options.pngPreview) {
-    writePngPreview(frame, options.pngPreview);
+    writePngPreview(previewFrame, options.pngPreview);
   }
 
   if (options.push) {
     if (!options.pixooIp) {
       throw new Error('PIXOO_IP or --pixoo-ip is required when using --push');
     }
-    await pushFrameToPixoo(options.pixooIp, frame, options);
+    await pushFrameToPixoo(options.pixooIp, frames, options);
   }
 
   printSummary(snapshot, lifeData, options);
@@ -242,6 +243,16 @@ function readSnapshot(inputPath) {
   return JSON.parse(fs.readFileSync(inputPath, 'utf8'));
 }
 
+function renderLifeBoardFrames(snapshot, lifeData, options) {
+  if (!hasApproachingBus(snapshot)) {
+    return [renderLifeBoardFrame(snapshot, lifeData, options)];
+  }
+  return [
+    renderLifeBoardFrame(snapshot, lifeData, Object.assign({}, options, { busBarBlinkOn: true })),
+    renderLifeBoardFrame(snapshot, lifeData, Object.assign({}, options, { busBarBlinkOn: false }))
+  ];
+}
+
 function renderLifeBoardFrame(snapshot, lifeData, options) {
   const frame = createFrame(COLORS.black);
   const routes = Array.isArray(snapshot.routes) ? snapshot.routes : [];
@@ -275,7 +286,8 @@ function renderLifeBoardFrame(snapshot, lifeData, options) {
 
 function drawRoutePanel(frame, config, options) {
   const item = firstItem(config.route);
-  drawRect(frame, 0, config.y, 1, 24, config.accent);
+  const barColor = options && options.busBarBlinkOn === false ? COLORS.dim : config.accent;
+  drawRect(frame, 0, config.y, 1, 29, barColor);
   if (!drawJapaneseText(frame, 'バス', 3, config.y, config.accent, options)) {
     drawText(frame, 'BUS', 3, config.y, config.accent);
   }
@@ -713,6 +725,19 @@ function nextItem(route) {
   return items[1] || null;
 }
 
+function hasApproachingBus(snapshot) {
+  const routes = Array.isArray(snapshot && snapshot.routes) ? snapshot.routes : [];
+  const home = routes.find((route) => route.routeId === 'home_to_station') || routes[0] || null;
+  const item = firstItem(home);
+  if (!item) {
+    return false;
+  }
+  if (item.previousStops !== '' && item.previousStops != null && !Number.isNaN(Number(item.previousStops))) {
+    return true;
+  }
+  return /接近中|approach/i.test(String(item.locationText || ''));
+}
+
 function shortTime(value) {
   const match = String(value || '').match(/(\d{1,2}):(\d{2})/);
   return match ? pad2(match[1]) + ':' + match[2] : '--:--';
@@ -860,8 +885,9 @@ function clamp(value) {
   return Math.max(0, Math.min(255, Math.round(Number(value) || 0)));
 }
 
-async function pushFrameToPixoo(ipAddress, frame, options) {
+async function pushFrameToPixoo(ipAddress, frames, options) {
   const baseUrl = 'http://' + ipAddress.replace(/^https?:\/\//, '').replace(/\/.*$/, '') + '/post';
+  const frameList = Array.isArray(frames) ? frames : [frames];
   if (options.brightness !== '' && !Number.isNaN(options.brightness)) {
     await postPixoo(baseUrl, {
       Command: 'Channel/SetBrightness',
@@ -881,15 +907,28 @@ async function pushFrameToPixoo(ipAddress, frame, options) {
     picId = 1;
   }
 
-  await postPixoo(baseUrl, {
+  const payload = {
     Command: 'Draw/SendHttpGif',
-    PicNum: 1,
+    PicNum: frameList.length,
     PicWidth: SIZE,
     PicOffset: 0,
     PicID: picId,
-    PicSpeed: 1000,
-    PicData: frame.toString('base64')
-  });
+    PicSpeed: frameList.length > 1 ? 1200 : 1000,
+    PicData: Buffer.concat(frameList).toString('base64')
+  };
+  try {
+    await postPixoo(baseUrl, payload);
+  } catch (error) {
+    if (frameList.length <= 1) {
+      throw error;
+    }
+    console.warn('Pixoo animation push failed; retrying as a static frame: ' + (error && error.message ? error.message : String(error)));
+    await postPixoo(baseUrl, Object.assign({}, payload, {
+      PicNum: 1,
+      PicSpeed: 1000,
+      PicData: frameList[0].toString('base64')
+    }));
+  }
 }
 
 async function postPixoo(url, payload) {
@@ -1168,6 +1207,7 @@ function printSummary(snapshot, lifeData, options) {
     preview: options.preview || null,
     pngPreview: options.pngPreview || null,
     pixooIp: options.push ? options.pixooIp : null,
+    animationFrames: hasApproachingBus(snapshot) ? 2 : 1,
     generatedAt: snapshot.generatedAt || '',
     status: {
       rail: rail.text,

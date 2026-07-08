@@ -126,6 +126,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
 ## Notes
 
 - Pixoo64 receives a raw 64x64 RGB frame through its local HTTP API.
+- When the home-to-station bus has approaching data, the Pixoo payload uses a
+  2-frame animation so the left bus bar blinks slowly. Otherwise it sends a
+  single static frame. If the animated push fails, the runner retries once with
+  a static frame.
 - This script intentionally uses only Node.js built-in APIs.
 - If `LifeBoard\misaki_png_2021-05-05a\misaki_gothic.png` exists, the garbage
   row and the weather glyph are rendered with Misaki Gothic bitmap Japanese text.
