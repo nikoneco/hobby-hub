@@ -345,20 +345,30 @@ function normalizeUmbrellaText(value) {
 
 function buildGarbageStatus(lifeData) {
   const days = lifeData && lifeData.garbage && Array.isArray(lifeData.garbage.days) ? lifeData.garbage.days : [];
-  const today = days[0] || null;
-  const tomorrow = days[1] || null;
-  const todayText = summarizeGarbageDay(today);
-  if (todayText) {
-    return { text: 'GB T ' + todayText, color: COLORS.amber };
-  }
-  const tomorrowText = summarizeGarbageDay(tomorrow);
-  if (tomorrowText) {
-    return { text: 'GB M ' + tomorrowText, color: COLORS.cyan };
-  }
   if (!days.length) {
     return { text: 'GB ?', color: COLORS.muted };
   }
-  return { text: 'GB NONE', color: COLORS.green };
+  const target = chooseGarbageDisplayDay(days);
+  const text = summarizeGarbageDay(target.day);
+  if (text) {
+    return { text: 'GB ' + target.label + ' ' + text, color: target.isTomorrow ? COLORS.cyan : COLORS.amber };
+  }
+  return { text: 'GB ' + target.label + ' NONE', color: COLORS.green };
+}
+
+function chooseGarbageDisplayDay(days) {
+  const now = new Date();
+  const switchHour = 9;
+  const today = days[0] || null;
+  const tomorrow = days[1] || null;
+  if (now.getHours() >= switchHour) {
+    return { label: 'TMR', day: tomorrow, isTomorrow: true };
+  }
+  const todayText = summarizeGarbageDay(today);
+  if (todayText || !tomorrow) {
+    return { label: 'TDY', day: today, isTomorrow: false };
+  }
+  return { label: 'TMR', day: tomorrow, isTomorrow: true };
 }
 
 function summarizeGarbageDay(day) {
@@ -372,11 +382,11 @@ function normalizeGarbageLabel(value) {
   if (!text) return '';
   if (/プラ|plastic/i.test(text)) return 'PLA';
   if (/ペット|PET/i.test(text)) return 'PET';
-  if (/資源|resource/i.test(text)) return 'RES';
+  if (/資源|resource|recycl/i.test(text)) return 'RES';
   if (/古紙|紙|paper/i.test(text)) return 'PAPER';
   if (/びん|ビン|瓶|缶|can|bottle/i.test(text)) return 'CAN';
-  if (/不燃|燃やさない|non/i.test(text)) return 'NON';
-  if (/可燃|燃やす|燃える|burn/i.test(text)) return 'BURN';
+  if (/不燃|燃やさない|燃えない|non/i.test(text)) return 'NON';
+  if (/可燃|燃やす|燃える|burn|combust/i.test(text)) return 'BURN';
   return 'ITEM';
 }
 

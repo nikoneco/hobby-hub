@@ -134,5 +134,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
 - When JR has an issue, the lower 3 rows alternate between the normal
   `JR/WX/GB` page and a `JR ALERT` page. The alternation interval follows
   `LIFEBOARD_PIXOO_PAGE_SECONDS`, default `60`.
+- Garbage (`GB`) shows today (`TDY`) before 09:00. From 09:00 onward, it shows
+  tomorrow (`TMR`) so the display helps with the next preparation cycle.
+- Garbage labels are shortened for Pixoo64: burnable garbage is `BURN`,
+  non-burnable garbage is `NON`, and recyclables/resource garbage is `RES`.
 - The display is ASCII-only at 64x64: route labels are shortened to `HOME>STA`
   and status labels are shortened for legibility.
