@@ -534,20 +534,23 @@ function normalizeWeatherGlyph(location) {
   const status = String(location && location.statusText || '');
   const nowcast = String(location && location.rainNowcast && location.rainNowcast.rainNowcastText || '');
   const umbrella = String(location && location.umbrellaText || '');
-  const text = [weatherClass, status, nowcast, umbrella].join(' ');
-  if (/snow|雪/.test(text)) {
+  const outlook = String(location && location.rainOutlook && location.rainOutlook.outlookText || '');
+  const positiveRainText = [status, nowcast, umbrella, outlook]
+    .filter((value) => !/雨なし|雨雲なし|雨予報なし|雨具不要|不要|なし/.test(value))
+    .join(' ');
+  if (/snow|雪/.test(weatherClass + ' ' + status)) {
     return { ascii: 'SNOW', jpText: '雪', color: COLORS.white };
   }
-  if (/heavy|storm|thunder|強|大雨|激し|雷/.test(text)) {
+  if (/heavy|storm|thunder/.test(weatherClass) || /強|大雨|激し|雷/.test(positiveRainText)) {
     return { ascii: 'HEAVY', jpText: '強雨', color: COLORS.red };
   }
-  if (/rain|storm|shower|雨|傘|折|雷/.test(text)) {
+  if (/rain|storm|shower/.test(weatherClass) || /雨|傘|折|雷/.test(positiveRainText)) {
     return { ascii: 'RAIN', jpText: '雨', color: COLORS.amber };
   }
-  if (/cloud|fog|雲|くもり|曇/.test(text)) {
+  if (/cloud|fog/.test(weatherClass) || /雲|くもり|曇/.test(status)) {
     return { ascii: 'CLOUD', jpText: 'くもり', color: COLORS.muted };
   }
-  if (/clear|晴|快晴/.test(text)) {
+  if (/clear/.test(weatherClass) || /晴|快晴/.test(status)) {
     return { ascii: 'SUN', jpText: '晴れ', color: COLORS.blue };
   }
   return { ascii: '?', jpText: '', color: COLORS.muted };
