@@ -26,7 +26,6 @@ const MISAKI_KUTEN = {
   '駅': [17, 56],
   '前': [33, 16],
   '分': [42, 12],
-  '後': [24, 69],
   'ゴ': [5, 20],
   'ミ': [5, 63],
   '今': [26, 3],
@@ -307,7 +306,7 @@ function drawRoutePanel(frame, config, options) {
   const scheduledTime = shortTime(item.scheduledDepartureText || item.predictedDepartureText || '--:--');
   const delay = normalizeDelayWithUnit(item.delayText);
   const delayColor = delay === 'OK' ? COLORS.green : COLORS.amber;
-  const remaining = normalizeRemainingJapanese(item.remainingMinutes);
+  const remaining = normalizeRemaining(item.remainingMinutes);
   const location = normalizeLocation(item.previousStops, item.locationText);
   const next = nextItem(config.route);
 
@@ -315,9 +314,7 @@ function drawRoutePanel(frame, config, options) {
   if (!drawMixedText(frame, delay, 43, config.y + 9, delayColor, options)) {
     drawText(frame, fitText(delay, 5), 43, config.y + 10, delayColor);
   }
-  if (!drawMixedText(frame, remaining, 36, config.y + 16, remainingColor(item.remainingMinutes), options)) {
-    drawText(frame, normalizeRemaining(item.remainingMinutes), 45, config.y + 16, remainingColor(item.remainingMinutes));
-  }
+  drawText(frame, remaining, 48, config.y + 16, remainingColor(item.remainingMinutes));
   if (!drawMixedText(frame, location, 4, config.y + 22, COLORS.cyan, options)) {
     drawText(frame, location, 4, config.y + 22, COLORS.cyan);
   }
@@ -774,17 +771,6 @@ function normalizeRemaining(value) {
     return '99M';
   }
   return String(minutes) + 'M';
-}
-
-function normalizeRemainingJapanese(value) {
-  if (value === '' || value == null || Number.isNaN(Number(value))) {
-    return '--分後';
-  }
-  const minutes = Math.max(0, Math.round(Number(value)));
-  if (minutes >= 100) {
-    return '99分後';
-  }
-  return minutes + '分後';
 }
 
 function remainingColor(value) {
