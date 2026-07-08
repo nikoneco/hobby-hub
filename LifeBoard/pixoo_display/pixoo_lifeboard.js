@@ -7,7 +7,7 @@ const zlib = require('zlib');
 
 const SIZE = 64;
 const PIXELS = SIZE * SIZE;
-const BUS_DEPARTURE_GRACE_MS = 2 * 60 * 1000;
+const BUS_DEPARTURE_GRACE_MS = 0;
 const DEFAULT_INPUT = path.resolve(__dirname, '..', 'data', 'bus_snapshot.json');
 const DEFAULT_PREVIEW = path.resolve(__dirname, '..', 'data', 'pixoo_preview.svg');
 const DEFAULT_PNG_PREVIEW = path.resolve(__dirname, '..', 'data', 'pixoo_preview_64.png');
@@ -778,7 +778,7 @@ function adjustRemainingMinutes(baseMinutes, countdownBaseAt) {
 
 function isBusExpired(item, countdownBaseAt) {
   const expiresAt = getBusExpiresAt(item, countdownBaseAt);
-  return Number.isFinite(expiresAt) && Date.now() > expiresAt;
+  return Number.isFinite(expiresAt) && Date.now() >= expiresAt;
 }
 
 function getBusExpiresAt(item, countdownBaseAt) {
