@@ -5,7 +5,7 @@ const zlib = require('zlib');
 const ROOT = path.resolve(__dirname, '..');
 const DOCS = path.join(ROOT, 'docs');
 const PAGES_BASE = '/hobby-hub/';
-const BUILD_VERSION = '20260708-room-library-shell';
+const BUILD_VERSION = '20260708-hub-icon';
 
 const APPS = [
   {
@@ -157,6 +157,7 @@ function buildApp(app) {
   html = html.replace(/data-bootstrap='\s*<\?=\s*bootstrapJson\s*;?\s*\?>'/g, "data-bootstrap='" + escapeAttr(JSON.stringify(app.bootstrap)) + "'");
   html = html.replace(/<\/head>/i, [
     '    <link rel="manifest" href="' + relativeToRoot(app, 'manifest.webmanifest') + '">',
+    '    <link rel="apple-touch-icon" href="' + relativeToRoot(app, 'assets/icons/icon-192.png?v=' + BUILD_VERSION) + '">',
     '    <meta name="theme-color" content="#15110e">',
     '    <meta name="apple-mobile-web-app-capable" content="yes">',
     '    <meta name="apple-mobile-web-app-title" content="' + escapeAttr(app.title) + '">',
@@ -186,14 +187,14 @@ function writeSharedPwaFiles() {
     background_color: '#15110e',
     theme_color: '#15110e',
     icons: [
-      { src: 'assets/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-      { src: 'assets/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+      { src: 'assets/icons/icon-192.png?v=' + BUILD_VERSION, sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+      { src: 'assets/icons/icon-512.png?v=' + BUILD_VERSION, sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
     ]
   }, null, 2), 'utf8');
   fs.writeFileSync(path.join(DOCS, 'offline.html'), buildOfflineHtml(), 'utf8');
   fs.writeFileSync(path.join(DOCS, 'sw.js'), buildServiceWorker(), 'utf8');
-  writePngPlaceholder(path.join(DOCS, 'assets', 'icons', 'icon-192.png'), 192);
-  writePngPlaceholder(path.join(DOCS, 'assets', 'icons', 'icon-512.png'), 512);
+  copyIconAsset('hobby-hub-icon-192.png', path.join(DOCS, 'assets', 'icons', 'icon-192.png'));
+  copyIconAsset('hobby-hub-icon-512.png', path.join(DOCS, 'assets', 'icons', 'icon-512.png'));
 }
 
 function buildGasRunShim(app) {
@@ -454,6 +455,8 @@ function buildServiceWorker() {
     PAGES_BASE + 'index.html',
     PAGES_BASE + 'offline.html',
     PAGES_BASE + 'manifest.webmanifest',
+    PAGES_BASE + 'assets/icons/icon-192.png',
+    PAGES_BASE + 'assets/icons/icon-512.png',
     PAGES_BASE + 'assets/css/app.css',
     PAGES_BASE + 'assets/css/pwa.css',
     PAGES_BASE + 'assets/js/gas-run-shim.js',
@@ -534,6 +537,15 @@ function escapeAttr(value) {
 function writePngPlaceholder(filePath, size) {
   ensureDir(path.dirname(filePath));
   fs.writeFileSync(filePath, createPng(size, size));
+}
+
+function copyIconAsset(sourceName, outPath) {
+  const sourcePath = path.join(ROOT, 'assets', 'icons', sourceName);
+  if (!fs.existsSync(sourcePath)) {
+    throw new Error('Missing icon asset: ' + sourcePath);
+  }
+  ensureDir(path.dirname(outPath));
+  fs.copyFileSync(sourcePath, outPath);
 }
 
 function createPng(width, height) {

@@ -1,9 +1,11 @@
-const CACHE_NAME = "hobby-hub-pwa-20260708-room-library-shell";
+const CACHE_NAME = "hobby-hub-pwa-20260708-hub-icon";
 const APP_SHELL = [
   "/hobby-hub/",
   "/hobby-hub/index.html",
   "/hobby-hub/offline.html",
   "/hobby-hub/manifest.webmanifest",
+  "/hobby-hub/assets/icons/icon-192.png",
+  "/hobby-hub/assets/icons/icon-512.png",
   "/hobby-hub/assets/css/app.css",
   "/hobby-hub/assets/css/pwa.css",
   "/hobby-hub/assets/js/gas-run-shim.js",
