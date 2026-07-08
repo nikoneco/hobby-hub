@@ -298,13 +298,13 @@ function drawRoutePanel(frame, config, options) {
   drawText(frame, time, 4, config.y + 9, COLORS.white, 2);
   drawText(frame, delay, 45, config.y + 9, delayColor);
   drawText(frame, remaining, 45, config.y + 16, remainingColor(item.remainingMinutes));
-  if (!drawMixedText(frame, location, 4, config.y + 24, COLORS.cyan, options)) {
-    drawText(frame, location, 4, config.y + 24, COLORS.cyan);
+  if (!drawMixedText(frame, location, 4, config.y + 22, COLORS.cyan, options)) {
+    drawText(frame, location, 4, config.y + 22, COLORS.cyan);
   }
   if (next) {
     const nextText = '次 ' + shortTime(next.predictedDepartureText || next.scheduledDepartureText);
-    if (!drawMixedText(frame, nextText, 31, config.y + 24, COLORS.white, options)) {
-      drawText(frame, 'NXT ' + shortTime(next.predictedDepartureText || next.scheduledDepartureText), 30, config.y + 24, COLORS.white);
+    if (!drawMixedText(frame, nextText, 31, config.y + 22, COLORS.white, options)) {
+      drawText(frame, 'NXT ' + shortTime(next.predictedDepartureText || next.scheduledDepartureText), 30, config.y + 22, COLORS.white);
     }
   }
 }
