@@ -251,7 +251,7 @@ function renderLifeBoardFrame(snapshot, lifeData, options) {
   const railStatus = buildRailStatus(lifeData);
   const workStatus = buildWorkStatus(lifeData);
 
-  drawText(frame, nowTextWithSeconds(), 0, 0, stale ? COLORS.amber : COLORS.white);
+  drawText(frame, nowText(), 0, 0, stale ? COLORS.amber : COLORS.white);
   if (stale) {
     drawText(frame, 'OLD', 38, 0, COLORS.amber);
   }
@@ -770,9 +770,9 @@ function ageMinutes(isoText) {
   return Math.max(0, Math.floor(ms / 60000));
 }
 
-function nowTextWithSeconds() {
+function nowText() {
   const date = new Date();
-  return pad2(date.getHours()) + ':' + pad2(date.getMinutes()) + ':' + pad2(date.getSeconds());
+  return pad2(date.getHours()) + ':' + pad2(date.getMinutes());
 }
 
 function pad2(value) {
