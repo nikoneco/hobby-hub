@@ -376,9 +376,9 @@ function drawRoutePanel(frame, config, options) {
 function drawBusEndedMessage(frame, y, options) {
   const firstBusWait = isFirstBusWaitWindow();
   const firstLine = firstBusWait ? '始発バスを' : '本日のバスは';
-  const secondLine = firstBusWait ? 'お待ちください！' : '終わりました！';
+  const secondLine = firstBusWait ? 'お待ちください' : '終わりました！';
   const secondColor = firstBusWait ? COLORS.blue : COLORS.pink;
-  const secondX = firstBusWait ? 2 : 8;
+  const secondX = 8;
   if (drawMixedText(frame, firstLine, 8, y + 10, COLORS.cyan, options)) {
     drawMixedText(frame, secondLine, secondX, y + 20, secondColor, options);
     return;
