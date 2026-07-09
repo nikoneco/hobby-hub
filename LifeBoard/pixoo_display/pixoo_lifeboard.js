@@ -33,11 +33,47 @@ const MISAKI_KUTEN = {
   '本': [43, 60],
   'の': [4, 46],
   'は': [4, 47],
+  '始': [27, 47],
+  '発': [40, 15],
+  'お': [4, 10],
+  '待': [34, 52],
+  'ち': [4, 33],
+  'だ': [4, 32],
+  'さ': [4, 21],
+  'い': [4, 4],
+  'を': [4, 82],
   '終': [29, 10],
   'わ': [4, 79],
   'ま': [4, 62],
   'た': [4, 31],
   '！': [1, 10],
+  '天': [37, 23],
+  '気': [21, 4],
+  '総': [33, 77],
+  '武': [41, 80],
+  '線': [32, 94],
+  '遅': [35, 57],
+  '延': [17, 68],
+  '注': [35, 77],
+  '意': [16, 53],
+  '運': [17, 31],
+  '転': [37, 30],
+  '見': [24, 11],
+  '合': [25, 71],
+  'せ': [4, 27],
+  '確': [19, 46],
+  '認': [39, 7],
+  '各': [19, 38],
+  '快': [18, 87],
+  '速': [34, 14],
+  '山': [27, 19],
+  '手': [28, 74],
+  '東': [37, 76],
+  'モ': [5, 66],
+  'ノ': [5, 46],
+  'レ': [5, 76],
+  'ー': [1, 28],
+  'ル': [5, 75],
   '明': [44, 32],
   '可': [18, 36],
   '燃': [39, 19],
@@ -280,10 +316,11 @@ function renderLifeBoardFrame(snapshot, lifeData, options) {
     y: 8,
     accent: COLORS.green,
     route: home,
-    workStatus
+    workStatus,
+    snapshotGeneratedAt: snapshot.generatedAt || ''
   }, options);
   if (railStatus.issue) {
-    drawRailAlertPage(frame, railStatus);
+    drawRailAlertPage(frame, railStatus, options);
   } else {
     drawStatusLine(frame, 40, railStatus);
     drawStatusLine(frame, 48, buildWeatherStatus(lifeData), options);
@@ -307,7 +344,7 @@ function drawRoutePanel(frame, config, options) {
   }
 
   if (!item && config.route && Array.isArray(config.route.items)) {
-    drawBusEndedMessage(frame, config.y, options);
+    drawBusEndedMessage(frame, config.y, options, config.snapshotGeneratedAt);
     return;
   }
 
@@ -337,12 +374,16 @@ function drawRoutePanel(frame, config, options) {
   }
 }
 
-function drawBusEndedMessage(frame, y, options) {
-  if (drawMixedText(frame, '本日のバスは', 8, y + 10, COLORS.cyan, options)) {
-    drawMixedText(frame, '終わりました！', 4, y + 20, COLORS.pink, options);
+function drawBusEndedMessage(frame, y, options, generatedAt) {
+  const afterDateChange = hasDateChanged(generatedAt);
+  const firstLine = afterDateChange ? '始発バスを' : '本日のバスは';
+  const secondLine = afterDateChange ? 'お待ちください！' : '終わりました！';
+  const secondColor = afterDateChange ? COLORS.blue : COLORS.pink;
+  if (drawMixedText(frame, firstLine, 8, y + 10, COLORS.cyan, options)) {
+    drawMixedText(frame, secondLine, 0, y + 20, secondColor, options);
     return;
   }
-  drawText(frame, 'BUS DONE', 8, y + 13, COLORS.cyan);
+  drawText(frame, afterDateChange ? 'WAIT BUS' : 'BUS DONE', 8, y + 13, COLORS.cyan);
 }
 
 function drawStatusLine(frame, y, status, options) {
@@ -355,10 +396,18 @@ function drawStatusLine(frame, y, status, options) {
   drawText(frame, fitText(status.text, 16), 0, y, status.color || COLORS.white);
 }
 
-function drawRailAlertPage(frame, railStatus) {
-  drawText(frame, 'JR ALERT', 0, 40, railStatus.color || COLORS.amber);
-  drawText(frame, fitText(railStatus.line + ' ' + railStatus.code, 16), 0, 48, railStatus.color || COLORS.amber);
-  drawText(frame, 'CHECK WEB', 0, 56, COLORS.white);
+function drawRailAlertPage(frame, railStatus, options) {
+  const color = railStatus.color || COLORS.amber;
+  drawText(frame, railStatus.title || 'JR ALERT', 0, 40, color);
+  if (railStatus.extraCount) {
+    drawText(frame, '+' + railStatus.extraCount, 54, 40, color);
+  }
+  if (!drawMixedText(frame, railStatus.lineJp || railStatus.line || 'JR', 0, 48, color, options)) {
+    drawText(frame, fitText(railStatus.line || 'JR', 16), 0, 48, color);
+  }
+  if (!drawMixedText(frame, railStatus.messageJp || '確認してください', 0, 56, color, options)) {
+    drawText(frame, fitText(railStatus.message || 'CHECK WEB', 16), 0, 56, color);
+  }
 }
 
 function buildWorkStatus(lifeData) {
@@ -482,21 +531,38 @@ function addDays(date, days) {
   return copy;
 }
 
+function hasDateChanged(isoText) {
+  const date = new Date(isoText || '');
+  if (Number.isNaN(date.getTime())) {
+    return false;
+  }
+  return localDateKey(date) !== localDateKey(new Date());
+}
+
 function buildRailStatus(lifeData) {
   const routes = lifeData && lifeData.rail && Array.isArray(lifeData.rail.routes) ? lifeData.rail.routes : [];
   if (!routes.length) {
     return { text: 'JR ?', color: COLORS.muted };
   }
-  const issue = routes.find((route) => isRailIssue(route));
+  const issues = routes
+    .filter((route) => isRailIssue(route))
+    .sort(compareRailIssues);
+  const issue = issues[0] || null;
   if (issue) {
     const severity = String(issue.severity || '').toLowerCase();
     const code = normalizeRailIssueCode(issue);
+    const suspended = severity === 'suspended' || code === 'STOP';
     return {
-      text: severity === 'suspended' ? 'JR STOP' : 'JR CHECK',
+      text: suspended ? 'JR STOP' : 'JR DELAY',
+      title: suspended ? 'JR STOP!' : 'JR Delay!',
       line: normalizeRailLineName(issue),
+      lineJp: normalizeRailLineJapanese(issue),
       code,
       issue,
-      color: severity === 'suspended' ? COLORS.red : COLORS.amber
+      extraCount: Math.max(0, issues.length - 1),
+      message: suspended ? 'STOP' : 'DELAY',
+      messageJp: suspended ? '運転見合わせ' : '遅延注意',
+      color: suspended ? COLORS.red : COLORS.amber
     };
   }
   return { text: 'JR OK', line: 'JR', code: 'OK', issue: null, color: COLORS.green };
@@ -510,6 +576,7 @@ function isRailIssue(route) {
 
 function normalizeRailLineName(route) {
   const text = String(route && (route.displayName || route.routeId || route.lineId) || '');
+  if (/モノレール|monorail/i.test(text)) return 'MONO';
   if (/総武|soubu|sobu/i.test(text)) return 'SOBU';
   if (/中央|chuo/i.test(text)) return 'CHUO';
   if (/山手|yamanote/i.test(text)) return 'YAMA';
@@ -517,6 +584,38 @@ function normalizeRailLineName(route) {
   if (/常磐|joban/i.test(text)) return 'JOBN';
   if (/京葉|keiyo/i.test(text)) return 'KEIY';
   return 'LINE';
+}
+
+function normalizeRailLineJapanese(route) {
+  const text = String(route && (route.displayName || route.routeId || route.lineId) || '');
+  if (/総武|soubu|sobu/i.test(text) && /快速|rapid/i.test(text)) return '総武快速';
+  if (/総武|soubu|sobu|中央/i.test(text)) return '総武各駅';
+  if (/山手|yamanote/i.test(text)) return '山手線';
+  if (/モノレール|monorail/i.test(text)) return 'モノレール';
+  return normalizeRailLineName(route);
+}
+
+function railPriority(route) {
+  const text = String(route && (route.displayName || route.routeId || route.lineId) || '');
+  if (/総武|soubu|sobu|中央/i.test(text) && !/快速|rapid/i.test(text)) return 0;
+  if (/総武|soubu|sobu/i.test(text) && /快速|rapid/i.test(text)) return 1;
+  if (/山手|yamanote/i.test(text)) return 2;
+  if (/モノレール|monorail/i.test(text)) return 3;
+  return 99;
+}
+
+function railSeverityRank(route) {
+  const code = normalizeRailIssueCode(route);
+  if (code === 'STOP') return 0;
+  if (code === 'DELAY') return 1;
+  if (code === 'UNK') return 2;
+  return 3;
+}
+
+function compareRailIssues(a, b) {
+  const priorityDiff = railPriority(a) - railPriority(b);
+  if (priorityDiff !== 0) return priorityDiff;
+  return railSeverityRank(a) - railSeverityRank(b);
 }
 
 function normalizeRailIssueCode(route) {
@@ -535,12 +634,13 @@ function buildWeatherStatus(lifeData) {
     return { text: 'WX ?', color: COLORS.muted };
   }
   const high = extractHighTemperature(location.highLowText);
-  const temp = high === '' ? extractRoundedNumber(location.temperatureText) : high;
+  const current = extractRoundedNumber(location.temperatureText);
+  const currentText = current === '' ? '--' : String(current);
+  const highText = high === '' ? '--' : String(high);
   const weather = normalizeWeatherGlyph(location);
-  const tempText = temp === '' ? '--C' : String(temp) + 'C';
   return {
-    text: 'WX ' + tempText + ' ' + weather.ascii,
-    mixedText: temp === '' ? '' : 'WX ' + temp + 'C ' + weather.jpText,
+    text: 'WX ' + currentText + '/' + highText + 'C ' + weather.ascii,
+    mixedText: '天気' + currentText + '/' + highText + 'C' + weather.jpText,
     color: weather.color
   };
 }
