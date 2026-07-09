@@ -101,6 +101,10 @@ Copy-FileSafe `
   -Destination (Join-Path $targetRootResolved 'LifeBoard_Runner.ps1')
 
 Copy-FileSafe `
+  -Source (Join-Path $lifeBoardSource 'windows_ops\LifeBoard_RunHidden.vbs') `
+  -Destination (Join-Path $targetRootResolved 'LifeBoard_RunHidden.vbs')
+
+Copy-FileSafe `
   -Source (Join-Path $lifeBoardSource 'windows_ops\LifeBoard_Task_Setup.ps1') `
   -Destination (Join-Path $targetRootResolved 'LifeBoard_Task_Setup.ps1')
 

@@ -48,6 +48,7 @@ if (-not (Test-IsAdministrator)) {
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $runnerPath = Join-Path $scriptDir 'LifeBoard_Runner.ps1'
+$hiddenRunnerPath = Join-Path $scriptDir 'LifeBoard_RunHidden.vbs'
 
 function Resolve-LifeBoardRepoRoot {
   $candidates = @(
@@ -202,12 +203,12 @@ function New-LifeBoardTask {
   if ($IntervalMinutes -lt 1) {
     throw "$TaskName interval must be 1 or greater."
   }
-  $powershell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
-  $arguments = '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "{0}" -Mode {1}' -f $runnerPath, $Mode
+  $wscript = Join-Path $env:SystemRoot 'System32\wscript.exe'
+  $arguments = '"{0}" "-Mode" "{1}"' -f $hiddenRunnerPath, $Mode
   if ($Mode -eq 'Pixoo') {
-    $arguments += ' -NoPreview'
+    $arguments += ' "-NoPreview"'
   }
-  $action = New-ScheduledTaskAction -Execute $powershell -Argument $arguments
+  $action = New-ScheduledTaskAction -Execute $wscript -Argument $arguments
   $triggers = @(
     (New-ScheduledTaskTrigger -AtStartup),
     (New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes $IntervalMinutes) -RepetitionDuration (New-TimeSpan -Days 3650))
@@ -236,6 +237,9 @@ function New-LifeBoardTask {
 
 if (-not (Test-Path -LiteralPath $runnerPath)) {
   throw "Runner not found: $runnerPath"
+}
+if (-not (Test-Path -LiteralPath $hiddenRunnerPath)) {
+  throw "Hidden runner not found: $hiddenRunnerPath"
 }
 
 if ($Unregister) {
