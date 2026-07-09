@@ -613,9 +613,9 @@ function railSeverityRank(route) {
 }
 
 function compareRailIssues(a, b) {
-  const priorityDiff = railPriority(a) - railPriority(b);
-  if (priorityDiff !== 0) return priorityDiff;
-  return railSeverityRank(a) - railSeverityRank(b);
+  const severityDiff = railSeverityRank(a) - railSeverityRank(b);
+  if (severityDiff !== 0) return severityDiff;
+  return railPriority(a) - railPriority(b);
 }
 
 function normalizeRailIssueCode(route) {
