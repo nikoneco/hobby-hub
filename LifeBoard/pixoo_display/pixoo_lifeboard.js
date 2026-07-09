@@ -693,17 +693,13 @@ function buildGarbageStatus(lifeData) {
 
 function chooseGarbageDisplayDay(days) {
   const now = new Date();
-  const switchHour = 9;
+  const switchHour = 10;
   const today = days[0] || null;
   const tomorrow = days[1] || null;
   if (now.getHours() >= switchHour) {
     return { label: 'TMR', jpLabel: '明日', day: tomorrow, isTomorrow: true };
   }
-  const todaySummary = summarizeGarbageDay(today);
-  if (todaySummary.text || !tomorrow) {
-    return { label: 'TDY', jpLabel: '今日', day: today, isTomorrow: false };
-  }
-  return { label: 'TMR', jpLabel: '明日', day: tomorrow, isTomorrow: true };
+  return { label: 'TDY', jpLabel: '今日', day: today, isTomorrow: false };
 }
 
 function summarizeGarbageDay(day) {
