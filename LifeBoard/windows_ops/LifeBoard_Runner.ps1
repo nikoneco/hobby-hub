@@ -37,6 +37,7 @@ $repoRoot = Resolve-LifeBoardRepoRoot
 $lifeBoardDir = Join-Path $repoRoot 'LifeBoard'
 $logDir = Join-Path $lifeBoardDir 'logs'
 $logPath = Join-Path $logDir 'lifeboard_ops_runner.log'
+$busFetchStatePath = Join-Path $logDir 'bus_last_fetch.txt'
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 
 function Add-Log {
@@ -133,10 +134,51 @@ function Invoke-NodeScript {
   Invoke-LoggedProcess -FilePath $node.Source -ArgumentList ($quotedArgs -join ' ') -StepName $StepName
 }
 
+function Get-BusFetchIntervalMinutes {
+  $now = Get-Date
+  $minutes = ($now.Hour * 60) + $now.Minute
+  $morningStart = 6 * 60
+  $morningEnd = 7 * 60
+  if ($minutes -ge $morningStart -and $minutes -lt $morningEnd) {
+    return 1
+  }
+  return 5
+}
+
+function Test-BusFetchDue {
+  if (-not (Test-Path -LiteralPath $busFetchStatePath)) {
+    return $true
+  }
+
+  $lastText = (Get-Content -LiteralPath $busFetchStatePath -Raw -ErrorAction SilentlyContinue).Trim()
+  if (-not $lastText) {
+    return $true
+  }
+
+  try {
+    $lastFetch = [DateTime]::Parse($lastText, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind)
+  } catch {
+    return $true
+  }
+
+  $interval = Get-BusFetchIntervalMinutes
+  $elapsed = (Get-Date) - $lastFetch
+  if ($elapsed.TotalMinutes -ge $interval) {
+    return $true
+  }
+
+  Add-Log ('bus-fetch skip elapsed={0:N1}m interval={1}m' -f $elapsed.TotalMinutes, $interval)
+  return $false
+}
+
 function Invoke-Bus {
+  if (-not (Test-BusFetchDue)) {
+    return
+  }
   $script = Join-Path $lifeBoardDir 'bus_fetcher\sync_bus_snapshot.js'
   $modeArg = if ($DryRun) { '--dry-run' } else { '--post' }
   Invoke-NodeScript -ScriptPath $script -Arguments @($modeArg) -StepName 'bus-fetch'
+  Set-Content -LiteralPath $busFetchStatePath -Encoding ASCII -Value ((Get-Date).ToUniversalTime().ToString('o'))
 }
 
 function Invoke-Pixoo {

@@ -1,6 +1,6 @@
 param(
   [string]$PixooIp = '192.168.0.92',
-  [int]$BusIntervalMinutes = 5,
+  [int]$BusIntervalMinutes = 1,
   [int]$PixooIntervalMinutes = 1,
   [int]$TimeTreeIntervalMinutes = 60,
   [switch]$SkipTimeTree,
@@ -9,6 +9,42 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+function Test-IsAdministrator {
+  $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+  $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+  return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+if (-not (Test-IsAdministrator)) {
+  $setupPath = if ($PSCommandPath) { $PSCommandPath } else { $MyInvocation.MyCommand.Path }
+  $powershell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+  $adminArgs = @(
+    '-NoProfile',
+    '-ExecutionPolicy',
+    'Bypass',
+    '-File',
+    ('"{0}"' -f $setupPath),
+    '-PixooIp',
+    ('"{0}"' -f $PixooIp),
+    '-BusIntervalMinutes',
+    $BusIntervalMinutes,
+    '-PixooIntervalMinutes',
+    $PixooIntervalMinutes,
+    '-TimeTreeIntervalMinutes',
+    $TimeTreeIntervalMinutes
+  )
+  if ($SkipTimeTree) { $adminArgs += '-SkipTimeTree' }
+  if ($RunNow) { $adminArgs += '-RunNow' }
+  if ($Unregister) { $adminArgs += '-Unregister' }
+
+  Write-Host 'Task registration needs administrator permission. Opening UAC prompt...' -ForegroundColor Yellow
+  $process = Start-Process -FilePath $powershell -ArgumentList $adminArgs -Verb RunAs -Wait -PassThru
+  if ($null -ne $process.ExitCode) {
+    exit $process.ExitCode
+  }
+  exit 0
+}
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $runnerPath = Join-Path $scriptDir 'LifeBoard_Runner.ps1'
