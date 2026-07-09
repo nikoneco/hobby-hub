@@ -316,8 +316,7 @@ function renderLifeBoardFrame(snapshot, lifeData, options) {
     y: 8,
     accent: COLORS.green,
     route: home,
-    workStatus,
-    snapshotGeneratedAt: snapshot.generatedAt || ''
+    workStatus
   }, options);
   if (railStatus.issue) {
     drawRailAlertPage(frame, railStatus, options);
@@ -344,7 +343,7 @@ function drawRoutePanel(frame, config, options) {
   }
 
   if (!item && config.route && Array.isArray(config.route.items)) {
-    drawBusEndedMessage(frame, config.y, options, config.snapshotGeneratedAt);
+    drawBusEndedMessage(frame, config.y, options);
     return;
   }
 
@@ -374,17 +373,17 @@ function drawRoutePanel(frame, config, options) {
   }
 }
 
-function drawBusEndedMessage(frame, y, options, generatedAt) {
-  const afterDateChange = hasDateChanged(generatedAt);
-  const firstLine = afterDateChange ? '始発バスを' : '本日のバスは';
-  const secondLine = afterDateChange ? 'お待ちください！' : '終わりました！';
-  const secondColor = afterDateChange ? COLORS.blue : COLORS.pink;
-  const secondX = afterDateChange ? 2 : 8;
+function drawBusEndedMessage(frame, y, options) {
+  const firstBusWait = isFirstBusWaitWindow();
+  const firstLine = firstBusWait ? '始発バスを' : '本日のバスは';
+  const secondLine = firstBusWait ? 'お待ちください！' : '終わりました！';
+  const secondColor = firstBusWait ? COLORS.blue : COLORS.pink;
+  const secondX = firstBusWait ? 2 : 8;
   if (drawMixedText(frame, firstLine, 8, y + 10, COLORS.cyan, options)) {
     drawMixedText(frame, secondLine, secondX, y + 20, secondColor, options);
     return;
   }
-  drawText(frame, afterDateChange ? 'WAIT BUS' : 'BUS DONE', 8, y + 13, COLORS.cyan);
+  drawText(frame, firstBusWait ? 'WAIT BUS' : 'BUS DONE', 8, y + 13, COLORS.cyan);
 }
 
 function drawStatusLine(frame, y, status, options) {
@@ -532,12 +531,10 @@ function addDays(date, days) {
   return copy;
 }
 
-function hasDateChanged(isoText) {
-  const date = new Date(isoText || '');
-  if (Number.isNaN(date.getTime())) {
-    return false;
-  }
-  return localDateKey(date) !== localDateKey(new Date());
+function isFirstBusWaitWindow(date) {
+  const target = date || new Date();
+  const minutes = (target.getHours() * 60) + target.getMinutes();
+  return minutes >= 0 && minutes < (6 * 60);
 }
 
 function buildRailStatus(lifeData) {
