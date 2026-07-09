@@ -38,12 +38,37 @@ $lifeBoardDir = Join-Path $repoRoot 'LifeBoard'
 $logDir = Join-Path $lifeBoardDir 'logs'
 $logPath = Join-Path $logDir 'lifeboard_ops_runner.log'
 $busFetchStatePath = Join-Path $logDir 'bus_last_fetch.txt'
+$logRetentionDays = 7
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+
+function Invoke-LogRotation {
+  $today = (Get-Date).Date
+  if (Test-Path -LiteralPath $logPath) {
+    $logItem = Get-Item -LiteralPath $logPath
+    if ($logItem.LastWriteTime.Date -lt $today) {
+      $archivePath = Join-Path $logDir ('lifeboard_ops_runner_{0}.log' -f $logItem.LastWriteTime.ToString('yyyyMMdd'))
+      if (Test-Path -LiteralPath $archivePath) {
+        $text = [System.IO.File]::ReadAllText($logPath, [System.Text.Encoding]::UTF8)
+        Add-Content -LiteralPath $archivePath -Encoding UTF8 -Value $text
+        Remove-Item -LiteralPath $logPath -Force
+      } else {
+        Move-Item -LiteralPath $logPath -Destination $archivePath -Force
+      }
+    }
+  }
+
+  $cutoff = $today.AddDays(-$logRetentionDays)
+  Get-ChildItem -LiteralPath $logDir -Filter 'lifeboard_ops_runner_*.log' -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.LastWriteTime.Date -lt $cutoff } |
+    Remove-Item -Force
+}
 
 function Add-Log {
   param([string]$Message)
   Add-Content -Path $logPath -Encoding UTF8 -Value ('[{0}] {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Message)
 }
+
+Invoke-LogRotation
 
 function Get-BatSetting {
   param(
