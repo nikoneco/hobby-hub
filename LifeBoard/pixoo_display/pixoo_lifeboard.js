@@ -379,7 +379,7 @@ function drawBusEndedMessage(frame, y, options, generatedAt) {
   const firstLine = afterDateChange ? '始発バスを' : '本日のバスは';
   const secondLine = afterDateChange ? 'お待ちください！' : '終わりました！';
   const secondColor = afterDateChange ? COLORS.blue : COLORS.pink;
-  const secondX = afterDateChange ? 0 : 8;
+  const secondX = afterDateChange ? 2 : 8;
   if (drawMixedText(frame, firstLine, 8, y + 10, COLORS.cyan, options)) {
     drawMixedText(frame, secondLine, secondX, y + 20, secondColor, options);
     return;
