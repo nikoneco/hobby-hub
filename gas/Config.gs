@@ -42,6 +42,14 @@ const CONFIG = {
       WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbwzeUjS7KakeQJbJNE83WupMhVT9Qid2gWHh-9jw0hepywdAE5Y5RIgPEUcCnEFEOE/exec',
       ICON: 'map',
       DISPLAY_ORDER: 4
+    },
+    CELESTIFRAME: {
+      MODULE_ID: 'celestiframe',
+      NAME: 'CelestiFrame',
+      DESCRIPTION: '月と星の位置を地図で確認する撮影支援アプリ',
+      WEB_APP_URL: 'https://nikoneco.github.io/CelestiFrame/',
+      ICON: 'celestial',
+      DISPLAY_ORDER: 5
     }
   }
 };

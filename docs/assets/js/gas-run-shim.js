@@ -39,6 +39,15 @@
         "display_order": 4,
         "icon": "map",
         "target_url": "./izakaya-scout/"
+      },
+      {
+        "module_id": "celestiframe",
+        "module_name": "CelestiFrame",
+        "description": "月と星の位置を地図で確認する撮影支援アプリ",
+        "enabled": true,
+        "display_order": 5,
+        "icon": "celestial",
+        "target_url": "https://nikoneco.github.io/CelestiFrame/"
       }
     ]
   },
@@ -80,6 +89,15 @@
         "display_order": 4,
         "icon": "map",
         "target_url": "./izakaya-scout/"
+      },
+      {
+        "module_id": "celestiframe",
+        "module_name": "CelestiFrame",
+        "description": "月と星の位置を地図で確認する撮影支援アプリ",
+        "enabled": true,
+        "display_order": 5,
+        "icon": "celestial",
+        "target_url": "https://nikoneco.github.io/CelestiFrame/"
       }
     ]
   }

@@ -5,7 +5,7 @@ const zlib = require('zlib');
 const ROOT = path.resolve(__dirname, '..');
 const DOCS = path.join(ROOT, 'docs');
 const PAGES_BASE = '/hobby-hub/';
-const BUILD_VERSION = '20260708-hub-icon';
+const BUILD_VERSION = '20260712-celestiframe';
 
 const APPS = [
   {
@@ -56,6 +56,15 @@ const APPS = [
             display_order: 4,
             icon: 'map',
             target_url: './izakaya-scout/'
+          },
+          {
+            module_id: 'celestiframe',
+            module_name: 'CelestiFrame',
+            description: '月と星の位置を地図で確認する撮影支援アプリ',
+            enabled: true,
+            display_order: 5,
+            icon: 'celestial',
+            target_url: 'https://nikoneco.github.io/CelestiFrame/'
           }
         ]
       }

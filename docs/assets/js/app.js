@@ -62,6 +62,9 @@ const app = document.getElementById('app');
     if (id === 'izakaya_scout') {
       return '居酒';
     }
+    if (id === 'celestiframe') {
+      return '月星';
+    }
     return String(module.icon || 'APP').slice(0, 3).toUpperCase();
   }
 

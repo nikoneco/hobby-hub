@@ -59,7 +59,8 @@ function buildDefaultModules_() {
     buildStudyModule_(),
     buildRoomLibraryModule_(),
     buildLifeBoardModule_(),
-    buildIzakayaScoutModule_()
+    buildIzakayaScoutModule_(),
+    buildCelestiFrameModule_()
   ];
 }
 
@@ -113,6 +114,22 @@ function buildLifeBoardModule_() {
 
 function buildIzakayaScoutModule_() {
   const app = CONFIG.APPS.IZAKAYA_SCOUT;
+  return {
+    module_id: app.MODULE_ID,
+    module_name: app.NAME,
+    description: app.DESCRIPTION,
+    enabled: true,
+    display_order: app.DISPLAY_ORDER,
+    icon: app.ICON,
+    target_url: app.WEB_APP_URL,
+    app_folder_id: '',
+    script_id: '',
+    db_spreadsheet_id: ''
+  };
+}
+
+function buildCelestiFrameModule_() {
+  const app = CONFIG.APPS.CELESTIFRAME;
   return {
     module_id: app.MODULE_ID,
     module_name: app.NAME,
