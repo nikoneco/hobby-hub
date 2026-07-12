@@ -137,9 +137,15 @@ function extractYahooRailUpdatedAt_(text) {
 
 function extractYahooRailSection_(text, route) {
   const routeName = String(route.display_name || route.label || '').trim();
-  const routeIndex = routeName ? text.indexOf(routeName + ' ') : -1;
+  const routeIndex = findYahooRailMainIndex_(text, routeName);
   const startIndex = routeIndex >= 0 ? routeIndex : 0;
-  const endLabels = ['迂回ルート検索', '路線を登録すると', routeName + 'に関するつぶやき'];
+  const endLabels = [
+    '迂回ルート検索',
+    '路線を登録すると',
+    'に関するつぶやき',
+    'ツイート',
+    routeName + 'に関するつぶやき'
+  ];
   let endIndex = text.length;
   endLabels.forEach(function (label) {
     if (!label) {
@@ -151,6 +157,25 @@ function extractYahooRailSection_(text, route) {
     }
   });
   return text.slice(startIndex, endIndex).trim();
+}
+
+function findYahooRailMainIndex_(text, routeName) {
+  if (!routeName) {
+    return -1;
+  }
+  const statusPattern = /(平常運転|運転見合わせ|列車遅延|一部運休|運休|運転状況|その他)/;
+  let searchIndex = 0;
+  while (true) {
+    const index = text.indexOf(routeName, searchIndex);
+    if (index < 0) {
+      return -1;
+    }
+    const probe = text.slice(index, index + 360);
+    if (/\d{1,2}月\d{1,2}日\s+\d{1,2}時\d{1,2}分\s+更新/.test(probe) && statusPattern.test(probe)) {
+      return index;
+    }
+    searchIndex = index + routeName.length;
+  }
 }
 
 function extractRailSection_(text, startLabel, endLabels) {
