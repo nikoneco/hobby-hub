@@ -30,7 +30,7 @@ function fetchWeatherLocationSnapshotSafely_(location) {
     return fetchWeatherLocationSnapshot_(location);
   } catch (error) {
     console.error('Weather location failed: ' + location.location_id + ': ' + (error && error.stack ? error.stack : error));
-    return {
+    const fallback = {
       locationId: String(location.location_id || ''),
       displayName: String(location.display_name || ''),
       statusText: '確認できず',
@@ -39,12 +39,18 @@ function fetchWeatherLocationSnapshotSafely_(location) {
       sourceUrl: 'https://open-meteo.com/',
       fetchedAt: nowIso_()
     };
+    CacheService.getScriptCache().put(
+      buildWeatherCacheKey_(location),
+      JSON.stringify(fallback),
+      Number(CONFIG.WEATHER.FAILURE_CACHE_SECONDS || CONFIG.WEATHER.CACHE_SECONDS || 300)
+    );
+    return fallback;
   }
 }
 
 function fetchWeatherLocationSnapshot_(location) {
   const cache = CacheService.getScriptCache();
-  const cacheKey = 'weather:v5:' + location.location_id;
+  const cacheKey = buildWeatherCacheKey_(location);
   const cached = cache.get(cacheKey);
   if (cached) {
     return JSON.parse(cached);
@@ -95,6 +101,10 @@ function fetchWeatherLocationSnapshot_(location) {
 
   cache.put(cacheKey, JSON.stringify(snapshot), CONFIG.WEATHER.CACHE_SECONDS);
   return snapshot;
+}
+
+function buildWeatherCacheKey_(location) {
+  return 'weather:v5:' + location.location_id;
 }
 
 function buildWeatherApiUrl_(location) {

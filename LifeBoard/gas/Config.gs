@@ -89,6 +89,7 @@ const CONFIG = {
   },
   WEATHER: {
     CACHE_SECONDS: 300,
+    FAILURE_CACHE_SECONDS: 1800,
     SOURCE_NOTE: '天気はOpen-Meteo、雨はYahoo!/JMAから取得',
     API_BASE_URL: 'https://api.open-meteo.com/v1/forecast',
     YAHOO_API_BASE_URL: 'https://map.yahooapis.jp/weather/V1/place',
