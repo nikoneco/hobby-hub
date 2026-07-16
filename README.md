@@ -64,3 +64,9 @@ node scripts\build_prepared_gas_data.js 24
 - AI下書きは `answer_notes` に保存します。
 - ユーザーが確認・修正して採用した回答だけを `confirmed_answers` に保存します。
 - 外部AI APIは使いません。ChatGPT/Codexで作った下書きやローカル抽出テキスト由来の下書きを、CSVまたは画面から取り込みます。
+
+## 趣味HUBの外部PWAリンク方針
+
+- 別プロジェクトのPWAを趣味HUBに追加するときは、外部URLへ直接遷移させず、`/hobby-hub/<app-slug>/` 配下の中継ページを作ります。
+- 中継ページは外部PWAを `iframe` で表示し、画面内の戻るボタンは置きません。
+- `tools/build-pages.js` の `pageTargets` と Service Worker のキャッシュ対象へ中継ページを追加します。

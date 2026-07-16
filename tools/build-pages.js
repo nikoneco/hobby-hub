@@ -186,7 +186,17 @@ function inlineIncludes(app, html) {
 
 function writeSharedPwaFiles() {
   ensureDir(path.join(DOCS, 'room-library'));
-  fs.writeFileSync(path.join(DOCS, 'room-library', 'index.html'), buildRoomLibraryShell(), 'utf8');
+  fs.writeFileSync(path.join(DOCS, 'room-library', 'index.html'), buildExternalAppShell({
+    title: '趣味部屋図書館',
+    src: 'https://nikoneco.github.io/hobby-room-library-PWA/',
+    themeColor: '#07151a'
+  }), 'utf8');
+  ensureDir(path.join(DOCS, 'celestiframe'));
+  fs.writeFileSync(path.join(DOCS, 'celestiframe', 'index.html'), buildExternalAppShell({
+    title: 'CelestiFrame',
+    src: 'https://nikoneco.github.io/CelestiFrame/',
+    themeColor: '#07151a'
+  }), 'utf8');
   fs.writeFileSync(path.join(DOCS, 'manifest.webmanifest'), JSON.stringify({
     name: '趣味HUB',
     short_name: '趣味HUB',
@@ -317,6 +327,7 @@ function buildModeScript(app) {
   const pageTargets = {
     study737: './737-study-finder/',
     room_library: './room-library/',
+    celestiframe: './celestiframe/',
     izakaya_scout: './izakaya-scout/',
     lifeboard: './lifeboard/'
   };
@@ -406,17 +417,17 @@ function buildOfflineHtml() {
 </html>`;
 }
 
-function buildRoomLibraryShell() {
+function buildExternalAppShell(app) {
   return `<!doctype html>
 <html lang="ja">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>趣味部屋図書館</title>
+    <title>${escapeAttr(app.title)}</title>
     <link rel="manifest" href="../manifest.webmanifest">
-    <meta name="theme-color" content="#07151a">
+    <meta name="theme-color" content="${escapeAttr(app.themeColor)}">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="趣味部屋図書館">
+    <meta name="apple-mobile-web-app-title" content="${escapeAttr(app.title)}">
     <style>
       html,
       body {
@@ -424,35 +435,19 @@ function buildRoomLibraryShell() {
         width: 100%;
         height: 100%;
         overflow: hidden;
-        background: #07151a;
+        background: ${app.themeColor};
       }
       iframe {
         display: block;
         width: 100%;
         height: 100%;
         border: 0;
-        background: #07151a;
-      }
-      .hub-back {
-        position: fixed;
-        left: max(12px, env(safe-area-inset-left));
-        bottom: max(12px, env(safe-area-inset-bottom));
-        z-index: 2;
-        width: 44px;
-        height: 44px;
-        border: 1px solid rgba(214, 232, 230, 0.28);
-        border-radius: 999px;
-        background: rgba(4, 12, 16, 0.72);
-        color: rgba(240, 250, 248, 0.92);
-        font: 700 13px/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        box-shadow: 0 12px 26px rgba(0, 0, 0, 0.36);
-        backdrop-filter: blur(10px);
+        background: ${app.themeColor};
       }
     </style>
   </head>
   <body>
-    <iframe title="趣味部屋図書館" src="https://nikoneco.github.io/hobby-room-library-PWA/"></iframe>
-    <button class="hub-back" type="button" aria-label="趣味HUBへ戻る" onclick="location.href='../'">HUB</button>
+    <iframe title="${escapeAttr(app.title)}" src="${escapeAttr(app.src)}"></iframe>
   </body>
 </html>`;
 }
@@ -472,6 +467,7 @@ function buildServiceWorker() {
     PAGES_BASE + 'assets/js/app.js',
     PAGES_BASE + 'assets/js/pwa-client.js',
     PAGES_BASE + 'room-library/index.html',
+    PAGES_BASE + 'celestiframe/index.html',
     PAGES_BASE + '737-study-finder/index.html',
     PAGES_BASE + '737-study-finder/assets/css/app.css',
     PAGES_BASE + '737-study-finder/assets/css/pwa.css',

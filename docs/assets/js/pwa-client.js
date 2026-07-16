@@ -53,6 +53,7 @@
   const pageTargets = {
     study737: './737-study-finder/',
     room_library: './room-library/',
+    celestiframe: './celestiframe/',
     izakaya_scout: './izakaya-scout/',
     lifeboard: './lifeboard/'
   };

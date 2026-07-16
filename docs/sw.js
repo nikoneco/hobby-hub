@@ -12,6 +12,7 @@ const APP_SHELL = [
   "/hobby-hub/assets/js/app.js",
   "/hobby-hub/assets/js/pwa-client.js",
   "/hobby-hub/room-library/index.html",
+  "/hobby-hub/celestiframe/index.html",
   "/hobby-hub/737-study-finder/index.html",
   "/hobby-hub/737-study-finder/assets/css/app.css",
   "/hobby-hub/737-study-finder/assets/css/pwa.css",

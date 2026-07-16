@@ -15,6 +15,7 @@ const REQUIRED_FILES = [
   'assets/js/pwa-client.js',
   '737-study-finder/index.html',
   '737-study-finder/assets/js/gas-run-shim.js',
+  'celestiframe/index.html',
   'izakaya-scout/index.html',
   'izakaya-scout/assets/js/gas-run-shim.js',
   'lifeboard/index.html',
@@ -46,6 +47,7 @@ assert(Array.isArray(manifest.icons) && manifest.icons.length >= 2, 'manifest mu
 const sw = readGenerated('sw.js');
 assert(sw.includes('offline.html'), 'Service Worker must include offline fallback');
 assert(sw.includes('737-study-finder/index.html'), 'Service Worker must cache 737 page');
+assert(sw.includes('celestiframe/index.html'), 'Service Worker must cache CelestiFrame shell');
 assert(sw.includes('izakaya-scout/index.html'), 'Service Worker must cache Izakaya page');
 assert(sw.includes('lifeboard/index.html'), 'Service Worker must cache LifeBoard page');
 
