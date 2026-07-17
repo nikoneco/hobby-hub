@@ -89,13 +89,14 @@ const CONFIG = {
   },
   WEATHER: {
     CACHE_SECONDS: 300,
-    FAILURE_CACHE_SECONDS: 1800,
+    FAILURE_CACHE_SECONDS: 600,
     SOURCE_NOTE: '天気はOpen-Meteo、雨はYahoo!/JMAから取得',
     API_BASE_URL: 'https://api.open-meteo.com/v1/forecast',
     YAHOO_API_BASE_URL: 'https://map.yahooapis.jp/weather/V1/place',
     YAHOO_CLIENT_ID_PROPERTY: 'YAHOO_CLIENT_ID',
     JMA_FORECAST_URL: 'https://www.jma.go.jp/bosai/forecast/data/forecast/130000.json',
     JMA_FORECAST_AREA_CODE: '130010',
+    JMA_TEMPERATURE_AREA_CODE: '44132',
     LONG_RAIN_POP_THRESHOLD: 40,
     DEFAULT_LOCATIONS: [
       {

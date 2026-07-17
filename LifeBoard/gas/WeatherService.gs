@@ -30,21 +30,39 @@ function fetchWeatherLocationSnapshotSafely_(location) {
     return fetchWeatherLocationSnapshot_(location);
   } catch (error) {
     console.error('Weather location failed: ' + location.location_id + ': ' + (error && error.stack ? error.stack : error));
-    const fallback = {
-      locationId: String(location.location_id || ''),
-      displayName: String(location.display_name || ''),
-      statusText: '確認できず',
-      weatherClass: 'unknown',
-      detailText: error && error.message ? error.message : String(error),
-      sourceUrl: 'https://open-meteo.com/',
-      fetchedAt: nowIso_()
-    };
+    const fallback = buildWeatherFallbackSnapshot_(location, error);
     CacheService.getScriptCache().put(
       buildWeatherCacheKey_(location),
       JSON.stringify(fallback),
       Number(CONFIG.WEATHER.FAILURE_CACHE_SECONDS || CONFIG.WEATHER.CACHE_SECONDS || 300)
     );
     return fallback;
+  }
+}
+
+function buildWeatherFallbackSnapshot_(location, originalError) {
+  try {
+    return buildJmaWeatherFallbackSnapshot_(location, originalError);
+  } catch (fallbackError) {
+    console.warn('JMA weather fallback failed: ' + (fallbackError && fallbackError.message ? fallbackError.message : String(fallbackError)));
+    return {
+      locationId: String(location.location_id || ''),
+      displayName: String(location.display_name || ''),
+      statusText: '確認できず',
+      weatherClass: 'unknown',
+      temperatureText: '-',
+      apparentText: '-',
+      humidityText: '-',
+      precipitationText: '-',
+      windText: '-',
+      highLowText: '-',
+      rainChanceText: '-',
+      umbrellaText: '-',
+      hourly: [],
+      detailText: originalError && originalError.message ? originalError.message : String(originalError),
+      sourceUrl: 'https://open-meteo.com/',
+      fetchedAt: nowIso_()
+    };
   }
 }
 
@@ -104,7 +122,7 @@ function fetchWeatherLocationSnapshot_(location) {
 }
 
 function buildWeatherCacheKey_(location) {
-  return 'weather:v5:' + location.location_id;
+  return 'weather:v6:' + location.location_id;
 }
 
 function buildWeatherApiUrl_(location) {
@@ -145,6 +163,50 @@ function formatWeatherTime_(isoText) {
   return Utilities.formatDate(new Date(isoText), CONFIG.TIMEZONE, 'MM/dd HH:mm');
 }
 
+function buildJmaWeatherFallbackSnapshot_(location, originalError) {
+  const report = fetchJmaForecastReport_();
+  const weatherSeries = report.timeSeries && report.timeSeries[0];
+  const tempSeries = report.timeSeries && report.timeSeries[2];
+  const weatherArea = findJmaArea_(weatherSeries, CONFIG.WEATHER.JMA_FORECAST_AREA_CODE);
+  const tempArea = findJmaArea_(tempSeries, CONFIG.WEATHER.JMA_TEMPERATURE_AREA_CODE)
+    || findJmaAreaByName_(tempSeries, '東京')
+    || firstArrayItem_(tempSeries && tempSeries.areas);
+  const weatherText = selectJmaTimedValue_(weatherSeries && weatherSeries.timeDefines, weatherArea && weatherArea.weathers);
+  const temps = asArray_(tempArea && tempArea.temps).map(function (value) {
+    return Number(value);
+  }).filter(function (value) {
+    return !Number.isNaN(value);
+  });
+  const currentTemp = selectJmaTimedValue_(tempSeries && tempSeries.timeDefines, tempArea && tempArea.temps);
+  const low = temps.length ? Math.min.apply(null, temps) : '';
+  const high = temps.length ? Math.max.apply(null, temps) : '';
+  const rainOutlook = buildJmaLongRainOutlookFromReport_(report);
+
+  return {
+    locationId: String(location.location_id || ''),
+    displayName: String(location.display_name || ''),
+    statusText: normalizeJmaWeatherText_(weatherText) || '天気情報',
+    weatherClass: classifyJmaWeatherText_(weatherText),
+    temperatureText: formatWeatherNumber_(currentTemp, '℃'),
+    apparentText: '-',
+    humidityText: '-',
+    precipitationText: '-',
+    windText: '-',
+    highLowText: formatHighLow_(high, low),
+    rainChanceText: '-',
+    umbrellaText: buildCombinedUmbrellaAdvice_(null, rainOutlook),
+    rainNowcast: null,
+    rainOutlook: rainOutlook,
+    clothingText: buildClothingAdvice_(currentTemp, low, high),
+    astronomy: {},
+    hourly: [],
+    sourceUpdatedAtText: formatWeatherTime_(report.reportDatetime),
+    sourceUrl: CONFIG.WEATHER.JMA_FORECAST_URL,
+    detailText: 'Open-Meteo fallback: ' + (originalError && originalError.message ? originalError.message : String(originalError)),
+    fetchedAt: nowIso_()
+  };
+}
+
 function getJmaLongRainOutlookSafely_() {
   try {
     return getJmaLongRainOutlook_();
@@ -155,6 +217,10 @@ function getJmaLongRainOutlookSafely_() {
 }
 
 function getJmaLongRainOutlook_() {
+  return buildJmaLongRainOutlookFromReport_(fetchJmaForecastReport_());
+}
+
+function fetchJmaForecastReport_() {
   const response = UrlFetchApp.fetch(CONFIG.WEATHER.JMA_FORECAST_URL, {
     muteHttpExceptions: true,
     headers: {
@@ -172,7 +238,10 @@ function getJmaLongRainOutlook_() {
   if (!report) {
     throw new Error('JMA forecast report not found');
   }
+  return report;
+}
 
+function buildJmaLongRainOutlookFromReport_(report) {
   const weatherArea = findJmaArea_(report.timeSeries && report.timeSeries[0], CONFIG.WEATHER.JMA_FORECAST_AREA_CODE);
   const popSeries = report.timeSeries && report.timeSeries[1];
   const popArea = findJmaArea_(popSeries, CONFIG.WEATHER.JMA_FORECAST_AREA_CODE);
@@ -208,6 +277,59 @@ function findJmaArea_(timeSeries, areaCode) {
   return areas.filter(function (area) {
     return area && area.area && String(area.area.code) === String(areaCode);
   })[0] || null;
+}
+
+function findJmaAreaByName_(timeSeries, areaName) {
+  const areas = timeSeries && timeSeries.areas ? timeSeries.areas : [];
+  return areas.filter(function (area) {
+    return area && area.area && String(area.area.name || '') === String(areaName);
+  })[0] || null;
+}
+
+function selectJmaTimedValue_(timeDefines, values) {
+  const times = asArray_(timeDefines);
+  const items = asArray_(values);
+  if (!items.length) {
+    return '';
+  }
+  const now = new Date();
+  let selected = items[0];
+  for (let i = 0; i < items.length; i += 1) {
+    const time = times[i] ? new Date(times[i]) : null;
+    if (!time || Number.isNaN(time.getTime())) {
+      continue;
+    }
+    if (time <= now) {
+      selected = items[i];
+    }
+  }
+  return selected;
+}
+
+function normalizeJmaWeatherText_(text) {
+  const normalized = String(text || '').replace(/　/g, ' ').replace(/\s+/g, ' ').trim();
+  const main = normalized.split(/ 所により| 時々| 一時| のち/)[0].trim();
+  return main || normalized;
+}
+
+function classifyJmaWeatherText_(text) {
+  const value = normalizeJmaWeatherText_(text);
+  if (/雪/.test(value)) {
+    return 'snow';
+  }
+  if (/雷|大雨|激しい雨|強い雨/.test(value)) {
+    return 'storm';
+  }
+  if (/雨|しゅう雨/.test(value)) {
+    return 'rain';
+  }
+  if (/くもり|曇/.test(value)) {
+    return 'cloud';
+  }
+  if (/晴/.test(value)) {
+    return 'clear';
+  }
+  return 'unknown';
 }
 
 function buildJmaRainPeriods_(timeDefines, pops, weatherText) {
