@@ -1,0 +1,12 @@
+{
+  "source": "pixoo-animation-test",
+  "generatedAt": "",
+  "routes": [
+    {
+      "routeId": "home_to_station",
+      "label": "animation test",
+      "countdownBaseAt": "",
+      "items": []
+    }
+  ]
+}

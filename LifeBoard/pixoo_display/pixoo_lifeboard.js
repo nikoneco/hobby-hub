@@ -1062,7 +1062,10 @@ function getPrimaryBusItem(snapshot) {
 
 function isBusWithinMinutes(snapshot, thresholdMinutes) {
   const item = getPrimaryBusItem(snapshot);
-  const remaining = Number(item && item.adjustedRemainingMinutes);
+  if (!item) {
+    return false;
+  }
+  const remaining = Number(item.adjustedRemainingMinutes);
   return Number.isFinite(remaining) && remaining >= 0 && remaining <= Number(thresholdMinutes);
 }
 
