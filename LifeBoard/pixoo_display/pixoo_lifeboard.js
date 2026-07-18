@@ -301,10 +301,9 @@ function readSnapshot(inputPath) {
 }
 
 function renderLifeBoardFrames(snapshot, lifeData, options) {
-  const busActive = hasDisplayBus(snapshot);
   const busUrgent = isBusWithinMinutes(snapshot, 5);
   const railAlert = Boolean(buildRailStatus(lifeData).issue);
-  if (!options.animateBusBar || (!busActive && !railAlert)) {
+  if (!options.animateBusBar || (!busUrgent && !railAlert)) {
     return [renderLifeBoardFrame(snapshot, lifeData, options)];
   }
   return Array.from({ length: 4 }, (_, animationPhase) => renderLifeBoardFrame(
@@ -312,7 +311,7 @@ function renderLifeBoardFrames(snapshot, lifeData, options) {
     lifeData,
     Object.assign({}, options, {
       animationPhase,
-      busIconMoves: busActive,
+      busIconMoves: busUrgent,
       busBarBlinkOn: !busUrgent || animationPhase % 2 === 0,
       railAlertBlinkOn: !railAlert || animationPhase % 2 === 0
     })
@@ -353,7 +352,7 @@ function drawRoutePanel(frame, config, options) {
   const barColor = options && options.busBarBlinkOn === false ? COLORS.dim : config.accent;
   drawRect(frame, 0, config.y, 1, 29, barColor);
   const busPhase = options && options.busIconMoves ? Number(options.animationPhase || 0) % 4 : 0;
-  drawBusIcon(frame, 11 - (busPhase * 3), config.y, config.accent);
+  drawBusIcon(frame, 10 - (busPhase * 3), config.y, config.accent);
   if (config.workStatus && config.workStatus.mixedText) {
     const workX = Math.max(24, SIZE - mixedTextWidth(config.workStatus.mixedText));
     drawMixedText(frame, config.workStatus.mixedText, workX, config.y, config.workStatus.color || COLORS.blue, options);
@@ -430,16 +429,29 @@ function drawRailAlertPage(frame, railStatus, options) {
 
 function drawBusIcon(frame, x, y, color) {
   const body = color || COLORS.green;
-  drawRect(frame, x + 2, y, 6, 1, body);
-  drawRect(frame, x + 1, y + 1, 8, 1, body);
-  drawRect(frame, x, y + 2, 10, 4, body);
-  drawRect(frame, x + 3, y + 2, 2, 2, COLORS.black);
-  drawRect(frame, x + 6, y + 2, 2, 2, COLORS.black);
-  drawRect(frame, x + 1, y + 2, 1, 2, COLORS.cyan);
-  setPixel(frame, x + 1, y + 6, COLORS.white);
-  setPixel(frame, x + 2, y + 6, COLORS.white);
-  setPixel(frame, x + 7, y + 6, COLORS.white);
-  setPixel(frame, x + 8, y + 6, COLORS.white);
+  const pattern = [
+    '############',
+    '############',
+    '#CC#CC#CC###',
+    '#CC#CC#CC###',
+    '############',
+    'Y###########',
+    '..WW....WW..'
+  ];
+  const palette = {
+    '#': body,
+    C: COLORS.cyan,
+    W: COLORS.white,
+    Y: COLORS.amber
+  };
+  pattern.forEach((row, rowIndex) => {
+    for (let column = 0; column < row.length; column += 1) {
+      const pixelColor = palette[row[column]];
+      if (pixelColor) {
+        setPixel(frame, x + column, y + rowIndex, pixelColor);
+      }
+    }
+  });
 }
 
 function dimRgb(rgb, factor) {
@@ -931,10 +943,6 @@ function getPrimaryBusItem(snapshot) {
   return getDisplayBusItems(home)[0] || null;
 }
 
-function hasDisplayBus(snapshot) {
-  return Boolean(getPrimaryBusItem(snapshot));
-}
-
 function isBusWithinMinutes(snapshot, thresholdMinutes) {
   const item = getPrimaryBusItem(snapshot);
   const remaining = Number(item && item.adjustedRemainingMinutes);
@@ -1421,7 +1429,7 @@ function printSummary(snapshot, lifeData, options) {
     preview: options.preview || null,
     pngPreview: options.pngPreview || null,
     pixooIp: options.push ? options.pixooIp : null,
-    animationFrames: options.animateBusBar && (hasDisplayBus(snapshot) || Boolean(rail.issue)) ? 4 : 1,
+    animationFrames: options.animateBusBar && (isBusWithinMinutes(snapshot, 5) || Boolean(rail.issue)) ? 4 : 1,
     generatedAt: snapshot.generatedAt || '',
     status: {
       rail: rail.text,

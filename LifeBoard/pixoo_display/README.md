@@ -130,9 +130,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
 ## Notes
 
 - Pixoo64 receives a raw 64x64 RGB frame through its local HTTP API.
-- The bus header uses a four-frame bus icon moving from right to left instead of
-  the `バス` label.
-- The left bus bar blinks only when the first bus is 5 minutes or less away.
+- The bus header uses a bus icon instead of the `バス` label. It stays parked on
+  the right during normal operation, then moves from right to left when the
+  first bus is 5 minutes or less away.
+- The left bus bar also blinks only when the first bus is 5 minutes or less away.
 - Rail delay and suspension alerts blink between their warning color and a dim
   version of the same color.
 - Animation frames are registered under one Pixoo `PicID` with sequential
