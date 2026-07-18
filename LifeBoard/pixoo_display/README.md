@@ -26,9 +26,10 @@ Example:
 $env:PIXOO_IP = "192.168.1.50"
 $env:PIXOO_BRIGHTNESS = "35"
 $env:LIFEBOARD_PIXOO_PAGE_SECONDS = "60"
-# Experimental: sends a 2-frame animation when a bus is approaching.
-# Leave this unset for stable static-frame operation.
-# $env:LIFEBOARD_PIXOO_ANIMATE_BUS_BAR = "1"
+# Native 2-frame animation is enabled by default when a bus is approaching.
+# Set this to "0" only when a static display is needed.
+# $env:LIFEBOARD_PIXOO_ANIMATE_BUS_BAR = "0"
+$env:LIFEBOARD_PIXOO_ANIMATION_SPEED_MS = "650"
 ```
 
 `run_pixoo_manual.ps1` also reads the existing bus fetcher local config:
@@ -129,10 +130,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
 ## Notes
 
 - Pixoo64 receives a raw 64x64 RGB frame through its local HTTP API.
-- The bus bar is extended for visibility. Experimental 2-frame blinking can be
-  enabled with `LIFEBOARD_PIXOO_ANIMATE_BUS_BAR=1`, but static-frame operation
-  is the default because some Pixoo firmware builds can become unstable with
-  multi-frame raw GIF payloads.
+- The bus bar is extended for visibility. When a bus is approaching, two RGB
+  frames are registered under one Pixoo `PicID` with `PicOffset` values `0` and
+  `1`, then played natively by the device. This avoids the old, invalid method
+  of concatenating multiple raw frames into one `PicData` value.
+- Set `LIFEBOARD_PIXOO_ANIMATE_BUS_BAR=0` to force static-frame operation.
 - This script intentionally uses only Node.js built-in APIs.
 - If `LifeBoard\misaki_png_2021-05-05a\misaki_gothic.png` exists, the garbage
   row and the weather glyph are rendered with Misaki Gothic bitmap Japanese text.

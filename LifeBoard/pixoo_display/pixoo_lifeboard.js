@@ -203,7 +203,10 @@ function parseArgs(args) {
     pixooIp: process.env.PIXOO_IP || '',
     brightness: process.env.PIXOO_BRIGHTNESS ? Number(process.env.PIXOO_BRIGHTNESS) : '',
     pageIntervalSeconds: process.env.LIFEBOARD_PIXOO_PAGE_SECONDS ? Number(process.env.LIFEBOARD_PIXOO_PAGE_SECONDS) : 60,
-    animateBusBar: process.env.LIFEBOARD_PIXOO_ANIMATE_BUS_BAR === '1',
+    animateBusBar: process.env.LIFEBOARD_PIXOO_ANIMATE_BUS_BAR !== '0',
+    animationSpeedMs: process.env.LIFEBOARD_PIXOO_ANIMATION_SPEED_MS
+      ? Number(process.env.LIFEBOARD_PIXOO_ANIMATION_SPEED_MS)
+      : 650,
     push: false,
     noPreview: false,
     help: false
@@ -224,6 +227,8 @@ function parseArgs(args) {
     else if (arg === '--brightness') options.brightness = Number(args[++i]);
     else if (arg === '--page-seconds') options.pageIntervalSeconds = Number(args[++i]);
     else if (arg === '--animate-bus-bar') options.animateBusBar = true;
+    else if (arg === '--no-animate-bus-bar') options.animateBusBar = false;
+    else if (arg === '--animation-speed-ms') options.animationSpeedMs = Number(args[++i]);
     else throw new Error('Unknown argument: ' + arg);
   }
 
@@ -243,6 +248,7 @@ function parseArgs(args) {
   if (options.pngPreview) {
     options.pngPreview = path.resolve(options.pngPreview);
   }
+  options.animationSpeedMs = Math.max(100, Math.round(Number(options.animationSpeedMs) || 650));
   return options;
 }
 
@@ -1071,15 +1077,18 @@ async function pushFrameToPixoo(ipAddress, frames, options) {
     picId = 1;
   }
 
-  const payload = {
+  const frameCommands = frameList.map((frame, index) => ({
     Command: 'Draw/SendHttpGif',
     PicNum: frameList.length,
     PicWidth: SIZE,
-    PicOffset: 0,
+    PicOffset: index,
     PicID: picId,
-    PicSpeed: frameList.length > 1 ? 1200 : 1000,
-    PicData: Buffer.concat(frameList).toString('base64')
-  };
+    PicSpeed: frameList.length > 1 ? options.animationSpeedMs : 1000,
+    PicData: frame.toString('base64')
+  }));
+  const payload = frameCommands.length > 1
+    ? { Command: 'Draw/CommandList', CommandList: frameCommands }
+    : frameCommands[0];
   try {
     await postPixoo(baseUrl, payload);
   } catch (error) {
@@ -1087,8 +1096,9 @@ async function pushFrameToPixoo(ipAddress, frames, options) {
       throw error;
     }
     console.warn('Pixoo animation push failed; retrying as a static frame: ' + (error && error.message ? error.message : String(error)));
-    await postPixoo(baseUrl, Object.assign({}, payload, {
+    await postPixoo(baseUrl, Object.assign({}, frameCommands[0], {
       PicNum: 1,
+      PicOffset: 0,
       PicSpeed: 1000,
       PicData: frameList[0].toString('base64')
     }));
@@ -1411,9 +1421,12 @@ function printHelp() {
     '  --pixoo-ip IP       Pixoo64 local IP address.',
     '  --brightness 0-100  Set Pixoo brightness before pushing.',
     '  --page-seconds N    Alternation interval for the lower Pixoo page.',
+    '  --animate-bus-bar    Enable native two-frame bus-bar animation (default).',
+    '  --no-animate-bus-bar Disable the bus-bar animation.',
+    '  --animation-speed-ms Native animation frame duration (default: 650).',
     '',
     'Environment:',
-    '  PIXOO_IP, PIXOO_BRIGHTNESS, LIFEBOARD_IMPORT_URL, LIFEBOARD_PIXOO_INPUT, LIFEBOARD_PIXOO_LIFE_INPUT, LIFEBOARD_PIXOO_LIFE_URL, LIFEBOARD_PIXOO_PAGE_SECONDS, LIFEBOARD_PIXOO_ANIMATE_BUS_BAR, LIFEBOARD_PIXOO_PREVIEW, LIFEBOARD_PIXOO_PNG_PREVIEW'
+    '  PIXOO_IP, PIXOO_BRIGHTNESS, LIFEBOARD_IMPORT_URL, LIFEBOARD_PIXOO_INPUT, LIFEBOARD_PIXOO_LIFE_INPUT, LIFEBOARD_PIXOO_LIFE_URL, LIFEBOARD_PIXOO_PAGE_SECONDS, LIFEBOARD_PIXOO_ANIMATE_BUS_BAR, LIFEBOARD_PIXOO_ANIMATION_SPEED_MS, LIFEBOARD_PIXOO_PREVIEW, LIFEBOARD_PIXOO_PNG_PREVIEW'
   ].join('\n'));
 }
 
