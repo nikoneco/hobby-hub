@@ -1,0 +1,21 @@
+{
+  "source": "pixoo-animation-test",
+  "generatedAt": "",
+  "routes": [
+    {
+      "routeId": "home_to_station",
+      "label": "animation test",
+      "countdownBaseAt": "",
+      "items": [
+        {
+          "scheduledDepartureText": "21:10",
+          "predictedDepartureText": "21:12",
+          "remainingMinutes": 12,
+          "delayText": "+2分",
+          "previousStops": 5,
+          "locationText": "5個前"
+        }
+      ]
+    }
+  ]
+}

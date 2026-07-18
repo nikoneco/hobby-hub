@@ -1,0 +1,45 @@
+{
+  "rail": {
+    "routes": [
+      {
+        "displayName": "総武線(快速)",
+        "severity": "delay",
+        "statusText": "遅延"
+      },
+      {
+        "displayName": "山手線",
+        "severity": "suspended",
+        "statusText": "運転見合わせ"
+      },
+      {
+        "displayName": "東京モノレール線",
+        "severity": "delay",
+        "statusText": "遅延"
+      }
+    ]
+  },
+  "weather": {
+    "locations": [
+      {
+        "temperatureText": "26.2℃",
+        "highLowText": "25.0℃ / 29.4℃",
+        "weatherClass": "rain",
+        "statusText": "雨"
+      }
+    ]
+  },
+  "garbage": {
+    "days": [
+      {
+        "items": [
+          { "label": "可燃" }
+        ]
+      },
+      {
+        "items": [
+          { "label": "資源" }
+        ]
+      }
+    ]
+  }
+}

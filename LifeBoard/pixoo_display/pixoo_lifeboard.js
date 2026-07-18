@@ -7,6 +7,7 @@ const zlib = require('zlib');
 
 const SIZE = 64;
 const PIXELS = SIZE * SIZE;
+const ANIMATION_FRAME_COUNT = 6;
 const BUS_DEPARTURE_GRACE_MS = 0;
 const DEFAULT_INPUT = path.resolve(__dirname, '..', 'data', 'bus_snapshot.json');
 const DEFAULT_PREVIEW = path.resolve(__dirname, '..', 'data', 'pixoo_preview.svg');
@@ -303,17 +304,22 @@ function readSnapshot(inputPath) {
 function renderLifeBoardFrames(snapshot, lifeData, options) {
   const busUrgent = isBusWithinMinutes(snapshot, 5);
   const railAlert = Boolean(buildRailStatus(lifeData).issue);
-  if (!options.animateBusBar || (!busUrgent && !railAlert)) {
+  const weatherMotion = buildWeatherStatus(lifeData).motion;
+  const garbageMotion = buildGarbageStatus(lifeData).hasItems;
+  const hasMotion = busUrgent || railAlert || weatherMotion || garbageMotion;
+  if (!options.animateBusBar || !hasMotion) {
     return [renderLifeBoardFrame(snapshot, lifeData, options)];
   }
-  return Array.from({ length: 4 }, (_, animationPhase) => renderLifeBoardFrame(
+  return Array.from({ length: ANIMATION_FRAME_COUNT }, (_, animationPhase) => renderLifeBoardFrame(
     snapshot,
     lifeData,
     Object.assign({}, options, {
       animationPhase,
       busIconMoves: busUrgent,
       busBarBlinkOn: !busUrgent || animationPhase % 2 === 0,
-      railAlertBlinkOn: !railAlert || animationPhase % 2 === 0
+      railAlertBlinkOn: !railAlert || animationPhase % 2 === 0,
+      weatherIconMoves: weatherMotion,
+      garbageIconMoves: garbageMotion
     })
   ));
 }
@@ -324,7 +330,7 @@ function renderLifeBoardFrame(snapshot, lifeData, options) {
   const home = routes.find((route) => route.routeId === 'home_to_station') || routes[0] || null;
   const age = snapshot.generatedAt ? ageMinutes(snapshot.generatedAt) : '';
   const stale = age !== '' && age >= 15;
-  const railStatus = buildRailStatus(lifeData);
+  const railStatus = buildRailStatus(lifeData, options && options.animationPhase);
   const workStatus = buildWorkStatus(lifeData);
 
   drawText(frame, nowText(), 0, 0, stale ? COLORS.amber : COLORS.white);
@@ -339,8 +345,8 @@ function renderLifeBoardFrame(snapshot, lifeData, options) {
     drawRailAlertPage(frame, railStatus, options);
   } else {
     drawStatusLine(frame, 40, railStatus);
-    drawStatusLine(frame, 48, buildWeatherStatus(lifeData), options);
-    drawStatusLine(frame, 56, buildGarbageStatus(lifeData), options);
+    drawWeatherStatusLine(frame, 48, buildWeatherStatus(lifeData), options);
+    drawGarbageStatusLine(frame, 56, buildGarbageStatus(lifeData), options);
   }
 
   return frame;
@@ -351,8 +357,8 @@ function drawRoutePanel(frame, config, options) {
   const item = items[0] || null;
   const barColor = options && options.busBarBlinkOn === false ? COLORS.dim : config.accent;
   drawRect(frame, 0, config.y, 1, 29, barColor);
-  const busPhase = options && options.busIconMoves ? Number(options.animationPhase || 0) % 4 : 0;
-  drawBusIcon(frame, 10 - (busPhase * 3), config.y, config.accent);
+  const busPhase = options && options.busIconMoves ? Number(options.animationPhase || 0) % ANIMATION_FRAME_COUNT : 0;
+  drawBusIcon(frame, 16 - (busPhase * 3), config.y, config.accent);
   if (config.workStatus && config.workStatus.mixedText) {
     const workX = Math.max(24, SIZE - mixedTextWidth(config.workStatus.mixedText));
     drawMixedText(frame, config.workStatus.mixedText, workX, config.y, config.workStatus.color || COLORS.blue, options);
@@ -412,12 +418,44 @@ function drawStatusLine(frame, y, status, options) {
   drawText(frame, fitText(status.text, 16), 0, y, status.color || COLORS.white);
 }
 
+function drawWeatherStatusLine(frame, y, status, options) {
+  const color = status.color || COLORS.white;
+  if (status.mixedBaseText && drawMixedText(frame, status.mixedBaseText, 0, y, color, options)) {
+    drawWeatherIcon(
+      frame,
+      55,
+      y,
+      status.kind,
+      options && options.weatherIconMoves ? Number(options.animationPhase || 0) : 0,
+      color
+    );
+    return;
+  }
+  drawStatusLine(frame, y, status, options);
+}
+
+function drawGarbageStatusLine(frame, y, status, options) {
+  const color = status.color || COLORS.white;
+  if (status.mixedTailText && drawMixedText(frame, status.mixedTailText, 10, y, color, options)) {
+    drawGarbageBin(
+      frame,
+      1,
+      y,
+      color,
+      status.hasItems && options && options.garbageIconMoves ? Number(options.animationPhase || 0) : 0,
+      status.hasItems
+    );
+    return;
+  }
+  drawStatusLine(frame, y, status, options);
+}
+
 function drawRailAlertPage(frame, railStatus, options) {
   const baseColor = railStatus.color || COLORS.amber;
   const color = options && options.railAlertBlinkOn === false ? dimRgb(baseColor, 0.16) : baseColor;
   drawText(frame, railStatus.title || 'JR ALERT', 0, 40, color);
-  if (railStatus.extraCount) {
-    drawText(frame, '+' + railStatus.extraCount, 54, 40, color);
+  if (railStatus.positionText) {
+    drawText(frame, railStatus.positionText, 52, 40, color);
   }
   if (!drawMixedText(frame, railStatus.lineJp || railStatus.line || 'JR', 0, 48, color, options)) {
     drawText(frame, fitText(railStatus.line || 'JR', 16), 0, 48, color);
@@ -425,6 +463,72 @@ function drawRailAlertPage(frame, railStatus, options) {
   if (!drawMixedText(frame, railStatus.messageJp || '確認してください', 0, 56, color, options)) {
     drawText(frame, fitText(railStatus.message || 'CHECK WEB', 16), 0, 56, color);
   }
+}
+
+function drawWeatherIcon(frame, x, y, kind, phase, color) {
+  const step = Number(phase || 0) % ANIMATION_FRAME_COUNT;
+  if (!kind || kind === 'unknown') {
+    drawText(frame, '?', x + 2, y + 1, color || COLORS.muted);
+    return;
+  }
+  if (kind === 'clear') {
+    drawRect(frame, x + 3, y + 2, 3, 3, COLORS.amber);
+    if (step % 2 === 0) {
+      setPixel(frame, x + 4, y, COLORS.amber);
+      setPixel(frame, x + 4, y + 6, COLORS.amber);
+      setPixel(frame, x + 1, y + 3, COLORS.amber);
+      setPixel(frame, x + 7, y + 3, COLORS.amber);
+      setPixel(frame, x + 2, y + 1, COLORS.amber);
+      setPixel(frame, x + 6, y + 1, COLORS.amber);
+      setPixel(frame, x + 2, y + 5, COLORS.amber);
+      setPixel(frame, x + 6, y + 5, COLORS.amber);
+    }
+    return;
+  }
+
+  const cloudShift = kind === 'cloud' ? (step >= 2 && step <= 4 ? 1 : 0) : 0;
+  const cloudColor = kind === 'snow' ? COLORS.white : (kind === 'heavy' ? COLORS.red : color);
+  drawRect(frame, x + 1 + cloudShift, y + 1, 5, 2, cloudColor);
+  drawRect(frame, x + cloudShift, y + 2, 8, 2, cloudColor);
+  if (kind === 'cloud') {
+    return;
+  }
+  if (kind === 'heavy') {
+    if (step % 2 === 0) {
+      drawLine(frame, x + 4, y + 4, x + 3, y + 6, COLORS.amber);
+      setPixel(frame, x + 4, y + 6, COLORS.amber);
+    } else {
+      setPixel(frame, x + 1, y + 5, COLORS.blue);
+      setPixel(frame, x + 6, y + 6, COLORS.blue);
+    }
+    return;
+  }
+  if (kind === 'snow') {
+    const fall = step % 2;
+    setPixel(frame, x + 1, y + 5 + fall, COLORS.white);
+    setPixel(frame, x + 4, y + 4 + fall, COLORS.white);
+    setPixel(frame, x + 7, y + 5 + fall, COLORS.white);
+    return;
+  }
+  if (kind === 'rain') {
+    const fall = step % 3;
+    setPixel(frame, x + 1, y + 4 + fall, COLORS.blue);
+    setPixel(frame, x + 4, y + 5 + ((fall + 1) % 3), COLORS.blue);
+    setPixel(frame, x + 7, y + 4 + ((fall + 2) % 3), COLORS.blue);
+  }
+}
+
+function drawGarbageBin(frame, x, y, color, phase, hasItems) {
+  const step = Number(phase || 0) % ANIMATION_FRAME_COUNT;
+  drawRect(frame, x + 1, y + 3, 6, 5, color);
+  drawRect(frame, x + 3, y + 1, 2, 1, color);
+  if (hasItems && step >= 2 && step <= 4) {
+    drawLine(frame, x, y + 2, x + 6, y, color);
+  } else {
+    drawRect(frame, x, y + 2, 8, 1, color);
+  }
+  setPixel(frame, x + 3, y + 5, COLORS.black);
+  setPixel(frame, x + 5, y + 5, COLORS.black);
 }
 
 function drawBusIcon(frame, x, y, color) {
@@ -586,7 +690,7 @@ function isFirstBusWaitWindow(date) {
   return minutes >= 0 && minutes < (6 * 60);
 }
 
-function buildRailStatus(lifeData) {
+function buildRailStatus(lifeData, animationPhase) {
   const routes = lifeData && lifeData.rail && Array.isArray(lifeData.rail.routes) ? lifeData.rail.routes : [];
   if (!routes.length) {
     return { text: 'JR ?', color: COLORS.muted };
@@ -594,7 +698,11 @@ function buildRailStatus(lifeData) {
   const issues = routes
     .filter((route) => isRailIssue(route))
     .sort(compareRailIssues);
-  const issue = issues[0] || null;
+  const phase = Math.max(0, Number(animationPhase || 0)) % ANIMATION_FRAME_COUNT;
+  const issueIndex = issues.length > 1
+    ? Math.min(issues.length - 1, Math.floor((phase * issues.length) / ANIMATION_FRAME_COUNT))
+    : 0;
+  const issue = issues[issueIndex] || null;
   if (issue) {
     const severity = String(issue.severity || '').toLowerCase();
     const code = normalizeRailIssueCode(issue);
@@ -606,7 +714,9 @@ function buildRailStatus(lifeData) {
       lineJp: normalizeRailLineJapanese(issue),
       code,
       issue,
-      extraCount: Math.max(0, issues.length - 1),
+      issueCount: issues.length,
+      issueIndex,
+      positionText: issues.length > 1 ? String(issueIndex + 1) + '/' + String(issues.length) : '',
       message: suspended ? 'STOP' : 'DELAY',
       messageJp: suspended ? '運転見合わせ' : '遅延注意',
       color: suspended ? COLORS.red : COLORS.amber
@@ -688,6 +798,9 @@ function buildWeatherStatus(lifeData) {
   return {
     text: 'WX ' + currentText + '/' + highText + 'C ' + weather.ascii,
     mixedText: '天気' + currentText + '/' + highText + 'C' + weather.jpText,
+    mixedBaseText: '天気' + currentText + '/' + highText + 'C',
+    kind: weather.kind,
+    motion: weather.kind !== 'unknown',
     color: weather.color
   };
 }
@@ -702,21 +815,21 @@ function normalizeWeatherGlyph(location) {
     .filter((value) => !/雨なし|雨雲なし|雨予報なし|雨具不要|不要|なし/.test(value))
     .join(' ');
   if (/snow|雪/.test(weatherClass + ' ' + status)) {
-    return { ascii: 'SNOW', jpText: '雪', color: COLORS.white };
+    return { ascii: 'SNOW', jpText: '雪', kind: 'snow', color: COLORS.white };
   }
   if (/heavy|storm|thunder/.test(weatherClass) || /強|大雨|激し|雷/.test(positiveRainText)) {
-    return { ascii: 'HEAVY', jpText: '強雨', color: COLORS.red };
+    return { ascii: 'HEAVY', jpText: '強雨', kind: 'heavy', color: COLORS.red };
   }
   if (/rain|storm|shower/.test(weatherClass) || /雨|傘|折|雷/.test(positiveRainText)) {
-    return { ascii: 'RAIN', jpText: '雨', color: COLORS.amber };
+    return { ascii: 'RAIN', jpText: '雨', kind: 'rain', color: COLORS.amber };
   }
   if (/cloud|fog/.test(weatherClass) || /雲|くもり|曇/.test(status)) {
-    return { ascii: 'CLOUD', jpText: 'くもり', color: COLORS.muted };
+    return { ascii: 'CLOUD', jpText: 'くもり', kind: 'cloud', color: COLORS.muted };
   }
   if (/clear/.test(weatherClass) || /晴|快晴/.test(status)) {
-    return { ascii: 'SUN', jpText: '晴れ', color: COLORS.blue };
+    return { ascii: 'SUN', jpText: '晴れ', kind: 'clear', color: COLORS.blue };
   }
-  return { ascii: '?', jpText: '', color: COLORS.muted };
+  return { ascii: '?', jpText: '', kind: 'unknown', color: COLORS.muted };
 }
 
 function buildGarbageStatus(lifeData) {
@@ -730,12 +843,16 @@ function buildGarbageStatus(lifeData) {
     return {
       text: 'GB ' + target.label + ' ' + summary.text,
       jpText: 'ゴミ' + target.jpLabel + summary.jpText,
+      mixedTailText: target.jpLabel + summary.jpText,
+      hasItems: true,
       color: target.isTomorrow ? COLORS.cyan : COLORS.amber
     };
   }
   return {
     text: 'GB ' + target.label + ' NONE',
     jpText: 'ゴミ' + target.jpLabel + '無し',
+    mixedTailText: target.jpLabel + '無し',
+    hasItems: false,
     color: COLORS.green
   };
 }
@@ -1421,6 +1538,7 @@ function printSummary(snapshot, lifeData, options) {
   const rail = buildRailStatus(lifeData);
   const weather = buildWeatherStatus(lifeData);
   const garbage = buildGarbageStatus(lifeData);
+  const hasMotion = isBusWithinMinutes(snapshot, 5) || Boolean(rail.issue) || weather.motion || garbage.hasItems;
   console.log(JSON.stringify({
     mode: options.push ? 'pushed' : 'preview',
     input: options.input,
@@ -1429,7 +1547,7 @@ function printSummary(snapshot, lifeData, options) {
     preview: options.preview || null,
     pngPreview: options.pngPreview || null,
     pixooIp: options.push ? options.pixooIp : null,
-    animationFrames: options.animateBusBar && (isBusWithinMinutes(snapshot, 5) || Boolean(rail.issue)) ? 4 : 1,
+    animationFrames: options.animateBusBar && hasMotion ? ANIMATION_FRAME_COUNT : 1,
     generatedAt: snapshot.generatedAt || '',
     status: {
       rail: rail.text,
@@ -1469,8 +1587,8 @@ function printHelp() {
     '  --pixoo-ip IP       Pixoo64 local IP address.',
     '  --brightness 0-100  Set Pixoo brightness before pushing.',
     '  --page-seconds N    Alternation interval for the lower Pixoo page.',
-    '  --animate-bus-bar    Enable native two-frame bus-bar animation (default).',
-    '  --no-animate-bus-bar Disable the bus-bar animation.',
+    '  --animate-bus-bar    Enable native six-frame status animation (default).',
+    '  --no-animate-bus-bar Disable Pixoo status animation.',
     '  --animation-speed-ms Native animation frame duration (default: 650).',
     '',
     'Environment:',
