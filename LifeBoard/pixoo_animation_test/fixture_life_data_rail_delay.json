@@ -1,0 +1,11 @@
+{
+  "rail": {
+    "routes": [
+      {
+        "displayName": "総武線(快速)",
+        "severity": "delay",
+        "statusText": "遅延"
+      }
+    ]
+  }
+}

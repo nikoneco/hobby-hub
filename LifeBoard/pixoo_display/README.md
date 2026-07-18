@@ -130,10 +130,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
 ## Notes
 
 - Pixoo64 receives a raw 64x64 RGB frame through its local HTTP API.
-- The bus bar is extended for visibility. When a bus is approaching, two RGB
-  frames are registered under one Pixoo `PicID` with `PicOffset` values `0` and
-  `1`, then played natively by the device. This avoids the old, invalid method
-  of concatenating multiple raw frames into one `PicData` value.
+- The bus header uses a four-frame bus icon moving from right to left instead of
+  the `バス` label.
+- The left bus bar blinks only when the first bus is 5 minutes or less away.
+- Rail delay and suspension alerts blink between their warning color and a dim
+  version of the same color.
+- Animation frames are registered under one Pixoo `PicID` with sequential
+  `PicOffset` values, then played natively by the device. This avoids the old,
+  invalid method of concatenating multiple raw frames into one `PicData` value.
 - Set `LIFEBOARD_PIXOO_ANIMATE_BUS_BAR=0` to force static-frame operation.
 - This script intentionally uses only Node.js built-in APIs.
 - If `LifeBoard\misaki_png_2021-05-05a\misaki_gothic.png` exists, the garbage

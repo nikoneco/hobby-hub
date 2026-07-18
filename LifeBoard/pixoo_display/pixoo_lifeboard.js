@@ -180,6 +180,9 @@ async function main() {
   }
   if (options.pngPreview) {
     writePngPreview(previewFrame, options.pngPreview);
+    frames.slice(1).forEach((frame, index) => {
+      writePngPreview(frame, numberedPreviewPath(options.pngPreview, index + 1));
+    });
   }
 
   if (options.push) {
@@ -298,13 +301,22 @@ function readSnapshot(inputPath) {
 }
 
 function renderLifeBoardFrames(snapshot, lifeData, options) {
-  if (!options.animateBusBar || !hasApproachingBus(snapshot)) {
+  const busActive = hasDisplayBus(snapshot);
+  const busUrgent = isBusWithinMinutes(snapshot, 5);
+  const railAlert = Boolean(buildRailStatus(lifeData).issue);
+  if (!options.animateBusBar || (!busActive && !railAlert)) {
     return [renderLifeBoardFrame(snapshot, lifeData, options)];
   }
-  return [
-    renderLifeBoardFrame(snapshot, lifeData, Object.assign({}, options, { busBarBlinkOn: true })),
-    renderLifeBoardFrame(snapshot, lifeData, Object.assign({}, options, { busBarBlinkOn: false }))
-  ];
+  return Array.from({ length: 4 }, (_, animationPhase) => renderLifeBoardFrame(
+    snapshot,
+    lifeData,
+    Object.assign({}, options, {
+      animationPhase,
+      busIconMoves: busActive,
+      busBarBlinkOn: !busUrgent || animationPhase % 2 === 0,
+      railAlertBlinkOn: !railAlert || animationPhase % 2 === 0
+    })
+  ));
 }
 
 function renderLifeBoardFrame(snapshot, lifeData, options) {
@@ -340,9 +352,8 @@ function drawRoutePanel(frame, config, options) {
   const item = items[0] || null;
   const barColor = options && options.busBarBlinkOn === false ? COLORS.dim : config.accent;
   drawRect(frame, 0, config.y, 1, 29, barColor);
-  if (!drawJapaneseText(frame, 'バス', 3, config.y, config.accent, options)) {
-    drawText(frame, 'BUS', 3, config.y, config.accent);
-  }
+  const busPhase = options && options.busIconMoves ? Number(options.animationPhase || 0) % 4 : 0;
+  drawBusIcon(frame, 11 - (busPhase * 3), config.y, config.accent);
   if (config.workStatus && config.workStatus.mixedText) {
     const workX = Math.max(24, SIZE - mixedTextWidth(config.workStatus.mixedText));
     drawMixedText(frame, config.workStatus.mixedText, workX, config.y, config.workStatus.color || COLORS.blue, options);
@@ -403,7 +414,8 @@ function drawStatusLine(frame, y, status, options) {
 }
 
 function drawRailAlertPage(frame, railStatus, options) {
-  const color = railStatus.color || COLORS.amber;
+  const baseColor = railStatus.color || COLORS.amber;
+  const color = options && options.railAlertBlinkOn === false ? dimRgb(baseColor, 0.16) : baseColor;
   drawText(frame, railStatus.title || 'JR ALERT', 0, 40, color);
   if (railStatus.extraCount) {
     drawText(frame, '+' + railStatus.extraCount, 54, 40, color);
@@ -414,6 +426,25 @@ function drawRailAlertPage(frame, railStatus, options) {
   if (!drawMixedText(frame, railStatus.messageJp || '確認してください', 0, 56, color, options)) {
     drawText(frame, fitText(railStatus.message || 'CHECK WEB', 16), 0, 56, color);
   }
+}
+
+function drawBusIcon(frame, x, y, color) {
+  const body = color || COLORS.green;
+  drawRect(frame, x + 2, y, 6, 1, body);
+  drawRect(frame, x + 1, y + 1, 8, 1, body);
+  drawRect(frame, x, y + 2, 10, 4, body);
+  drawRect(frame, x + 3, y + 2, 2, 2, COLORS.black);
+  drawRect(frame, x + 6, y + 2, 2, 2, COLORS.black);
+  drawRect(frame, x + 1, y + 2, 1, 2, COLORS.cyan);
+  setPixel(frame, x + 1, y + 6, COLORS.white);
+  setPixel(frame, x + 2, y + 6, COLORS.white);
+  setPixel(frame, x + 7, y + 6, COLORS.white);
+  setPixel(frame, x + 8, y + 6, COLORS.white);
+}
+
+function dimRgb(rgb, factor) {
+  const amount = Number.isFinite(Number(factor)) ? Number(factor) : 0.2;
+  return rgb.map((value) => Math.max(0, Math.round(Number(value || 0) * amount)));
 }
 
 function buildWorkStatus(lifeData) {
@@ -894,17 +925,20 @@ function getBusExpiresAt(item, countdownBaseAt) {
   return null;
 }
 
-function hasApproachingBus(snapshot) {
+function getPrimaryBusItem(snapshot) {
   const routes = Array.isArray(snapshot && snapshot.routes) ? snapshot.routes : [];
   const home = routes.find((route) => route.routeId === 'home_to_station') || routes[0] || null;
-  const item = getDisplayBusItems(home)[0] || null;
-  if (!item) {
-    return false;
-  }
-  if (item.previousStops !== '' && item.previousStops != null && !Number.isNaN(Number(item.previousStops))) {
-    return true;
-  }
-  return /接近中|approach/i.test(String(item.locationText || ''));
+  return getDisplayBusItems(home)[0] || null;
+}
+
+function hasDisplayBus(snapshot) {
+  return Boolean(getPrimaryBusItem(snapshot));
+}
+
+function isBusWithinMinutes(snapshot, thresholdMinutes) {
+  const item = getPrimaryBusItem(snapshot);
+  const remaining = Number(item && item.adjustedRemainingMinutes);
+  return Number.isFinite(remaining) && remaining >= 0 && remaining <= Number(thresholdMinutes);
 }
 
 function shortTime(value) {
@@ -1184,6 +1218,12 @@ function writePngPreview(frame, outputPath) {
   fs.writeFileSync(outputPath, Buffer.concat([signature].concat(chunks)));
 }
 
+function numberedPreviewPath(outputPath, frameIndex) {
+  const extension = path.extname(outputPath);
+  const base = extension ? outputPath.slice(0, -extension.length) : outputPath;
+  return base + '_frame' + frameIndex + (extension || '.png');
+}
+
 function readPngImage(inputPath) {
   const buffer = fs.readFileSync(inputPath);
   const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -1381,7 +1421,7 @@ function printSummary(snapshot, lifeData, options) {
     preview: options.preview || null,
     pngPreview: options.pngPreview || null,
     pixooIp: options.push ? options.pixooIp : null,
-    animationFrames: options.animateBusBar && hasApproachingBus(snapshot) ? 2 : 1,
+    animationFrames: options.animateBusBar && (hasDisplayBus(snapshot) || Boolean(rail.issue)) ? 4 : 1,
     generatedAt: snapshot.generatedAt || '',
     status: {
       rail: rail.text,
