@@ -493,8 +493,8 @@ function drawRoutePanel(frame, config, options) {
     drawBusStop(frame, 16, config.y);
     drawBusIcon(frame, 1 - (phase * 3), config.y, config.accent, { headlightOn: false });
   } else if (busScene === 'night') {
-    drawBusStop(frame, 16, config.y);
-    drawMoonAndStars(frame, 27, config.y, phase);
+    drawBusStop(frame, 2, config.y);
+    drawMoonAndStars(frame, 20, config.y, phase);
   } else {
     drawBusStop(frame, 16, config.y);
   }
@@ -807,8 +807,10 @@ function drawMoonAndStars(frame, x, y, phase) {
       if (row[column] === 'F') setPixel(frame, x + column, y + rowIndex, moonFill);
     }
   });
-  drawSparkle(frame, x + 9, y + 1, step % 2 === 0 ? COLORS.white : dimRgb(COLORS.white, 0.25), step % 2 === 0);
-  drawSparkle(frame, x + 12, y + 5, step % 3 === 0 ? COLORS.cyan : dimRgb(COLORS.cyan, 0.25), step % 3 === 0);
+  drawSparkle(frame, x - 7, y + 1, step % 2 === 0 ? COLORS.white : dimRgb(COLORS.white, 0.25), step % 2 === 0);
+  drawSparkle(frame, x - 3, y + 5, step % 3 === 0 ? COLORS.cyan : dimRgb(COLORS.cyan, 0.25), step % 3 === 0);
+  drawSparkle(frame, x + 9, y + 1, step % 2 === 1 ? COLORS.white : dimRgb(COLORS.white, 0.25), step % 2 === 1);
+  drawSparkle(frame, x + 13, y + 5, step % 3 === 1 ? COLORS.cyan : dimRgb(COLORS.cyan, 0.25), step % 3 === 1);
 }
 
 function drawRisingSun(frame, x, y, phase) {
