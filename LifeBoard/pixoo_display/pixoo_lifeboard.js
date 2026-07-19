@@ -70,6 +70,7 @@ const MISAKI_KUTEN = {
   '速': [34, 14],
   '山': [27, 19],
   '手': [28, 74],
+  '風': [41, 87],
   '東': [37, 76],
   'モ': [5, 66],
   'ノ': [5, 46],
@@ -397,7 +398,8 @@ function renderLifeBoardFrames(snapshot, lifeData, options) {
   const busTransition = String(options && options.busTransition || 'none');
   const busScene = resolveBusScene(snapshot, options);
   const railAlert = Boolean(buildRailStatus(lifeData).issue);
-  const weatherMotion = buildWeatherStatus(lifeData).motion;
+  const weatherStatus = buildWeatherStatus(lifeData);
+  const weatherMotion = weatherStatus.motion || Boolean(weatherStatus.wind && weatherStatus.wind.motion);
   const garbageMotion = buildGarbageStatus(lifeData).hasItems;
   const hasMotion = busUrgent || busTransition !== 'none' || busScene !== 'normal'
     || railAlert || weatherMotion || garbageMotion;
@@ -434,6 +436,7 @@ function renderLifeBoardFrame(snapshot, lifeData, options) {
   const age = snapshot.generatedAt ? ageMinutes(snapshot.generatedAt) : '';
   const stale = age !== '' && age >= 15;
   const railStatus = buildRailStatus(lifeData, options && options.animationPhase);
+  const weatherStatus = buildWeatherStatus(lifeData);
   const workStatus = buildWorkStatus(lifeData);
 
   drawText(frame, nowText(), 0, 0, stale ? COLORS.amber : COLORS.white);
@@ -448,8 +451,10 @@ function renderLifeBoardFrame(snapshot, lifeData, options) {
     drawRailAlertPage(frame, railStatus, options);
   } else {
     drawStatusLine(frame, 40, railStatus);
-    drawWeatherStatusLine(frame, 48, buildWeatherStatus(lifeData), options);
-    drawGarbageStatusLine(frame, 56, buildGarbageStatus(lifeData), options);
+    drawWeatherStatusLine(frame, 48, weatherStatus, options);
+    drawGarbageStatusLine(frame, 56, buildGarbageStatus(lifeData), Object.assign({}, options, {
+      windStatus: weatherStatus.wind
+    }));
   }
 
   return frame;
@@ -597,9 +602,47 @@ function drawGarbageStatusLine(frame, y, status, options) {
       status.hasItems && options && options.garbageIconMoves ? Number(options.animationPhase || 0) : 0,
       status.hasItems
     );
+    drawWindStatusIcon(frame, 56, y, options && options.windStatus, options);
     return;
   }
   drawStatusLine(frame, y, status, options);
+  drawWindStatusIcon(frame, 56, y, options && options.windStatus, options);
+}
+
+function drawWindStatusIcon(frame, x, y, windStatus, options) {
+  if (!windStatus || !windStatus.show) {
+    return;
+  }
+  const phase = Number(options && options.animationPhase || 0) % ANIMATION_FRAME_COUNT;
+  const color = options && options.weatherIconMoves === false
+    ? (windStatus.color || COLORS.cyan)
+    : windStatus.level === 'storm' && phase % 2 !== 0
+      ? dimRgb(windStatus.color || COLORS.red, 0.2)
+      : (windStatus.color || COLORS.cyan);
+  if (drawJapaneseText(frame, '風', x, y, color, options)) {
+    return;
+  }
+  drawWindFanIcon(frame, x, y, color, phase);
+}
+
+function drawWindFanIcon(frame, x, y, color, phase) {
+  const step = Number(phase || 0) % 2;
+  drawRect(frame, x + 3, y + 3, 2, 2, color);
+  if (step === 0) {
+    drawLine(frame, x + 3, y, x + 3, y + 2, color);
+    drawLine(frame, x + 4, y, x + 4, y + 2, color);
+    drawLine(frame, x + 5, y + 3, x + 7, y + 3, color);
+    drawLine(frame, x + 5, y + 4, x + 7, y + 4, color);
+    drawLine(frame, x + 3, y + 5, x + 3, y + 7, color);
+    drawLine(frame, x + 4, y + 5, x + 4, y + 7, color);
+    drawLine(frame, x, y + 3, x + 2, y + 3, color);
+    drawLine(frame, x, y + 4, x + 2, y + 4, color);
+    return;
+  }
+  drawLine(frame, x + 1, y + 1, x + 2, y + 2, color);
+  drawLine(frame, x + 5, y + 1, x + 6, y + 2, color);
+  drawLine(frame, x + 5, y + 6, x + 6, y + 5, color);
+  drawLine(frame, x + 1, y + 6, x + 2, y + 5, color);
 }
 
 function drawRailAlertPage(frame, railStatus, options) {
@@ -1058,6 +1101,7 @@ function buildWeatherStatus(lifeData) {
   const currentText = current === '' ? '--' : String(current);
   const highText = high === '' ? '--' : String(high);
   const weather = normalizeWeatherGlyph(location);
+  const wind = buildWindStatus(location);
   return {
     text: 'WX ' + currentText + '/' + highText + 'C ' + weather.ascii,
     mixedText: '天気' + currentText + '/' + highText + 'C' + weather.jpText,
@@ -1066,9 +1110,53 @@ function buildWeatherStatus(lifeData) {
     mode: weather.mode || 'single',
     fromKind: weather.fromKind || '',
     toKind: weather.toKind || '',
-    motion: weather.kind !== 'unknown',
+    wind,
+    motion: weather.kind !== 'unknown' || wind.show,
     color: weather.color
   };
+}
+
+function buildWindStatus(location) {
+  const hourly = location && Array.isArray(location.hourly) ? location.hourly : [];
+  const lookahead = Number(location && location.rainNowcast && location.rainNowcast.lookaheadHours) || 6;
+  const windValues = hourly
+    .slice(0, Math.max(1, lookahead))
+    .map((row) => parseWindMps(row && row.windText))
+    .filter(Number.isFinite);
+  const currentWind = parseWindMps(location && location.windText);
+  if (Number.isFinite(currentWind)) {
+    windValues.push(currentWind);
+  }
+  if (!windValues.length) {
+    return { show: false, speedMps: '', level: '', color: COLORS.muted, motion: false };
+  }
+  const speedMps = Math.max.apply(null, windValues);
+  if (speedMps >= 15) {
+    return { show: true, speedMps, level: 'storm', color: COLORS.red, motion: true };
+  }
+  if (speedMps >= 12) {
+    return { show: true, speedMps, level: 'veryStrong', color: COLORS.yellow, motion: true };
+  }
+  if (speedMps >= 8) {
+    return { show: true, speedMps, level: 'strong', color: COLORS.cyan, motion: true };
+  }
+  return { show: false, speedMps, level: 'normal', color: COLORS.muted, motion: false };
+}
+
+function parseWindMps(value) {
+  const text = String(value || '');
+  const match = text.match(/-?\d+(?:\.\d+)?/);
+  if (!match) {
+    return NaN;
+  }
+  const speed = Number(match[0]);
+  if (!Number.isFinite(speed)) {
+    return NaN;
+  }
+  if (/km\s*\/?\s*h|km\/h|kmh/i.test(text)) {
+    return speed / 3.6;
+  }
+  return speed;
 }
 
 function normalizeWeatherGlyph(location) {
@@ -1887,6 +1975,9 @@ function printSummary(snapshot, lifeData, options) {
     status: {
       rail: rail.text,
       weather: weather.text,
+      wind: weather.wind && weather.wind.show
+        ? (weather.wind.level + ' ' + Math.round(weather.wind.speedMps * 10) / 10 + 'm/s')
+        : 'none',
       garbage: garbage.text
     },
     routes: routes.map((route) => {
