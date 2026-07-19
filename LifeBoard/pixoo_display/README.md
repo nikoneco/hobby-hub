@@ -181,8 +181,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   `sometimes` modes; Pixoo renders later as two icons with an arrow and
   sometimes as alternating icons.
 - If Weathernews wind data reports strong wind in the active lookahead window,
-  the garbage row reserves the bottom-right 8x8 area for a `風` marker. The
-  marker appears at 8 m/s, turns yellow at 12 m/s, and blinks red at 15 m/s.
+  the garbage row reserves the bottom-right 8x8 area for an animated wind-gust
+  icon. The icon appears at 8 m/s, turns yellow at 12 m/s, and blinks red at
+  15 m/s.
 - Garbage (`GB`) shows today (`TDY`) before 10:00. From 10:00 onward, it shows
   tomorrow (`TMR`) so the display helps with the next preparation cycle.
 - Garbage labels are shortened for Pixoo64: burnable garbage is `BURN`,

@@ -70,7 +70,6 @@ const MISAKI_KUTEN = {
   '速': [34, 14],
   '山': [27, 19],
   '手': [28, 74],
-  '風': [41, 87],
   '東': [37, 76],
   'モ': [5, 66],
   'ノ': [5, 46],
@@ -619,30 +618,40 @@ function drawWindStatusIcon(frame, x, y, windStatus, options) {
     : windStatus.level === 'storm' && phase % 2 !== 0
       ? dimRgb(windStatus.color || COLORS.red, 0.2)
       : (windStatus.color || COLORS.cyan);
-  if (drawJapaneseText(frame, '風', x, y, color, options)) {
-    return;
-  }
-  drawWindFanIcon(frame, x, y, color, phase);
+  drawWindGustIcon(frame, x, y, color, phase);
 }
 
-function drawWindFanIcon(frame, x, y, color, phase) {
-  const step = Number(phase || 0) % 2;
-  drawRect(frame, x + 3, y + 3, 2, 2, color);
-  if (step === 0) {
-    drawLine(frame, x + 3, y, x + 3, y + 2, color);
-    drawLine(frame, x + 4, y, x + 4, y + 2, color);
-    drawLine(frame, x + 5, y + 3, x + 7, y + 3, color);
-    drawLine(frame, x + 5, y + 4, x + 7, y + 4, color);
-    drawLine(frame, x + 3, y + 5, x + 3, y + 7, color);
-    drawLine(frame, x + 4, y + 5, x + 4, y + 7, color);
-    drawLine(frame, x, y + 3, x + 2, y + 3, color);
-    drawLine(frame, x, y + 4, x + 2, y + 4, color);
-    return;
-  }
-  drawLine(frame, x + 1, y + 1, x + 2, y + 2, color);
-  drawLine(frame, x + 5, y + 1, x + 6, y + 2, color);
-  drawLine(frame, x + 5, y + 6, x + 6, y + 5, color);
-  drawLine(frame, x + 1, y + 6, x + 2, y + 5, color);
+function drawWindGustIcon(frame, x, y, color, phase) {
+  const patterns = [
+    [
+      '...###..',
+      '..#...#.',
+      '###...#.',
+      '.....##.',
+      '######..',
+      '........',
+      '.####...',
+      '........'
+    ],
+    [
+      '....###.',
+      '...#...#',
+      '.###...#',
+      '......##',
+      '.######.',
+      '........',
+      '..####..',
+      '........'
+    ]
+  ];
+  const pattern = patterns[Math.floor(Number(phase || 0) / 2) % patterns.length];
+  pattern.forEach((row, rowIndex) => {
+    for (let columnIndex = 0; columnIndex < row.length; columnIndex += 1) {
+      if (row[columnIndex] === '#') {
+        setPixel(frame, x + columnIndex, y + rowIndex, color);
+      }
+    }
+  });
 }
 
 function drawRailAlertPage(frame, railStatus, options) {
