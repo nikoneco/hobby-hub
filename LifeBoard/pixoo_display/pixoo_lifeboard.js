@@ -473,15 +473,17 @@ function drawRoutePanel(frame, config, options) {
     drawRisingSun(frame, 26, config.y, phase);
   } else if (item) {
     let busX = 16;
+    let busStopX = 16;
     if (transition === 'first-bus') {
       busX = 46 - (phase * 6);
     } else if (options && options.busArrival) {
-      busX = 1;
+      busStopX = 2;
+      busX = 10;
     } else if (options && options.busIconMoves) {
       busX = 16 - (phase * 3);
     }
     if ((options && options.busArrival) || transition === 'first-bus') {
-      drawBusStop(frame, 16, config.y);
+      drawBusStop(frame, busStopX, config.y);
     }
     drawBusIcon(frame, busX, config.y, config.accent, {
       doorOpen: Boolean(options && options.busArrival && phase >= 2 && phase <= 4),
