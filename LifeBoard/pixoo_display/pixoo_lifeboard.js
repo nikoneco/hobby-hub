@@ -790,16 +790,16 @@ function drawMoonAndStars(frame, x, y, phase) {
   const step = Number(phase || 0) % ANIMATION_FRAME_COUNT;
   const moonEdge = COLORS.amber;
   const moonFill = COLORS.yellow;
-  const crescent = [
-    '..EE....',
-    '.EFFF...',
-    'EFFFF...',
-    'EFFF....',
-    'EFFFF...',
-    '.EFFF...',
-    '..EE....'
+  const fullMoon = [
+    '..EEE...',
+    '.EFFFE..',
+    'EFFFFFE.',
+    'EFFFFFE.',
+    'EFFFFFE.',
+    '.EFFFE..',
+    '..EEE...'
   ];
-  crescent.forEach((row, rowIndex) => {
+  fullMoon.forEach((row, rowIndex) => {
     for (let column = 0; column < row.length; column += 1) {
       if (row[column] === 'E') setPixel(frame, x + column, y + rowIndex, moonEdge);
       if (row[column] === 'F') setPixel(frame, x + column, y + rowIndex, moonFill);
