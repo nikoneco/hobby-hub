@@ -112,6 +112,7 @@ const COLORS = {
   blue: [55, 160, 255],
   cyan: [70, 220, 240],
   amber: [255, 155, 35],
+  yellow: [255, 225, 45],
   red: [255, 55, 55],
   pink: [255, 70, 170],
   purple: [170, 110, 255]
@@ -499,7 +500,7 @@ function drawWeatherIcon(frame, x, y, kind, phase, color) {
   }
 
   const cloudShift = kind === 'cloud' ? (step >= 2 && step <= 4 ? 1 : 0) : 0;
-  const cloudColor = kind === 'heavy' || kind === 'thunder' ? COLORS.red : color;
+  const cloudColor = COLORS.muted;
   drawRect(frame, x + 1 + cloudShift, y + 1, 5, 2, cloudColor);
   drawRect(frame, x + cloudShift, y + 2, 8, 2, cloudColor);
   if (kind === 'cloud') {
@@ -507,10 +508,10 @@ function drawWeatherIcon(frame, x, y, kind, phase, color) {
   }
   if (kind === 'thunder') {
     if (step % 2 === 0) {
-      drawLine(frame, x + 4, y + 4, x + 3, y + 6, COLORS.amber);
-      setPixel(frame, x + 4, y + 6, COLORS.amber);
+      drawLine(frame, x + 4, y + 4, x + 3, y + 6, COLORS.yellow);
+      setPixel(frame, x + 4, y + 6, COLORS.yellow);
     } else {
-      setPixel(frame, x + 4, y + 5, dimRgb(COLORS.amber, 0.25));
+      setPixel(frame, x + 4, y + 5, dimRgb(COLORS.yellow, 0.25));
     }
     return;
   }
@@ -523,8 +524,8 @@ function drawWeatherIcon(frame, x, y, kind, phase, color) {
   }
   if (kind === 'drizzle') {
     const fall = step % 3;
-    setPixel(frame, x + 2, y + 4 + fall, COLORS.cyan);
-    setPixel(frame, x + 6, y + 5 + ((fall + 1) % 2), COLORS.cyan);
+    setPixel(frame, x + 2, y + 4 + fall, COLORS.blue);
+    setPixel(frame, x + 6, y + 5 + ((fall + 1) % 2), COLORS.blue);
     return;
   }
   if (kind === 'rain') {
