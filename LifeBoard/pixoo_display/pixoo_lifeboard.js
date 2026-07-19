@@ -486,28 +486,45 @@ function drawWeatherIcon(frame, x, y, kind, phase, color) {
     return;
   }
 
+  if (kind === 'snow') {
+    const snowColor = step % 2 === 0 ? COLORS.white : COLORS.cyan;
+    drawLine(frame, x + 4, y, x + 4, y + 6, snowColor);
+    drawLine(frame, x + 1, y + 3, x + 7, y + 3, snowColor);
+    setPixel(frame, x + 2, y + 1, snowColor);
+    setPixel(frame, x + 6, y + 1, snowColor);
+    setPixel(frame, x + 2, y + 5, snowColor);
+    setPixel(frame, x + 6, y + 5, snowColor);
+    setPixel(frame, x + 4, y + 3, COLORS.white);
+    return;
+  }
+
   const cloudShift = kind === 'cloud' ? (step >= 2 && step <= 4 ? 1 : 0) : 0;
-  const cloudColor = kind === 'snow' ? COLORS.white : (kind === 'heavy' ? COLORS.red : color);
+  const cloudColor = kind === 'heavy' || kind === 'thunder' ? COLORS.red : color;
   drawRect(frame, x + 1 + cloudShift, y + 1, 5, 2, cloudColor);
   drawRect(frame, x + cloudShift, y + 2, 8, 2, cloudColor);
   if (kind === 'cloud') {
     return;
   }
-  if (kind === 'heavy') {
+  if (kind === 'thunder') {
     if (step % 2 === 0) {
       drawLine(frame, x + 4, y + 4, x + 3, y + 6, COLORS.amber);
       setPixel(frame, x + 4, y + 6, COLORS.amber);
     } else {
-      setPixel(frame, x + 1, y + 5, COLORS.blue);
-      setPixel(frame, x + 6, y + 6, COLORS.blue);
+      setPixel(frame, x + 4, y + 5, dimRgb(COLORS.amber, 0.25));
     }
     return;
   }
-  if (kind === 'snow') {
+  if (kind === 'heavy') {
     const fall = step % 2;
-    setPixel(frame, x + 1, y + 5 + fall, COLORS.white);
-    setPixel(frame, x + 4, y + 4 + fall, COLORS.white);
-    setPixel(frame, x + 7, y + 5 + fall, COLORS.white);
+    drawLine(frame, x + 1, y + 4 + fall, x + 1, y + 6 + fall, COLORS.blue);
+    drawLine(frame, x + 4, y + 4 + fall, x + 4, y + 6 + fall, COLORS.blue);
+    drawLine(frame, x + 7, y + 4 + fall, x + 7, y + 6 + fall, COLORS.blue);
+    return;
+  }
+  if (kind === 'drizzle') {
+    const fall = step % 3;
+    setPixel(frame, x + 2, y + 4 + fall, COLORS.cyan);
+    setPixel(frame, x + 6, y + 5 + ((fall + 1) % 2), COLORS.cyan);
     return;
   }
   if (kind === 'rain') {
@@ -814,13 +831,20 @@ function normalizeWeatherGlyph(location) {
   const positiveRainText = [status, nowcast, umbrella, outlook]
     .filter((value) => !/雨なし|雨雲なし|雨予報なし|雨具不要|不要|なし/.test(value))
     .join(' ');
+  const weatherText = weatherClass + ' ' + status + ' ' + positiveRainText;
   if (/snow|雪/.test(weatherClass + ' ' + status)) {
     return { ascii: 'SNOW', jpText: '雪', kind: 'snow', color: COLORS.white };
   }
-  if (/heavy|storm|thunder/.test(weatherClass) || /強|大雨|激し|雷/.test(positiveRainText)) {
+  if (/thunder/.test(weatherClass) || /雷/.test(weatherText)) {
+    return { ascii: 'THUNDER', jpText: '雷', kind: 'thunder', color: COLORS.red };
+  }
+  if (/drizzle/.test(weatherClass) || /霧雨/.test(weatherText)) {
+    return { ascii: 'DRIZZLE', jpText: '霧雨', kind: 'drizzle', color: COLORS.cyan };
+  }
+  if (/heavy|storm/.test(weatherClass) || /強|大雨|激し/.test(weatherText)) {
     return { ascii: 'HEAVY', jpText: '強雨', kind: 'heavy', color: COLORS.red };
   }
-  if (/rain|storm|shower/.test(weatherClass) || /雨|傘|折|雷/.test(positiveRainText)) {
+  if (/rain|shower/.test(weatherClass) || /雨|傘|折/.test(positiveRainText)) {
     return { ascii: 'RAIN', jpText: '雨', kind: 'rain', color: COLORS.amber };
   }
   if (/cloud|fog/.test(weatherClass) || /雲|くもり|曇/.test(status)) {

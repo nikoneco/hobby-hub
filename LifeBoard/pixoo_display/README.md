@@ -134,8 +134,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   the right during normal operation, then moves across six positions from right
   to left when the first bus is 5 minutes or less away.
 - The left bus bar also blinks only when the first bus is 5 minutes or less away.
-- Weather uses a compact animated icon: sun rays pulse, clouds drift, rain and
-  snow fall, and thunder flashes.
+- Weather uses a compact animated icon: sun rays pulse, clouds drift, drizzle
+  uses sparse drops, rain uses regular drops, heavy rain uses vertical streaks,
+  thunder flashes, and snow uses a sparkling crystal.
 - When garbage is scheduled for the displayed day, the small bin lid opens and
   closes. A no-collection day remains static.
 - Rail delay and suspension alerts blink between their warning color and a dim

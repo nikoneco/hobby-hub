@@ -1,0 +1,12 @@
+{
+  "rail": { "routes": [{ "displayName": "総武線(各駅停車)", "severity": "normal", "statusText": "平常運転" }] },
+  "weather": {
+    "locations": [{
+      "temperatureText": "25.8℃",
+      "highLowText": "24.0℃ / 29.0℃",
+      "weatherClass": "storm",
+      "statusText": "雷雨"
+    }]
+  },
+  "garbage": { "days": [{ "items": [] }, { "items": [] }] }
+}
