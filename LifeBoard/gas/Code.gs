@@ -19,6 +19,9 @@ function doPost(e) {
   if (action === 'importBusTimetable') {
     return handleBusTimetableImportPost_(e);
   }
+  if (action === 'importWeatherSnapshot') {
+    return handleWeatherSnapshotImportPost_(e);
+  }
   return handleCalendarImportPost_(e);
 }
 

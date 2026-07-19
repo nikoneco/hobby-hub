@@ -1,5 +1,5 @@
 param(
-  [ValidateSet('Bus', 'Pixoo', 'TimeTree', 'All')]
+  [ValidateSet('Bus', 'Pixoo', 'Weather', 'TimeTree', 'All')]
   [string]$Mode = 'All',
   [switch]$DryRun,
   [switch]$NoPreview
@@ -38,6 +38,7 @@ $lifeBoardDir = Join-Path $repoRoot 'LifeBoard'
 $logDir = Join-Path $lifeBoardDir 'logs'
 $logPath = Join-Path $logDir 'lifeboard_ops_runner.log'
 $busFetchStatePath = Join-Path $logDir 'bus_last_fetch.txt'
+$weatherFetchStatePath = Join-Path $logDir 'weather_last_fetch.txt'
 $logRetentionDays = 7
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 
@@ -181,18 +182,44 @@ function Test-BusFetchDue {
   }
 
   try {
-    $lastFetch = [DateTime]::Parse($lastText, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind)
+    $lastFetch = [DateTimeOffset]::Parse($lastText, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind)
   } catch {
     return $true
   }
 
   $interval = Get-BusFetchIntervalMinutes
-  $elapsed = (Get-Date) - $lastFetch
+  $elapsed = [DateTimeOffset]::Now - $lastFetch
   if ($elapsed.TotalMinutes -ge $interval) {
     return $true
   }
 
   Add-Log ('bus-fetch skip elapsed={0:N1}m interval={1}m' -f $elapsed.TotalMinutes, $interval)
+  return $false
+}
+
+function Test-WeatherFetchDue {
+  $interval = 15
+  if (-not (Test-Path -LiteralPath $weatherFetchStatePath)) {
+    return $true
+  }
+
+  $lastText = (Get-Content -LiteralPath $weatherFetchStatePath -Raw -ErrorAction SilentlyContinue).Trim()
+  if (-not $lastText) {
+    return $true
+  }
+
+  try {
+    $lastFetch = [DateTimeOffset]::Parse($lastText, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind)
+  } catch {
+    return $true
+  }
+
+  $elapsed = [DateTimeOffset]::Now - $lastFetch
+  if ($elapsed.TotalMinutes -ge $interval) {
+    return $true
+  }
+
+  Add-Log ('weather-fetch skip elapsed={0:N1}m interval={1}m' -f $elapsed.TotalMinutes, $interval)
   return $false
 }
 
@@ -206,7 +233,21 @@ function Invoke-Bus {
   Set-Content -LiteralPath $busFetchStatePath -Encoding ASCII -Value ((Get-Date).ToUniversalTime().ToString('o'))
 }
 
+function Invoke-Weather {
+  if (-not (Test-WeatherFetchDue)) {
+    return
+  }
+  $script = Join-Path $lifeBoardDir 'weather_fetcher\sync_weathernews_snapshot.js'
+  if (-not (Test-Path -LiteralPath $script)) {
+    throw "Weathernews fetcher not found: $script"
+  }
+  $modeArg = if ($DryRun) { '--dry-run' } else { '--post' }
+  Invoke-NodeScript -ScriptPath $script -Arguments @($modeArg) -StepName 'weather-fetch'
+  Set-Content -LiteralPath $weatherFetchStatePath -Encoding ASCII -Value ((Get-Date).ToUniversalTime().ToString('o'))
+}
+
 function Invoke-Pixoo {
+  Invoke-Weather
   $script = Join-Path $lifeBoardDir 'pixoo_display\pixoo_lifeboard.js'
   $args = @()
   if (-not $DryRun) {
@@ -233,6 +274,9 @@ Add-Log "Start mode=$Mode dryRun=$([bool]$DryRun)"
 try {
   if ($Mode -eq 'Bus' -or $Mode -eq 'All') {
     Invoke-Bus
+  }
+  if ($Mode -eq 'Weather' -or $Mode -eq 'All') {
+    Invoke-Weather
   }
   if ($Mode -eq 'TimeTree' -or $Mode -eq 'All') {
     Invoke-TimeTree

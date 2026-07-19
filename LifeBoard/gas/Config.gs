@@ -10,6 +10,7 @@ const CONFIG = {
     BUS_TIMETABLE: 'bus_timetable',
     RAIL_ROUTES: 'rail_routes',
     WEATHER_LOCATIONS: 'weather_locations',
+    WEATHER_SNAPSHOTS: 'weather_snapshots',
     GARBAGE_RULES: 'garbage_rules',
     CALENDAR_EVENTS: 'calendar_events'
   },
@@ -90,7 +91,8 @@ const CONFIG = {
   WEATHER: {
     CACHE_SECONDS: 300,
     FAILURE_CACHE_SECONDS: 600,
-    SOURCE_NOTE: '天気はOpen-Meteo、雨はYahoo!/JMAから取得',
+    STORED_MAX_AGE_MINUTES: 90,
+    SOURCE_NOTE: '天気はWeathernews、Open-Meteo、Yahoo!/JMAから取得',
     API_BASE_URL: 'https://api.open-meteo.com/v1/forecast',
     YAHOO_API_BASE_URL: 'https://map.yahooapis.jp/weather/V1/place',
     YAHOO_CLIENT_ID_PROPERTY: 'YAHOO_CLIENT_ID',

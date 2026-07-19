@@ -271,7 +271,7 @@ function parseArgs(args) {
 async function readLifeBoardData(options) {
   try {
     if (options.lifeInput) {
-      const parsed = JSON.parse(fs.readFileSync(options.lifeInput, 'utf8'));
+      const parsed = JSON.parse(stripBom(fs.readFileSync(options.lifeInput, 'utf8')));
       return parsed && parsed.ok && parsed.data ? parsed.data : parsed;
     }
     if (!options.lifeUrl) {
@@ -310,7 +310,11 @@ function readSnapshot(inputPath) {
       routes: []
     };
   }
-  return JSON.parse(fs.readFileSync(inputPath, 'utf8'));
+  return JSON.parse(stripBom(fs.readFileSync(inputPath, 'utf8')));
+}
+
+function stripBom(text) {
+  return String(text || '').replace(/^\uFEFF/, '');
 }
 
 function readRuntimeState(statePath) {
@@ -550,17 +554,36 @@ function drawStatusLine(frame, y, status, options) {
 function drawWeatherStatusLine(frame, y, status, options) {
   const color = status.color || COLORS.white;
   if (status.mixedBaseText && drawMixedText(frame, status.mixedBaseText, 0, y, color, options)) {
-    drawWeatherIcon(
-      frame,
-      55,
-      y,
-      status.kind,
-      options && options.weatherIconMoves ? Number(options.animationPhase || 0) : 0,
-      color
-    );
+    drawWeatherStatusIcon(frame, y, status, options);
     return;
   }
   drawStatusLine(frame, y, status, options);
+}
+
+function drawWeatherStatusIcon(frame, y, status, options) {
+  const phase = options && options.weatherIconMoves ? Number(options.animationPhase || 0) : 0;
+  const mode = String(status && status.mode || 'single');
+  const fromKind = status && status.fromKind ? status.fromKind : status.kind;
+  const toKind = status && status.toKind ? status.toKind : status.kind;
+  if (mode === 'later' && fromKind && toKind && fromKind !== toKind) {
+    drawWeatherIcon(frame, 45, y, fromKind, phase, weatherIconColor(fromKind));
+    drawTinyRightArrow(frame, 54, y + 3, COLORS.white);
+    drawWeatherIcon(frame, 56, y, toKind, phase + 1, weatherIconColor(toKind));
+    return;
+  }
+  if (mode === 'sometimes' && fromKind && toKind && fromKind !== toKind) {
+    const kind = Math.floor(phase / 2) % 2 === 0 ? fromKind : toKind;
+    drawWeatherIcon(frame, 55, y, kind, phase, weatherIconColor(kind));
+    return;
+  }
+  drawWeatherIcon(frame, 55, y, status.kind, phase, weatherIconColor(status.kind) || status.color || COLORS.white);
+}
+
+function drawTinyRightArrow(frame, x, y, color) {
+  const arrowColor = color || COLORS.white;
+  drawLine(frame, x, y, x + 2, y, arrowColor);
+  setPixel(frame, x + 2, y - 1, arrowColor);
+  setPixel(frame, x + 2, y + 1, arrowColor);
 }
 
 function drawGarbageStatusLine(frame, y, status, options) {
@@ -600,17 +623,19 @@ function drawWeatherIcon(frame, x, y, kind, phase, color) {
     drawText(frame, '?', x + 2, y + 1, color || COLORS.muted);
     return;
   }
-  if (kind === 'clear') {
-    drawRect(frame, x + 3, y + 2, 3, 3, COLORS.amber);
+  if (kind === 'clear' || kind === 'superclear') {
+    const sunColor = kind === 'superclear' ? COLORS.red : COLORS.amber;
+    const rayColor = kind === 'superclear' && step % 2 === 0 ? COLORS.yellow : sunColor;
+    drawRect(frame, x + 3, y + 2, 3, 3, sunColor);
     if (step % 2 === 0) {
-      setPixel(frame, x + 4, y, COLORS.amber);
-      setPixel(frame, x + 4, y + 6, COLORS.amber);
-      setPixel(frame, x + 1, y + 3, COLORS.amber);
-      setPixel(frame, x + 7, y + 3, COLORS.amber);
-      setPixel(frame, x + 2, y + 1, COLORS.amber);
-      setPixel(frame, x + 6, y + 1, COLORS.amber);
-      setPixel(frame, x + 2, y + 5, COLORS.amber);
-      setPixel(frame, x + 6, y + 5, COLORS.amber);
+      setPixel(frame, x + 4, y, rayColor);
+      setPixel(frame, x + 4, y + 6, rayColor);
+      setPixel(frame, x + 1, y + 3, rayColor);
+      setPixel(frame, x + 7, y + 3, rayColor);
+      setPixel(frame, x + 2, y + 1, rayColor);
+      setPixel(frame, x + 6, y + 1, rayColor);
+      setPixel(frame, x + 2, y + 5, rayColor);
+      setPixel(frame, x + 6, y + 5, rayColor);
     }
     return;
   }
@@ -1038,12 +1063,31 @@ function buildWeatherStatus(lifeData) {
     mixedText: '天気' + currentText + '/' + highText + 'C' + weather.jpText,
     mixedBaseText: '天気' + currentText + '/' + highText + 'C',
     kind: weather.kind,
+    mode: weather.mode || 'single',
+    fromKind: weather.fromKind || '',
+    toKind: weather.toKind || '',
     motion: weather.kind !== 'unknown',
     color: weather.color
   };
 }
 
 function normalizeWeatherGlyph(location) {
+  const explicitKind = normalizeWeatherKind(location && location.weatherKind);
+  if (explicitKind !== 'unknown') {
+    const mode = normalizeWeatherMode(location && location.weatherMode);
+    const fromKind = normalizeWeatherKind(location && location.fromKind);
+    const toKind = normalizeWeatherKind(location && location.toKind);
+    return {
+      ascii: asciiWeatherLabel(explicitKind),
+      jpText: String(location && location.weatherLabel || ''),
+      kind: explicitKind,
+      mode,
+      fromKind: fromKind === 'unknown' ? '' : fromKind,
+      toKind: toKind === 'unknown' ? '' : toKind,
+      color: weatherIconColor(explicitKind)
+    };
+  }
+
   const weatherClass = String(location && location.weatherClass || '').toLowerCase();
   const status = String(location && location.statusText || '');
   const nowcast = String(location && location.rainNowcast && location.rainNowcast.rainNowcastText || '');
@@ -1054,27 +1098,66 @@ function normalizeWeatherGlyph(location) {
     .join(' ');
   const weatherText = weatherClass + ' ' + status + ' ' + positiveRainText;
   if (/snow|雪/.test(weatherClass + ' ' + status)) {
-    return { ascii: 'SNOW', jpText: '雪', kind: 'snow', color: COLORS.white };
+    return { ascii: 'SNOW', jpText: '雪', kind: 'snow', mode: 'single', color: COLORS.white };
   }
   if (/thunder/.test(weatherClass) || /雷/.test(weatherText)) {
-    return { ascii: 'THUNDER', jpText: '雷', kind: 'thunder', color: COLORS.red };
+    return { ascii: 'THUNDER', jpText: '雷', kind: 'thunder', mode: 'single', color: COLORS.red };
   }
   if (/drizzle/.test(weatherClass) || /霧雨/.test(weatherText)) {
-    return { ascii: 'DRIZZLE', jpText: '霧雨', kind: 'drizzle', color: COLORS.cyan };
+    return { ascii: 'DRIZZLE', jpText: '霧雨', kind: 'drizzle', mode: 'single', color: COLORS.cyan };
   }
   if (/heavy|storm/.test(weatherClass) || /強|大雨|激し/.test(weatherText)) {
-    return { ascii: 'HEAVY', jpText: '強雨', kind: 'heavy', color: COLORS.red };
+    return { ascii: 'HEAVY', jpText: '強雨', kind: 'heavy', mode: 'single', color: COLORS.red };
   }
   if (/rain|shower/.test(weatherClass) || /雨|傘|折/.test(positiveRainText)) {
-    return { ascii: 'RAIN', jpText: '雨', kind: 'rain', color: COLORS.amber };
+    return { ascii: 'RAIN', jpText: '雨', kind: 'rain', mode: 'single', color: COLORS.amber };
   }
   if (/cloud|fog/.test(weatherClass) || /雲|くもり|曇/.test(status)) {
-    return { ascii: 'CLOUD', jpText: 'くもり', kind: 'cloud', color: COLORS.muted };
+    return { ascii: 'CLOUD', jpText: 'くもり', kind: 'cloud', mode: 'single', color: COLORS.muted };
   }
   if (/clear/.test(weatherClass) || /晴|快晴/.test(status)) {
-    return { ascii: 'SUN', jpText: '晴れ', kind: 'clear', color: COLORS.blue };
+    return { ascii: 'SUN', jpText: '晴れ', kind: 'clear', mode: 'single', color: COLORS.blue };
   }
-  return { ascii: '?', jpText: '', kind: 'unknown', color: COLORS.muted };
+  return { ascii: '?', jpText: '', kind: 'unknown', mode: 'single', color: COLORS.muted };
+}
+
+function normalizeWeatherKind(value) {
+  const kind = String(value || '').toLowerCase();
+  if (['superclear', 'clear', 'cloud', 'drizzle', 'rain', 'heavy', 'thunder', 'snow'].includes(kind)) {
+    return kind;
+  }
+  return 'unknown';
+}
+
+function normalizeWeatherMode(value) {
+  const mode = String(value || '').toLowerCase();
+  return ['single', 'later', 'sometimes'].includes(mode) ? mode : 'single';
+}
+
+function asciiWeatherLabel(kind) {
+  return {
+    superclear: 'HOT',
+    clear: 'SUN',
+    cloud: 'CLOUD',
+    drizzle: 'DRIZZLE',
+    rain: 'RAIN',
+    heavy: 'HEAVY',
+    thunder: 'THUNDER',
+    snow: 'SNOW'
+  }[kind] || '?';
+}
+
+function weatherIconColor(kind) {
+  return {
+    superclear: COLORS.red,
+    clear: COLORS.amber,
+    cloud: COLORS.muted,
+    drizzle: COLORS.cyan,
+    rain: COLORS.amber,
+    heavy: COLORS.red,
+    thunder: COLORS.yellow,
+    snow: COLORS.white
+  }[kind] || COLORS.muted;
 }
 
 function buildGarbageStatus(lifeData) {

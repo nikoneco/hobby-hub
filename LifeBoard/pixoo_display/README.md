@@ -175,9 +175,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   time are shown separately, such as `19:42 +2 / 3M`.
 - When the home-to-station route has no remaining bus items for the day, the
   bus panel shows `本日のバスは` / `終わりました！`.
-- Weather (`WX`) shows today's high temperature and a compact Japanese weather
-  label, such as `WX 30C 雨`. The label is rounded to `晴れ`, `くもり`, `雨`,
-  `強雨`, or `雪`.
+- Weather shows the current temperature and the next-24-hour high temperature,
+  such as `天気27/35C`. The actual condition is expressed by the right-side
+  icon. Weathernews snapshots can supply `later` (`clear -> rain`) and
+  `sometimes` modes; Pixoo renders later as two icons with an arrow and
+  sometimes as alternating icons.
 - Garbage (`GB`) shows today (`TDY`) before 10:00. From 10:00 onward, it shows
   tomorrow (`TMR`) so the display helps with the next preparation cycle.
 - Garbage labels are shortened for Pixoo64: burnable garbage is `BURN`,

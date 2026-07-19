@@ -112,7 +112,7 @@ Copy-FileSafe `
   -Source (Join-Path $lifeBoardSource 'README.md') `
   -Destination (Join-Path $targetLifeBoard 'README.md')
 
-foreach ($dirName in @('bus_fetcher', 'pixoo_display', 'tools', 'misaki_png_2021-05-05a')) {
+foreach ($dirName in @('bus_fetcher', 'weather_fetcher', 'pixoo_display', 'tools', 'misaki_png_2021-05-05a')) {
   Copy-DirectorySafe `
     -SourceDir (Join-Path $lifeBoardSource $dirName) `
     -DestinationDir (Join-Path $targetLifeBoard $dirName)

@@ -1,3 +1,82 @@
+const WEATHER_SNAPSHOT_HEADERS = [
+  'imported_at',
+  'source',
+  'generated_at',
+  'location_id',
+  'snapshot_json'
+];
+
+function handleWeatherSnapshotImportPost_(e) {
+  try {
+    const payload = parseWeatherSnapshotImportPayload_(e);
+    verifyCalendarImportToken_(payload.token);
+    const result = importWeatherSnapshots_(payload);
+    return jsonOutput_({
+      ok: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Weather snapshot import failed: ' + (error && error.stack ? error.stack : error));
+    return jsonOutput_({
+      ok: false,
+      error: {
+        message: error && error.message ? error.message : String(error)
+      }
+    });
+  }
+}
+
+function parseWeatherSnapshotImportPayload_(e) {
+  const body = e && e.postData && e.postData.contents ? e.postData.contents : '';
+  if (!body) {
+    throw new Error('Request body is empty');
+  }
+  return JSON.parse(body);
+}
+
+function importWeatherSnapshots_(payload) {
+  const locations = Array.isArray(payload.locations) ? payload.locations : [];
+  const spreadsheet = openLifeBoardSpreadsheet_();
+  const sheet = getOrCreateSheet_(spreadsheet, CONFIG.SHEETS.WEATHER_SNAPSHOTS);
+  const importedAt = nowIso_();
+  const rows = locations
+    .filter(function (location) {
+      return location && location.locationId;
+    })
+    .map(function (location) {
+      return WEATHER_SNAPSHOT_HEADERS.map(function (header) {
+        return weatherSnapshotValue_(header, location, payload, importedAt);
+      });
+    });
+
+  sheet.clearContents();
+  sheet.getRange(1, 1, Math.max(rows.length + 1, 2), WEATHER_SNAPSHOT_HEADERS.length).setNumberFormat('@');
+  sheet.getRange(1, 1, 1, WEATHER_SNAPSHOT_HEADERS.length).setValues([WEATHER_SNAPSHOT_HEADERS]);
+  if (rows.length) {
+    sheet.getRange(2, 1, rows.length, WEATHER_SNAPSHOT_HEADERS.length).setValues(rows);
+  }
+  sheet.setFrozenRows(1);
+  autoResizeSafe_(sheet, WEATHER_SNAPSHOT_HEADERS.length);
+
+  return {
+    importedAt: importedAt,
+    source: String(payload.source || ''),
+    generatedAt: String(payload.generatedAt || ''),
+    importedLocations: rows.length
+  };
+}
+
+function weatherSnapshotValue_(header, location, payload, importedAt) {
+  const map = {
+    imported_at: importedAt,
+    source: String(payload.source || ''),
+    generated_at: String(payload.generatedAt || ''),
+    location_id: String(location.locationId || ''),
+    snapshot_json: JSON.stringify(location)
+  };
+  return map[header] == null ? '' : map[header];
+}
+
 function getWeatherLocations_() {
   try {
     const spreadsheet = openLifeBoardSpreadsheet_();
@@ -27,6 +106,10 @@ function getWeatherSnapshot_() {
 
 function fetchWeatherLocationSnapshotSafely_(location) {
   try {
+    const stored = getStoredWeatherLocationSnapshot_(location);
+    if (stored) {
+      return stored;
+    }
     return fetchWeatherLocationSnapshot_(location);
   } catch (error) {
     console.error('Weather location failed: ' + location.location_id + ': ' + (error && error.stack ? error.stack : error));
@@ -38,6 +121,47 @@ function fetchWeatherLocationSnapshotSafely_(location) {
     );
     return fallback;
   }
+}
+
+function getStoredWeatherLocationSnapshot_(location) {
+  try {
+    const spreadsheet = openLifeBoardSpreadsheet_();
+    const sheet = getSheetByName_(spreadsheet, CONFIG.SHEETS.WEATHER_SNAPSHOTS);
+    const rows = readObjects_(sheet);
+    const locationId = String(location.location_id || '');
+    const row = rows.filter(function (candidate) {
+      return String(candidate.location_id || '') === locationId;
+    })[0];
+    if (!row) {
+      return null;
+    }
+    const importedAt = String(row.imported_at || '');
+    if (isStoredWeatherSnapshotStale_(importedAt)) {
+      return null;
+    }
+    const snapshot = JSON.parse(String(row.snapshot_json || '{}'));
+    snapshot.locationId = String(snapshot.locationId || location.location_id || '');
+    snapshot.displayName = String(snapshot.displayName || location.display_name || '');
+    snapshot.importedAt = importedAt;
+    snapshot.source = String(row.source || snapshot.source || 'weathernews-scraper');
+    snapshot.fetchedAt = String(snapshot.fetchedAt || row.generated_at || importedAt || nowIso_());
+    snapshot.sourceUpdatedAtText = snapshot.sourceUpdatedAtText
+      ? String(snapshot.sourceUpdatedAtText) + ' / 手動同期'
+      : '手動同期';
+    return snapshot;
+  } catch (error) {
+    console.warn('Stored weather snapshot unavailable: ' + (error && error.message ? error.message : String(error)));
+    return null;
+  }
+}
+
+function isStoredWeatherSnapshotStale_(importedAt) {
+  const importedMs = Date.parse(importedAt);
+  if (!Number.isFinite(importedMs)) {
+    return true;
+  }
+  const maxAgeMs = Number(CONFIG.WEATHER.STORED_MAX_AGE_MINUTES || 90) * 60 * 1000;
+  return Date.now() - importedMs > maxAgeMs;
 }
 
 function buildWeatherFallbackSnapshot_(location, originalError) {
