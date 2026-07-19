@@ -26,7 +26,7 @@ Example:
 $env:PIXOO_IP = "192.168.1.50"
 $env:PIXOO_BRIGHTNESS = "35"
 $env:LIFEBOARD_PIXOO_PAGE_SECONDS = "60"
-# Native 2-frame animation is enabled by default when a bus is approaching.
+# Native 6-frame animation is enabled by default for status motion.
 # Set this to "0" only when a static display is needed.
 # $env:LIFEBOARD_PIXOO_ANIMATE_BUS_BAR = "0"
 $env:LIFEBOARD_PIXOO_ANIMATION_SPEED_MS = "650"
@@ -133,7 +133,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
 - The bus header uses a bus icon instead of the `バス` label. It stays parked on
   the right during normal operation, then moves across six positions from right
   to left when the first bus is 5 minutes or less away.
+- At 1 minute or less, the bus stops at the left edge, flashes its headlight,
+  and opens/closes its front door instead of continuing to move.
 - The left bus bar also blinks only when the first bus is 5 minutes or less away.
+- The last bus exits left once when service ends. Overnight, an empty route uses
+  a moon-and-stars scene. During 06:00-06:00:59, a sunrise replaces the bus icon
+  for one minute even if first-bus data has already arrived; the bus returns at
+  06:01. One-shot transition state is stored in
+  `LifeBoard\data\pixoo_runtime_state.json`.
 - Weather uses a compact animated icon: sun rays pulse, clouds drift, drizzle
   uses sparse drops, rain uses regular drops, heavy rain uses vertical streaks,
   thunder flashes, and snow uses a sparkling crystal. Weather text keeps its
@@ -171,7 +178,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
 - Weather (`WX`) shows today's high temperature and a compact Japanese weather
   label, such as `WX 30C 雨`. The label is rounded to `晴れ`, `くもり`, `雨`,
   `強雨`, or `雪`.
-- Garbage (`GB`) shows today (`TDY`) before 09:00. From 09:00 onward, it shows
+- Garbage (`GB`) shows today (`TDY`) before 10:00. From 10:00 onward, it shows
   tomorrow (`TMR`) so the display helps with the next preparation cycle.
 - Garbage labels are shortened for Pixoo64: burnable garbage is `BURN`,
   non-burnable garbage is `NON`, and recyclables/resource garbage is `RES`.

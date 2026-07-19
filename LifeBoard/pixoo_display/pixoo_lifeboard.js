@@ -12,6 +12,7 @@ const BUS_DEPARTURE_GRACE_MS = 0;
 const DEFAULT_INPUT = path.resolve(__dirname, '..', 'data', 'bus_snapshot.json');
 const DEFAULT_PREVIEW = path.resolve(__dirname, '..', 'data', 'pixoo_preview.svg');
 const DEFAULT_PNG_PREVIEW = path.resolve(__dirname, '..', 'data', 'pixoo_preview_64.png');
+const DEFAULT_RUNTIME_STATE = path.resolve(__dirname, '..', 'data', 'pixoo_runtime_state.json');
 const DEFAULT_MISAKI_GOTHIC = path.resolve(__dirname, '..', 'misaki_png_2021-05-05a', 'misaki_gothic.png');
 
 const MISAKI_KUTEN = {
@@ -174,6 +175,8 @@ async function main() {
 
   const snapshot = readSnapshot(options.input);
   const lifeData = await readLifeBoardData(options);
+  const runtimeState = readRuntimeState(options.stateFile);
+  options.busTransition = resolveBusTransition(snapshot, runtimeState, options);
   const frames = renderLifeBoardFrames(snapshot, lifeData, options);
   const previewFrame = frames[0];
 
@@ -192,6 +195,7 @@ async function main() {
       throw new Error('PIXOO_IP or --pixoo-ip is required when using --push');
     }
     await pushFrameToPixoo(options.pixooIp, frames, options);
+    writeRuntimeState(options.stateFile, buildNextRuntimeState(snapshot, runtimeState, options.busTransition));
   }
 
   printSummary(snapshot, lifeData, options);
@@ -205,6 +209,9 @@ function parseArgs(args) {
     fontPng: process.env.LIFEBOARD_PIXOO_FONT_PNG || DEFAULT_MISAKI_GOTHIC,
     preview: process.env.LIFEBOARD_PIXOO_PREVIEW || DEFAULT_PREVIEW,
     pngPreview: process.env.LIFEBOARD_PIXOO_PNG_PREVIEW || '',
+    stateFile: process.env.LIFEBOARD_PIXOO_STATE_FILE || DEFAULT_RUNTIME_STATE,
+    busTransition: process.env.LIFEBOARD_PIXOO_BUS_TRANSITION || 'auto',
+    busScene: process.env.LIFEBOARD_PIXOO_BUS_SCENE || 'auto',
     pixooIp: process.env.PIXOO_IP || '',
     brightness: process.env.PIXOO_BRIGHTNESS ? Number(process.env.PIXOO_BRIGHTNESS) : '',
     pageIntervalSeconds: process.env.LIFEBOARD_PIXOO_PAGE_SECONDS ? Number(process.env.LIFEBOARD_PIXOO_PAGE_SECONDS) : 60,
@@ -226,6 +233,9 @@ function parseArgs(args) {
     else if (arg === '--font-png') options.fontPng = args[++i];
     else if (arg === '--preview') options.preview = args[++i];
     else if (arg === '--png-preview') options.pngPreview = args[++i] || DEFAULT_PNG_PREVIEW;
+    else if (arg === '--state-file') options.stateFile = args[++i];
+    else if (arg === '--bus-transition') options.busTransition = args[++i];
+    else if (arg === '--bus-scene') options.busScene = args[++i];
     else if (arg === '--no-preview') options.noPreview = true;
     else if (arg === '--push') options.push = true;
     else if (arg === '--pixoo-ip') options.pixooIp = args[++i];
@@ -253,6 +263,7 @@ function parseArgs(args) {
   if (options.pngPreview) {
     options.pngPreview = path.resolve(options.pngPreview);
   }
+  options.stateFile = path.resolve(options.stateFile || DEFAULT_RUNTIME_STATE);
   options.animationSpeedMs = Math.max(100, Math.round(Number(options.animationSpeedMs) || 650));
   return options;
 }
@@ -302,21 +313,108 @@ function readSnapshot(inputPath) {
   return JSON.parse(fs.readFileSync(inputPath, 'utf8'));
 }
 
+function readRuntimeState(statePath) {
+  try {
+    if (!statePath || !fs.existsSync(statePath)) {
+      return null;
+    }
+    const parsed = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch (error) {
+    console.warn('Pixoo runtime state unavailable: ' + (error && error.message ? error.message : String(error)));
+    return null;
+  }
+}
+
+function resolveBusTransition(snapshot, runtimeState, options) {
+  const requested = String(options && options.busTransition || 'auto').toLowerCase();
+  if (requested !== 'auto') {
+    return ['service-ended', 'first-bus', 'none'].includes(requested) ? requested : 'none';
+  }
+  if (!options || !options.push || !runtimeState || !runtimeState.initialized) {
+    return 'none';
+  }
+
+  const now = new Date();
+  const today = localDateKey(now);
+  const hasBus = Boolean(getPrimaryBusItem(snapshot));
+  if (runtimeState.homeHasBus && !hasBus && now.getHours() >= 18 && runtimeState.lastServiceEndedDate !== today) {
+    return 'service-ended';
+  }
+  if (!runtimeState.homeHasBus && hasBus && now.getHours() < 8 && runtimeState.lastFirstBusDate !== today) {
+    return 'first-bus';
+  }
+  return 'none';
+}
+
+function buildNextRuntimeState(snapshot, previousState, transition) {
+  const now = new Date();
+  const today = localDateKey(now);
+  const next = Object.assign({}, previousState || {}, {
+    initialized: true,
+    homeHasBus: Boolean(getPrimaryBusItem(snapshot)),
+    updatedAt: now.toISOString()
+  });
+  if (transition === 'service-ended') {
+    next.lastServiceEndedDate = today;
+  }
+  if (transition === 'first-bus') {
+    next.lastFirstBusDate = today;
+  }
+  return next;
+}
+
+function writeRuntimeState(statePath, state) {
+  if (!statePath) {
+    return;
+  }
+  fs.mkdirSync(path.dirname(statePath), { recursive: true });
+  fs.writeFileSync(statePath, JSON.stringify(state, null, 2) + '\n', 'utf8');
+}
+
+function resolveBusScene(snapshot, options, date) {
+  const requested = String(options && options.busScene || 'auto').toLowerCase();
+  if (['night', 'sunrise', 'normal'].includes(requested)) {
+    return requested;
+  }
+  const now = date || new Date();
+  if (isSunriseMinute(now)) {
+    return 'sunrise';
+  }
+  if (!getPrimaryBusItem(snapshot) && isFirstBusWaitWindow(now)) {
+    return 'night';
+  }
+  return 'normal';
+}
+
 function renderLifeBoardFrames(snapshot, lifeData, options) {
+  const busArrival = isBusWithinMinutes(snapshot, 1);
   const busUrgent = isBusWithinMinutes(snapshot, 5);
+  const busTransition = String(options && options.busTransition || 'none');
+  const busScene = resolveBusScene(snapshot, options);
   const railAlert = Boolean(buildRailStatus(lifeData).issue);
   const weatherMotion = buildWeatherStatus(lifeData).motion;
   const garbageMotion = buildGarbageStatus(lifeData).hasItems;
-  const hasMotion = busUrgent || railAlert || weatherMotion || garbageMotion;
+  const hasMotion = busUrgent || busTransition !== 'none' || busScene !== 'normal'
+    || railAlert || weatherMotion || garbageMotion;
   if (!options.animateBusBar || !hasMotion) {
-    return [renderLifeBoardFrame(snapshot, lifeData, options)];
+    return [renderLifeBoardFrame(snapshot, lifeData, Object.assign({}, options, {
+      busArrival,
+      busIconMoves: false,
+      busTransition,
+      busScene,
+      busBarBlinkOn: true
+    }))];
   }
   return Array.from({ length: ANIMATION_FRAME_COUNT }, (_, animationPhase) => renderLifeBoardFrame(
     snapshot,
     lifeData,
     Object.assign({}, options, {
       animationPhase,
-      busIconMoves: busUrgent,
+      busArrival,
+      busIconMoves: busUrgent && !busArrival,
+      busTransition,
+      busScene,
       busBarBlinkOn: !busUrgent || animationPhase % 2 === 0,
       railAlertBlinkOn: !railAlert || animationPhase % 2 === 0,
       weatherIconMoves: weatherMotion,
@@ -356,10 +454,40 @@ function renderLifeBoardFrame(snapshot, lifeData, options) {
 function drawRoutePanel(frame, config, options) {
   const items = getDisplayBusItems(config.route);
   const item = items[0] || null;
+  const phase = Number(options && options.animationPhase || 0) % ANIMATION_FRAME_COUNT;
+  const busScene = String(options && options.busScene || 'normal');
+  const transition = String(options && options.busTransition || 'none');
   const barColor = options && options.busBarBlinkOn === false ? COLORS.dim : config.accent;
   drawRect(frame, 0, config.y, 1, 29, barColor);
-  const busPhase = options && options.busIconMoves ? Number(options.animationPhase || 0) % ANIMATION_FRAME_COUNT : 0;
-  drawBusIcon(frame, 16 - (busPhase * 3), config.y, config.accent);
+
+  if (busScene === 'sunrise') {
+    drawBusStop(frame, 16, config.y);
+    drawRisingSun(frame, 26, config.y, phase);
+  } else if (item) {
+    let busX = 16;
+    if (transition === 'first-bus') {
+      busX = 46 - (phase * 6);
+    } else if (options && options.busArrival) {
+      busX = 1;
+    } else if (options && options.busIconMoves) {
+      busX = 16 - (phase * 3);
+    }
+    if ((options && options.busArrival) || transition === 'first-bus') {
+      drawBusStop(frame, 16, config.y);
+    }
+    drawBusIcon(frame, busX, config.y, config.accent, {
+      doorOpen: Boolean(options && options.busArrival && phase >= 2 && phase <= 4),
+      headlightOn: Boolean(options && options.busArrival && phase % 2 === 0)
+    });
+  } else if (transition === 'service-ended') {
+    drawBusStop(frame, 16, config.y);
+    drawBusIcon(frame, 1 - (phase * 3), config.y, config.accent, { headlightOn: false });
+  } else if (busScene === 'night') {
+    drawBusStop(frame, 16, config.y);
+    drawMoonAndStars(frame, 27, config.y, phase);
+  } else {
+    drawBusStop(frame, 16, config.y);
+  }
   if (config.workStatus && config.workStatus.mixedText) {
     const workX = Math.max(24, SIZE - mixedTextWidth(config.workStatus.mixedText));
     drawMixedText(frame, config.workStatus.mixedText, workX, config.y, config.workStatus.color || COLORS.blue, options);
@@ -397,7 +525,7 @@ function drawRoutePanel(frame, config, options) {
 }
 
 function drawBusEndedMessage(frame, y, options) {
-  const firstBusWait = isFirstBusWaitWindow();
+  const firstBusWait = String(options && options.busScene || '') === 'sunrise' || isFirstBusWaitWindow();
   const firstLine = firstBusWait ? '始発バスを' : '本日のバスは';
   const secondLine = firstBusWait ? 'お待ちください' : '終わりました！';
   const secondColor = firstBusWait ? COLORS.blue : COLORS.pink;
@@ -549,8 +677,9 @@ function drawGarbageBin(frame, x, y, color, phase, hasItems) {
   setPixel(frame, x + 5, y + 5, COLORS.black);
 }
 
-function drawBusIcon(frame, x, y, color) {
+function drawBusIcon(frame, x, y, color, state) {
   const body = color || COLORS.green;
+  const appearance = state || {};
   const pattern = [
     '############',
     '############',
@@ -564,7 +693,7 @@ function drawBusIcon(frame, x, y, color) {
     '#': body,
     C: COLORS.cyan,
     W: COLORS.white,
-    Y: COLORS.amber
+    Y: appearance.headlightOn === false ? dimRgb(COLORS.amber, 0.25) : COLORS.yellow
   };
   pattern.forEach((row, rowIndex) => {
     for (let column = 0; column < row.length; column += 1) {
@@ -574,6 +703,92 @@ function drawBusIcon(frame, x, y, color) {
       }
     }
   });
+  if (appearance.doorOpen) {
+    drawRect(frame, x + 1, y + 3, 2, 3, COLORS.black);
+    drawLine(frame, x + 3, y + 3, x + 3, y + 5, COLORS.cyan);
+  }
+}
+
+function drawMoonAndStars(frame, x, y, phase) {
+  const step = Number(phase || 0) % ANIMATION_FRAME_COUNT;
+  const moonEdge = COLORS.amber;
+  const moonFill = COLORS.yellow;
+  const crescent = [
+    '..EE....',
+    '.EFFF...',
+    'EFFFF...',
+    'EFFF....',
+    'EFFFF...',
+    '.EFFF...',
+    '..EE....'
+  ];
+  crescent.forEach((row, rowIndex) => {
+    for (let column = 0; column < row.length; column += 1) {
+      if (row[column] === 'E') setPixel(frame, x + column, y + rowIndex, moonEdge);
+      if (row[column] === 'F') setPixel(frame, x + column, y + rowIndex, moonFill);
+    }
+  });
+  drawSparkle(frame, x + 9, y + 1, step % 2 === 0 ? COLORS.white : dimRgb(COLORS.white, 0.25), step % 2 === 0);
+  drawSparkle(frame, x + 12, y + 5, step % 3 === 0 ? COLORS.cyan : dimRgb(COLORS.cyan, 0.25), step % 3 === 0);
+}
+
+function drawRisingSun(frame, x, y, phase) {
+  const step = Number(phase || 0) % ANIMATION_FRAME_COUNT;
+  const horizonY = y + 5;
+  const centerX = x + 6;
+  const centerY = y + 8 - step;
+  drawLine(frame, x, horizonY, x + 13, horizonY, COLORS.purple);
+  drawLine(frame, x + 2, horizonY + 1, x + 11, horizonY + 1, dimRgb(COLORS.blue, 0.55));
+  for (let offsetY = -2; offsetY <= 2; offsetY += 1) {
+    for (let offsetX = -2; offsetX <= 2; offsetX += 1) {
+      if ((offsetX * offsetX) + (offsetY * offsetY) <= 5 && centerY + offsetY <= horizonY) {
+        const sunColor = Math.abs(offsetX) === 2 || Math.abs(offsetY) === 2 ? COLORS.amber : COLORS.yellow;
+        setPixel(frame, centerX + offsetX, centerY + offsetY, sunColor);
+      }
+    }
+  }
+  if (step >= 4) {
+    setPixel(frame, centerX, centerY - 3, COLORS.yellow);
+    setPixel(frame, centerX - 4, centerY, COLORS.yellow);
+    setPixel(frame, centerX + 4, centerY, COLORS.yellow);
+  }
+}
+
+function drawBusStop(frame, x, y) {
+  const sign = [
+    '..AA...',
+    '.ABBA..',
+    'ABBWBA.',
+    '.ABBA..',
+    '..MM...',
+    '..MM...',
+    '.MMMM..'
+  ];
+  const palette = {
+    A: COLORS.amber,
+    B: COLORS.blue,
+    W: COLORS.white,
+    M: COLORS.muted
+  };
+  sign.forEach((row, rowIndex) => {
+    for (let column = 0; column < row.length; column += 1) {
+      const pixelColor = palette[row[column]];
+      if (pixelColor) {
+        setPixel(frame, x + column, y + rowIndex, pixelColor);
+      }
+    }
+  });
+}
+
+function drawSparkle(frame, x, y, color, expanded) {
+  setPixel(frame, x, y, color);
+  if (!expanded) {
+    return;
+  }
+  setPixel(frame, x - 1, y, color);
+  setPixel(frame, x + 1, y, color);
+  setPixel(frame, x, y - 1, color);
+  setPixel(frame, x, y + 1, color);
 }
 
 function dimRgb(rgb, factor) {
@@ -706,6 +921,11 @@ function isFirstBusWaitWindow(date) {
   const target = date || new Date();
   const minutes = (target.getHours() * 60) + target.getMinutes();
   return minutes >= 0 && minutes < (6 * 60);
+}
+
+function isSunriseMinute(date) {
+  const target = date || new Date();
+  return target.getHours() === 6 && target.getMinutes() === 0;
 }
 
 function buildRailStatus(lifeData, animationPhase) {
@@ -1566,7 +1786,9 @@ function printSummary(snapshot, lifeData, options) {
   const rail = buildRailStatus(lifeData);
   const weather = buildWeatherStatus(lifeData);
   const garbage = buildGarbageStatus(lifeData);
-  const hasMotion = isBusWithinMinutes(snapshot, 5) || Boolean(rail.issue) || weather.motion || garbage.hasItems;
+  const busScene = resolveBusScene(snapshot, options);
+  const hasMotion = isBusWithinMinutes(snapshot, 5) || String(options.busTransition || 'none') !== 'none'
+    || busScene !== 'normal' || Boolean(rail.issue) || weather.motion || garbage.hasItems;
   console.log(JSON.stringify({
     mode: options.push ? 'pushed' : 'preview',
     input: options.input,
@@ -1576,6 +1798,8 @@ function printSummary(snapshot, lifeData, options) {
     pngPreview: options.pngPreview || null,
     pixooIp: options.push ? options.pixooIp : null,
     animationFrames: options.animateBusBar && hasMotion ? ANIMATION_FRAME_COUNT : 1,
+    busTransition: options.busTransition || 'none',
+    busScene,
     generatedAt: snapshot.generatedAt || '',
     status: {
       rail: rail.text,
@@ -1610,6 +1834,9 @@ function printHelp() {
     '  --life-url URL      Optional LifeBoard web app URL for rail/weather/garbage.',
     '  --preview PATH      Write a 64x64 SVG preview.',
     '  --png-preview PATH  Write a 64x64 PNG preview.',
+    '  --state-file PATH    Runtime state used for one-shot bus transitions.',
+    '  --bus-transition X   auto, none, service-ended, or first-bus.',
+    '  --bus-scene X        auto, normal, night, or sunrise.',
     '  --no-preview        Do not write a preview file.',
     '  --push              Send the rendered frame to Pixoo64.',
     '  --pixoo-ip IP       Pixoo64 local IP address.',
@@ -1620,7 +1847,7 @@ function printHelp() {
     '  --animation-speed-ms Native animation frame duration (default: 650).',
     '',
     'Environment:',
-    '  PIXOO_IP, PIXOO_BRIGHTNESS, LIFEBOARD_IMPORT_URL, LIFEBOARD_PIXOO_INPUT, LIFEBOARD_PIXOO_LIFE_INPUT, LIFEBOARD_PIXOO_LIFE_URL, LIFEBOARD_PIXOO_PAGE_SECONDS, LIFEBOARD_PIXOO_ANIMATE_BUS_BAR, LIFEBOARD_PIXOO_ANIMATION_SPEED_MS, LIFEBOARD_PIXOO_PREVIEW, LIFEBOARD_PIXOO_PNG_PREVIEW'
+    '  PIXOO_IP, PIXOO_BRIGHTNESS, LIFEBOARD_IMPORT_URL, LIFEBOARD_PIXOO_INPUT, LIFEBOARD_PIXOO_LIFE_INPUT, LIFEBOARD_PIXOO_LIFE_URL, LIFEBOARD_PIXOO_PAGE_SECONDS, LIFEBOARD_PIXOO_ANIMATE_BUS_BAR, LIFEBOARD_PIXOO_ANIMATION_SPEED_MS, LIFEBOARD_PIXOO_PREVIEW, LIFEBOARD_PIXOO_PNG_PREVIEW, LIFEBOARD_PIXOO_STATE_FILE, LIFEBOARD_PIXOO_BUS_TRANSITION, LIFEBOARD_PIXOO_BUS_SCENE'
   ].join('\n'));
 }
 
