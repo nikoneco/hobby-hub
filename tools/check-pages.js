@@ -16,6 +16,9 @@ const REQUIRED_FILES = [
   '737-study-finder/index.html',
   '737-study-finder/assets/js/gas-run-shim.js',
   '737-study-finder/assets/answer-figures/ata00-design-range.webp',
+  '737-study-finder/assets/answer-figures/ata24-external-power-locations.webp',
+  '737-study-finder/assets/answer-figures/ata27-aileron-numbered-diagram.webp',
+  '737-study-finder/assets/answer-figures/ata38-potable-water-system.webp',
   '737-study-finder/assets/answer-figures/ata47-ngs-diagram.webp',
   'celestiframe/index.html',
   'izakaya-scout/index.html',
@@ -37,6 +40,16 @@ const studyHtml = readGenerated('737-study-finder/index.html');
 const studyJs = readGenerated('737-study-finder/assets/js/app.js');
 assert(!/Answer Draft|AI \/ Draft Answers|回答作成用プロンプト/.test(studyHtml + studyJs), '737 Study Finder still exposes draft/prompt UI');
 assert(studyJs.includes('answerFigures'), '737 Study Finder must support selective answer figures');
+assert(studyJs.includes('loading="lazy"'), '737 Study Finder answer figures must remain lazy-loaded');
+const answerFigureFiles = [...studyJs.matchAll(/\['([^']+\.webp)',\s*'[^']+'\]/g)]
+  .map((match) => match[1]);
+assert(answerFigureFiles.length >= 26, '737 Study Finder must retain the reviewed answer figure set');
+for (const fileName of new Set(answerFigureFiles)) {
+  assert(
+    fs.existsSync(path.join(DOCS, '737-study-finder', 'assets', 'answer-figures', fileName)),
+    'Missing mapped answer figure: ' + fileName
+  );
+}
 
 for (const relativePath of ['index.html', '737-study-finder/index.html', 'izakaya-scout/index.html', 'lifeboard/index.html']) {
   const html = readGenerated(relativePath);
