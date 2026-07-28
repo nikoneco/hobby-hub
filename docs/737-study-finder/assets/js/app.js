@@ -4,6 +4,7 @@ const app = document.getElementById('app');
   let selectedQuestionId = '';
   let currentQuestions = [];
   let currentDetailsByQuestionId = {};
+  let currentTermDictionary = [];
   let currentDetail = null;
   let answerRevealed = false;
   let questionListExpanded = false;
@@ -174,6 +175,7 @@ const app = document.getElementById('app');
       return;
     }
     currentDetailsByQuestionId = {};
+    currentTermDictionary = [];
     resetStudySurface(label + ' の問題はまだ読み込んでいません。');
     const countText = currentQuestions.length ? '表示中: ' + currentQuestions.length + '問' : '未読み込み';
     setQuestionLoadState('pending', label + ' を選択中。読み込みを押すと問題一覧を更新します。', countText);
@@ -192,6 +194,7 @@ const app = document.getElementById('app');
         const data = unwrap(response);
         const questions = Array.isArray(data) ? data : (data.questions || []);
         currentDetailsByQuestionId = Array.isArray(data) ? {} : (data.detailsById || {});
+        currentTermDictionary = Array.isArray(data) ? [] : (data.termDictionary || []);
         renderQuestions(questions);
         loadedAtaKey = normalizeAtaKey(ata);
         setQuestionLoadState('loaded', label + ' 読み込み完了', questions.length + '問');
@@ -256,6 +259,9 @@ const app = document.getElementById('app');
         if (detail && detail.question && detail.question.question_id) {
           currentDetailsByQuestionId[detail.question.question_id] = detail;
         }
+        if (detail && Array.isArray(detail.termDictionary)) {
+          currentTermDictionary = detail.termDictionary;
+        }
         renderDetail(detail);
       })
       .withFailureHandler((error) => {
@@ -267,6 +273,9 @@ const app = document.getElementById('app');
 
   function renderDetail(detail) {
     currentDetail = detail;
+    if (detail && Array.isArray(detail.termDictionary)) {
+      currentTermDictionary = detail.termDictionary;
+    }
     answerRevealed = false;
     const question = detail.question;
     const questionDetail = document.getElementById('questionDetail');
@@ -308,14 +317,135 @@ const app = document.getElementById('app');
     }
     const item = document.createElement('article');
     item.className = 'answer-card';
-    item.innerHTML = [
-      '<pre>' + escapeHtml(answer.answer_text || '') + '</pre>',
-      answer.evidence_page_codes
-        ? '<div class="answer-meta">根拠ページ: ' + escapeHtml(answer.evidence_page_codes) + '</div>'
-        : ''
-    ].join('');
+    const answerText = document.createElement('pre');
+    renderLinkedAnswerText(answerText, answer.answer_text || '');
+    item.appendChild(answerText);
+    if (answer.evidence_page_codes) {
+      const meta = document.createElement('div');
+      meta.className = 'answer-meta';
+      meta.textContent = '根拠ページ: ' + answer.evidence_page_codes;
+      item.appendChild(meta);
+    }
     root.appendChild(item);
     renderAnswerFigure(root);
+  }
+
+  function renderLinkedAnswerText(root, answerText) {
+    const text = String(answerText || '');
+    const currentAta = currentDetail && currentDetail.question
+      ? currentDetail.question.ata
+      : '';
+    const definitions = resolveTermDefinitions(currentTermDictionary, currentAta);
+    const terms = Object.keys(definitions).sort((a, b) => b.length - a.length);
+    root.textContent = '';
+    if (!terms.length) {
+      root.textContent = text;
+      return;
+    }
+
+    const pattern = new RegExp(
+      '(^|[^A-Z0-9])(' + terms.map(escapeRegExp).join('|') + ')(?=$|[^A-Z0-9])',
+      'g'
+    );
+    let cursor = 0;
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      if (match.index > cursor) {
+        root.appendChild(document.createTextNode(text.slice(cursor, match.index)));
+      }
+      if (match[1]) {
+        root.appendChild(document.createTextNode(match[1]));
+      }
+      const matchedTerm = match[2];
+      const matchedDefinition = definitions[matchedTerm];
+      const trigger = document.createElement('button');
+      trigger.type = 'button';
+      trigger.className = 'term-trigger';
+      trigger.textContent = matchedTerm;
+      trigger.setAttribute('aria-label', matchedTerm + ' の用語説明を開く');
+      trigger.addEventListener('click', () => openTermDialog(matchedDefinition));
+      root.appendChild(trigger);
+      cursor = match.index + match[0].length;
+    }
+    if (cursor < text.length) {
+      root.appendChild(document.createTextNode(text.slice(cursor)));
+    }
+  }
+
+  function resolveTermDefinitions(dictionary, currentAta) {
+    const grouped = {};
+    (dictionary || []).forEach((entry) => {
+      const variants = [entry.term]
+        .concat(String(entry.aliases || '').split(/[,;\n]/))
+        .map((value) => String(value || '').trim())
+        .filter(isAcronymToken);
+      Array.from(new Set(variants)).forEach((variant) => {
+        if (!grouped[variant]) grouped[variant] = [];
+        grouped[variant].push(entry);
+      });
+    });
+
+    return Object.keys(grouped).reduce((resolved, term) => {
+      const definition = chooseTermDefinition(grouped[term], currentAta);
+      if (definition) resolved[term] = definition;
+      return resolved;
+    }, {});
+  }
+
+  function chooseTermDefinition(entries, currentAta) {
+    const ata = normalizeAtaKey(currentAta);
+    const exact = entries.filter((entry) => normalizeAtaKey(entry.ata) === ata && ata);
+    if (exact.length) return oneMeaningOrNull(exact);
+    const global = entries.filter((entry) => !normalizeAtaKey(entry.ata));
+    if (global.length) return oneMeaningOrNull(global);
+    return oneMeaningOrNull(entries);
+  }
+
+  function oneMeaningOrNull(entries) {
+    if (!entries.length) return null;
+    const meanings = new Set(entries.map((entry) => [
+      entry.full_name,
+      entry.location,
+      entry.function
+    ].map((value) => String(value || '').trim()).join('|')));
+    return meanings.size === 1 ? entries[0] : null;
+  }
+
+  function isAcronymToken(value) {
+    return /^[A-Z][A-Z0-9/-]{1,}$/.test(String(value || ''));
+  }
+
+  function escapeRegExp(value) {
+    return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  function openTermDialog(entry) {
+    if (!entry) return;
+    const dialog = document.getElementById('termDialog');
+    document.getElementById('termDialogTerm').textContent = entry.term || '';
+    document.getElementById('termDialogFullName').textContent = entry.full_name || '';
+    document.getElementById('termDialogLocation').textContent = entry.location || '';
+    document.getElementById('termDialogFunction').textContent = entry.function || '';
+    const ataRow = document.getElementById('termDialogAtaRow');
+    ataRow.hidden = !entry.ata;
+    document.getElementById('termDialogAta').textContent = entry.ata ? 'ATA ' + entry.ata : '';
+    const evidenceRow = document.getElementById('termDialogEvidenceRow');
+    evidenceRow.hidden = !entry.evidence_page_codes;
+    document.getElementById('termDialogEvidence').textContent = entry.evidence_page_codes || '';
+    if (typeof dialog.showModal === 'function') {
+      dialog.showModal();
+    } else {
+      dialog.setAttribute('open', '');
+    }
+  }
+
+  function closeTermDialog() {
+    const dialog = document.getElementById('termDialog');
+    if (typeof dialog.close === 'function') {
+      dialog.close();
+    } else {
+      dialog.removeAttribute('open');
+    }
   }
 
   function renderAnswerFigure(root) {
@@ -405,6 +535,9 @@ const app = document.getElementById('app');
         if (detail && detail.question && detail.question.question_id) {
           currentDetailsByQuestionId[detail.question.question_id] = detail;
         }
+        if (detail && Array.isArray(detail.termDictionary)) {
+          currentTermDictionary = detail.termDictionary;
+        }
         renderDetail(detail);
       })
       .withFailureHandler((error) => {
@@ -419,6 +552,10 @@ const app = document.getElementById('app');
   document.getElementById('randomQuestionButton').addEventListener('click', loadRandomQuestion);
   document.getElementById('toggleQuestionListButton').addEventListener('click', toggleQuestionList);
   document.getElementById('revealAnswerButton').addEventListener('click', toggleAnswerReveal);
+  document.getElementById('termDialogClose').addEventListener('click', closeTermDialog);
+  document.getElementById('termDialog').addEventListener('click', (event) => {
+    if (event.target === event.currentTarget) closeTermDialog();
+  });
   renderAtaFilterOptions();
   syncQuestionListVisibility();
   setAnswerVisibility(false);

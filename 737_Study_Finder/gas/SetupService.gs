@@ -115,7 +115,18 @@ const STUDY_SCHEMA = {
     'created_at',
     'updated_at'
   ],
-  term_dictionary: ['term', 'full_name', 'japanese', 'aliases', 'ata', 'note'],
+  term_dictionary: [
+    'term',
+    'full_name',
+    'japanese',
+    'aliases',
+    'ata',
+    'note',
+    'location',
+    'function',
+    'evidence_page_codes',
+    'status'
+  ],
   search_log: [
     'log_id',
     'action',
@@ -311,10 +322,54 @@ function seedStudySamples_(spreadsheet) {
 
   if (!readObjects_(termSheet).some(function (row) { return row.term === 'IDG'; })) {
     [
-      ['IDG', 'Integrated Drive Generator', '', 'Generator Drive', '24', ''],
-      ['GCU', 'Generator Control Unit', '', '', '24', ''],
-      ['BPCU', 'Bus Power Control Unit', '', '', '24', ''],
-      ['TRU', 'Transformer Rectifier Unit', '', '', '24', '']
+      [
+        'IDG',
+        'Integrated Drive Generator',
+        '',
+        'Generator Drive',
+        '24',
+        'Initial seed',
+        'Each engine accessory gearbox.',
+        'Converts variable engine speed to constant generator speed and supplies 115/200 V AC at 400 Hz.',
+        'D2-02, D2-04, D2-09',
+        'active'
+      ],
+      [
+        'GCU',
+        'Generator Control Unit',
+        '',
+        '',
+        '24',
+        'Initial seed',
+        'EE compartment: GCU 1 on E2 rack, GCU 2 on E4 rack.',
+        'Controls IDG excitation, GCB/BTB operation, electrical protection, indication, and BITE.',
+        'D3-08',
+        'active'
+      ],
+      [
+        'BPCU',
+        'Bus Power Control Unit',
+        '',
+        '',
+        '24',
+        'Initial seed',
+        'EE compartment E4 rack.',
+        'Controls external power distribution, EPC/BTB operation, load shed, indication, and protection.',
+        'D1-03, D1-06',
+        'active'
+      ],
+      [
+        'TRU',
+        'Transformer Rectifier Unit',
+        '',
+        '',
+        '24',
+        'Initial seed',
+        'TRU 1 on E2 rack; TRU 2 and 3 on E4 rack.',
+        'Converts 115 V AC to 28 V DC for the DC distribution system.',
+        'D4-05, D4-06',
+        'active'
+      ]
     ].forEach(function (row) {
       appendObject_(termSheet, STUDY_SCHEMA.term_dictionary, {
         term: row[0],
@@ -322,7 +377,11 @@ function seedStudySamples_(spreadsheet) {
         japanese: row[2],
         aliases: row[3],
         ata: row[4],
-        note: row[5]
+        note: row[5],
+        location: row[6],
+        function: row[7],
+        evidence_page_codes: row[8],
+        status: row[9]
       });
     });
   }

@@ -61,3 +61,37 @@
   </section>
 
 </section>
+
+<dialog id="termDialog" class="term-dialog" aria-labelledby="termDialogTerm">
+  <section class="term-dialog-card">
+    <header class="term-dialog-header">
+      <div>
+        <p class="eyebrow">Abbreviation</p>
+        <h2 id="termDialogTerm"></h2>
+      </div>
+      <button id="termDialogClose" class="term-dialog-close" type="button" aria-label="用語説明を閉じる">閉じる</button>
+    </header>
+    <dl class="term-details">
+      <div>
+        <dt>正式名称</dt>
+        <dd id="termDialogFullName"></dd>
+      </div>
+      <div id="termDialogAtaRow">
+        <dt>定義の出典</dt>
+        <dd id="termDialogAta"></dd>
+      </div>
+      <div>
+        <dt>Location</dt>
+        <dd id="termDialogLocation"></dd>
+      </div>
+      <div>
+        <dt>機能</dt>
+        <dd id="termDialogFunction"></dd>
+      </div>
+      <div id="termDialogEvidenceRow">
+        <dt>根拠ページ</dt>
+        <dd id="termDialogEvidence"></dd>
+      </div>
+    </dl>
+  </section>
+</dialog>

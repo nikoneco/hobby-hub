@@ -14,10 +14,13 @@ function getQuestions(filters) {
 
 function getQuestionsBundle(filters) {
   const questions = getQuestions(filters || {});
+  const spreadsheet = openStudySpreadsheet_();
+  const termDictionary = getTermDictionaryForClient_(spreadsheet);
   if (!filters || !filters.ata) {
     return {
       questions: questions,
-      detailsById: {}
+      detailsById: {},
+      termDictionary: termDictionary
     };
   }
 
@@ -26,7 +29,6 @@ function getQuestionsBundle(filters) {
     return set;
   }, {});
 
-  const spreadsheet = openStudySpreadsheet_();
   const candidatesByQuestionId = groupRowsByQuestionId_(
     readObjects_(getSheet_(spreadsheet, 'candidate_links')).filter(function (row) {
       return questionIdSet[String(row.question_id)];
@@ -51,7 +53,8 @@ function getQuestionsBundle(filters) {
 
   return {
     questions: questions,
-    detailsById: detailsById
+    detailsById: detailsById,
+    termDictionary: termDictionary
   };
 }
 
@@ -70,7 +73,8 @@ function getQuestionDetail(questionId) {
     question: question,
     candidates: groupCandidates_(candidates),
     answer: selectCanonicalAnswerNote_(notes),
-    answerNotes: notes
+    answerNotes: notes,
+    termDictionary: getTermDictionaryForClient_(spreadsheet)
   };
 }
 
@@ -212,4 +216,28 @@ function groupRowsByQuestionId_(rows) {
     groups[key].push(row);
     return groups;
   }, {});
+}
+
+function getTermDictionaryForClient_(spreadsheet) {
+  return readObjects_(getSheet_(spreadsheet, 'term_dictionary'))
+    .filter(function (row) {
+      const status = normalizeText(row.status || 'active');
+      return status !== 'INACTIVE' &&
+        String(row.term || '').trim() &&
+        String(row.full_name || '').trim() &&
+        String(row.location || '').trim() &&
+        String(row.function || '').trim();
+    })
+    .map(function (row) {
+      return {
+        term: String(row.term || '').trim(),
+        full_name: String(row.full_name || '').trim(),
+        japanese: String(row.japanese || '').trim(),
+        aliases: String(row.aliases || '').trim(),
+        ata: normalizeAtaKey_(row.ata),
+        location: String(row.location || '').trim(),
+        function: String(row.function || '').trim(),
+        evidence_page_codes: String(row.evidence_page_codes || '').trim()
+      };
+    });
 }

@@ -53,6 +53,19 @@ assert(
   '737 Study Finder must not discard numeric ATA 0 as an empty value'
 );
 
+const studyService = fs.readFileSync(
+  path.join(ROOT, '737_Study_Finder/gas/StudyService.gs'),
+  'utf8'
+);
+assert(
+  studyService.includes('termDictionary: termDictionary'),
+  '737 Study Finder question bundles must include the term dictionary'
+);
+assert(
+  studyService.includes('getTermDictionaryForClient_'),
+  '737 Study Finder must sanitize term dictionary rows for the client'
+);
+
 if (failed) {
   process.exit(1);
 }
