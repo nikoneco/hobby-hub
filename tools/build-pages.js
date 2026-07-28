@@ -75,6 +75,7 @@ const APPS = [
     id: 'study737',
     title: '737 Study Finder',
     sourceDir: path.join(ROOT, '737_Study_Finder', 'gas'),
+    staticAssetsDir: path.join(ROOT, '737_Study_Finder', 'assets'),
     outDir: path.join(DOCS, '737-study-finder'),
     publicPath: PAGES_BASE + '737-study-finder/',
     gasEndpoint: 'https://script.google.com/macros/s/AKfycbzPwkINDY--2PUYQg5xGoPDtkCLYvGoItobfEJocINxBFviRzcCrxb7Iu5lylirQ7tLOg/exec',
@@ -142,6 +143,9 @@ function buildApp(app) {
   const jsDir = path.join(assetDir, 'js');
   ensureDir(cssDir);
   ensureDir(jsDir);
+  if (app.staticAssetsDir && fs.existsSync(app.staticAssetsDir)) {
+    fs.cpSync(app.staticAssetsDir, assetDir, { recursive: true });
+  }
 
   const css = stripWrapper(readSource(app, 'style.html'), 'style');
   const js = stripWrapper(readSource(app, 'script.html'), 'script');

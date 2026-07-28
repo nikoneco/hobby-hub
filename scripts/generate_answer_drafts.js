@@ -319,42 +319,14 @@ function candidateGroup(page, rank) {
 function buildAnswer(question, candidates) {
   const directAnswer = extractDirectAnswer(question, candidates);
   const primaryCandidates = candidates.slice(0, 3);
-  const evidenceLines = primaryCandidates.map((candidate) => {
-    return `- ${candidate.page_code}: ${candidate.title} / ${compact(candidate.excerpt, 360)}`;
-  });
-  const draftLines = directAnswer
+  const answerLines = directAnswer
     ? directAnswer.items.map((item) => `- ${item}`)
     : primaryCandidates.map((candidate) => `- ${candidate.page_code}: ${compact(candidate.excerpt, 320)}`);
-  const directEvidence = directAnswer
-    ? ['', `主根拠: ${directAnswer.page_code} ${directAnswer.title}`]
-    : [];
-  return [
-    'AI回答ドラフト（要確認）',
-    `質問: ${question.question_text}`,
-    '',
-    '回答候補:',
-    ...draftLines,
-    ...directEvidence,
-    '',
-    '根拠候補:',
-    ...evidenceLines,
-    '',
-    '注記: Study Guide 抽出テキストから生成した初期回答です。最終表現は根拠ページを確認してWebアプリ上で修正してください。'
-  ].join('\n');
+  return answerLines.join('\n').trim();
 }
 
 function buildReviewedAnswer(question, reviewed) {
-  return [
-    '確認済み下書き',
-    `質問: ${question.question_text}`,
-    '',
-    '回答:',
-    ...(reviewed.answer_lines || []),
-    '',
-    `根拠: ${(reviewed.evidence_page_codes || []).join(', ')}`,
-    '',
-    'Study Guide本文を確認して作成した回答下書きです。最終表現は必要に応じてWebアプリで調整してください。'
-  ].join('\n');
+  return (reviewed.answer_lines || []).join('\n').trim();
 }
 
 function mergeReviewedCandidates(question, candidates, pagesByCode, reviewed, now) {
@@ -548,10 +520,10 @@ function main() {
       evidence_page_ids: reviewed ? reviewedEvidence.pageIds : candidates.slice(0, 3).map((row) => row.page_id).filter(Boolean).join(', '),
       evidence_excerpts: reviewed ? reviewedEvidence.excerpts : candidates.slice(0, 3).map((row) => `${row.page_code}: ${row.excerpt}`).join('\n---\n'),
       source_type: reviewed ? `codex_reviewed_ata${question.ata}` : 'codex_local_extractive',
-      status: reviewed ? (reviewed.status || 'reviewed_draft') : 'draft_ai',
+      status: reviewed ? (reviewed.status || 'answer_ready') : 'answer_ready',
       problem_reason: reviewed
-        ? (reviewed.problem_reason || 'Reviewed against extracted Study Guide ATA text; user can edit final wording in the web app.')
-        : 'Auto-generated from extracted Study Guide text; user verification required.',
+        ? (reviewed.problem_reason || '')
+        : 'Auto-generated from extracted Study Guide text.',
       created_at: now,
       updated_at: now
     });

@@ -11,9 +11,9 @@ const reviewedAnswers = {
   q_00_6ee482ed421c: {
     evidence_page_codes: ['F0-02', 'D0-01'],
     answer_lines: [
-      'Design RangeはF0-02のRange図で確認する。737-800は174,200 lb MTOW、162 two-class passenger、optional winglet条件で示されている。',
-      '図の条件はTokyo基準、85% annual wind、airway and traffic allowance included、typical mission rule。',
-      '国内線はSapporo / Okinawaなど国内運航範囲、国際線はSeoul / Beijing / Guangzhou / Manila / Singapore / Jakartaなど図示された到達範囲を答える。'
+      '737-800のDesign Rangeは、Tokyo基準の図でSapporo、Okinawa、Seoul、Beijing、Guangzhou、Manila、Saipan、Singapore、Jakarta方面までを含む範囲として示される。',
+      '図の前提は174,200 lb MTOW、162 two-class passenger、optional winglet、85% annual wind、airway and traffic allowance included、typical mission rule。',
+      'このStudy Guideは距離をnmの単一数値ではなく、上記条件の到達範囲図として示している。'
     ]
   },
   q_00_5ad3e375ef3a: {
@@ -127,11 +127,11 @@ const reviewedAnswers = {
     ]
   },
   q_00_0bef0d5f1f3c: {
-    evidence_page_codes: ['F0-28', 'F0-29', 'F0-24', 'F0-21'],
+    evidence_page_codes: ['F0-29', 'F0-21'],
     answer_lines: [
-      'Program Switch ModuleはE1 Rack側にTypicalとして示され、対象LRUへ配線される。',
       'Airborne Data Loader / Data Loader Control PanelはAft Flight CompartmentのP61 Panelにある。',
-      'Data Load対象の各LRUはE/E RackやFlight Compartment側の各装備位置に配置される。'
+      'P61 PanelにはAirborne Data Loader、Data Loader Control Panel、Data Load Selectorがあり、Load対象Systemを選択する。',
+      'Data Load対象のLRUはE/E RackまたはFlight Compartment側の各装備位置にあり、例としてCDU、DEU、SATCOM、FCC、APU、FIDS、DFDAU、CMS、ACARS/CMU、FMC、HUDがある。'
     ]
   },
   q_00_9e235bce3bac: {

@@ -40,6 +40,19 @@ for (const check of CHECKS) {
   }
 }
 
+const studyImportService = fs.readFileSync(
+  path.join(ROOT, '737_Study_Finder/gas/ImportService.gs'),
+  'utf8'
+);
+assert(
+  studyImportService.includes("digits.padStart(2, '0')"),
+  '737 Study Finder must normalize numeric ATA 0 back to ATA00'
+);
+assert(
+  studyImportService.includes("value === null || value === undefined ? '' : value"),
+  '737 Study Finder must not discard numeric ATA 0 as an empty value'
+);
+
 if (failed) {
   process.exit(1);
 }

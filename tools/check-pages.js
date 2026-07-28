@@ -15,6 +15,8 @@ const REQUIRED_FILES = [
   'assets/js/pwa-client.js',
   '737-study-finder/index.html',
   '737-study-finder/assets/js/gas-run-shim.js',
+  '737-study-finder/assets/answer-figures/ata00-design-range.webp',
+  '737-study-finder/assets/answer-figures/ata47-ngs-diagram.webp',
   'celestiframe/index.html',
   'izakaya-scout/index.html',
   'izakaya-scout/assets/js/gas-run-shim.js',
@@ -30,6 +32,11 @@ for (const relativePath of REQUIRED_FILES) {
     fail('Missing generated file: ' + relativePath);
   }
 }
+
+const studyHtml = readGenerated('737-study-finder/index.html');
+const studyJs = readGenerated('737-study-finder/assets/js/app.js');
+assert(!/Answer Draft|AI \/ Draft Answers|回答作成用プロンプト/.test(studyHtml + studyJs), '737 Study Finder still exposes draft/prompt UI');
+assert(studyJs.includes('answerFigures'), '737 Study Finder must support selective answer figures');
 
 for (const relativePath of ['index.html', '737-study-finder/index.html', 'izakaya-scout/index.html', 'lifeboard/index.html']) {
   const html = readGenerated(relativePath);

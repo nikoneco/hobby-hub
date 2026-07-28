@@ -9,12 +9,26 @@ const app = document.getElementById('app');
   let questionListExpanded = false;
   let loadedAtaKey = null;
   let questionLoadRequestId = 0;
+  const answerFigures = {
+    q_00_6ee482ed421c: ['ata00-design-range.webp', 'Study Guide F0-02: Design Range'],
+    q_00_5ad3e375ef3a: ['ata00-ship-dimensions.webp', 'Study Guide F0-03: Ship Dimensions'],
+    q_00_0715efcf121d: ['ata00-fuselage-reference.webp', 'Study Guide F0-04: Fuselage Reference Dimensions'],
+    q_00_20017a35a61d: ['ata00-zone-diagram.webp', 'Study Guide F0-09: Major Zone Diagram'],
+    q_00_69ddf246718d: ['ata00-zone-diagram.webp', 'Study Guide F0-09: Major Zone Diagram'],
+    q_00_0bef0d5f1f3c: ['ata00-loadable-software.webp', 'Study Guide F0-29: Loadable Software'],
+    q_21_838f4b3a3583: ['ata21-cooling-diagram.webp', '標準問題集: Air Conditioning Cooling Diagram'],
+    q_29_602152f5db00: ['ata29-hydraulic-diagram.webp', '標準問題集: Hydraulic Power Diagram'],
+    q_32_20d5a32a39dc: ['ata32-brake-diagrams.webp', '標準問題集: Brake System Diagrams'],
+    q_47_4ae050c41339: ['ata47-ngs-diagram.webp', '標準問題集: Nitrogen Generation System Diagram'],
+    q_49_c537d346b817: ['ata49-apu-bleed-diagram.webp', '標準問題集: APU Bleed Air System Diagram']
+  };
 
   function normalizeAtaKey(value) {
-    const text = String(value || '').trim().toUpperCase();
+    const text = String(value === null || value === undefined ? '' : value).trim().toUpperCase();
     if (/^5X$/.test(text)) return '5X';
     if (/^7X$/.test(text)) return '7X';
-    return text.replace(/\D/g, '');
+    const digits = text.replace(/\D/g, '');
+    return digits ? digits.padStart(2, '0') : '';
   }
 
   function renderAtaFilterOptions() {
@@ -98,8 +112,7 @@ const app = document.getElementById('app');
     const questionDetail = document.getElementById('questionDetail');
     questionDetail.className = 'empty-state';
     questionDetail.textContent = message || '問題を選択するか、ランダム出題を押してね。';
-    document.getElementById('confirmedAnswers').innerHTML = '';
-    document.getElementById('answerNotes').innerHTML = '';
+    document.getElementById('answer').innerHTML = '';
     document.getElementById('candidateList').textContent = '候補ページはここに表示します。';
     setAnswerVisibility(false);
   }
@@ -109,14 +122,12 @@ const app = document.getElementById('app');
     const revealButton = document.getElementById('revealAnswerButton');
     const hint = document.getElementById('revealHint');
     const placeholder = document.getElementById('answerRevealPlaceholder');
-    const confirmed = document.getElementById('confirmedAnswers');
-    const notes = document.getElementById('answerNotes');
+    const answer = document.getElementById('answer');
     const candidates = document.getElementById('candidateDetails');
 
     revealButton.disabled = !hasQuestion;
     placeholder.classList.toggle('is-hidden', Boolean(revealed && hasQuestion));
-    confirmed.classList.toggle('is-hidden', !revealed);
-    notes.classList.toggle('is-hidden', !revealed);
+    answer.classList.toggle('is-hidden', !revealed);
     candidates.classList.toggle('is-hidden', !revealed);
 
     if (!hasQuestion) {
@@ -133,7 +144,7 @@ const app = document.getElementById('app');
     } else {
       revealButton.textContent = '回答を見る';
       hint.textContent = '回答はまだ隠れています。頭の中で答えてから確認してね。';
-      placeholder.textContent = '準備できたら「回答を見る」でAI回答と根拠候補を確認します。';
+      placeholder.textContent = '準備できたら「回答を見る」で回答と根拠候補を確認します。';
     }
   }
 
@@ -186,7 +197,7 @@ const app = document.getElementById('app');
     const root = document.getElementById('questionList');
     root.innerHTML = '';
     if (!questions.length) {
-      root.textContent = '問題がまだありません。管理/取込ツールから取込状態を確認してね。';
+      root.textContent = '問題がまだありません。';
       syncQuestionListVisibility();
       setQuestionLoadState('loaded', getSelectedAtaLabel() + ' 読み込み完了', '0問');
       return;
@@ -194,7 +205,7 @@ const app = document.getElementById('app');
     questions.forEach((question) => {
       const button = document.createElement('button');
       button.className = 'question-button';
-      button.innerHTML = '<strong>' + escapeHtml(question.question_text) + '</strong><span class="status">' + escapeHtml(question.check_status) + '</span>';
+      button.innerHTML = '<strong>' + escapeHtml(question.question_text) + '</strong>';
       button.addEventListener('click', () => loadDetail(question.question_id));
       root.appendChild(button);
     });
@@ -244,16 +255,13 @@ const app = document.getElementById('app');
     questionDetail.className = 'question-content';
     questionDetail.innerHTML = [
       '<div class="question-meta">',
-      '<span class="status">' + escapeHtml(question.check_status) + '</span>',
       '<span>ATA ' + escapeHtml(question.ata) + '</span>',
       '<span>' + escapeHtml(question.section_name || '') + '</span>',
       '</div>',
       '<h3>' + escapeHtml(question.question_text) + '</h3>'
     ].join('');
-    document.getElementById('confirmedAnswers').innerHTML = '';
-    document.getElementById('answerNotes').innerHTML = '';
+    document.getElementById('answer').innerHTML = '';
     document.getElementById('candidateList').textContent = '回答表示後に候補ページを確認できます。';
-    resetAnswerEditor();
     setAnswerVisibility(false);
   }
 
@@ -264,63 +272,51 @@ const app = document.getElementById('app');
     }
     answerRevealed = !answerRevealed;
     if (answerRevealed) {
-      renderConfirmedAnswers(currentDetail.confirmedAnswers || []);
-      renderAnswerNotes(currentDetail.answerNotes || []);
+      renderAnswer(currentDetail.answer || (currentDetail.answerNotes || [])[0] || null);
       renderCandidates(currentDetail.candidates || {});
     }
     setAnswerVisibility(answerRevealed);
   }
 
-  function renderConfirmedAnswers(answers) {
-    const root = document.getElementById('confirmedAnswers');
+  function renderAnswer(answer) {
+    const root = document.getElementById('answer');
     root.innerHTML = '';
-    const heading = document.createElement('h3');
-    heading.textContent = 'Confirmed Answer';
-    root.appendChild(heading);
-    if (!answers.length) {
+    if (!answer) {
       const empty = document.createElement('p');
       empty.className = 'muted';
-      empty.textContent = '確定回答はまだありません。';
+      empty.textContent = '回答はまだ登録されていません。';
       root.appendChild(empty);
       return;
     }
-    answers.forEach((answer) => {
-      const item = document.createElement('article');
-      item.className = 'answer-card confirmed';
-      item.innerHTML = [
-        '<div class="answer-meta">' + escapeHtml(answer.evidence_page_codes || '') + '</div>',
-        '<pre>' + escapeHtml(answer.final_answer_text || '') + '</pre>'
-      ].join('');
-      root.appendChild(item);
-    });
+    const item = document.createElement('article');
+    item.className = 'answer-card';
+    item.innerHTML = [
+      '<pre>' + escapeHtml(answer.answer_text || '') + '</pre>',
+      answer.evidence_page_codes
+        ? '<div class="answer-meta">根拠ページ: ' + escapeHtml(answer.evidence_page_codes) + '</div>'
+        : ''
+    ].join('');
+    root.appendChild(item);
+    renderAnswerFigure(root);
   }
 
-  function renderAnswerNotes(notes) {
-    const root = document.getElementById('answerNotes');
-    root.innerHTML = '';
-    const heading = document.createElement('h3');
-    heading.textContent = 'AI / Draft Answers';
-    root.appendChild(heading);
-    if (!notes.length) {
-      const empty = document.createElement('p');
-      empty.className = 'muted';
-      empty.textContent = 'まだ回答案はありません。ChatGPT/Codexの回答を貼って保存できます。';
-      root.appendChild(empty);
-      return;
-    }
-    notes.forEach((note, index) => {
-      const details = document.createElement('details');
-      details.className = 'answer-card';
-      details.open = index === 0;
-      details.innerHTML = [
-        '<summary><span>回答案 ' + (index + 1) + '</span><span class="status">' + escapeHtml(note.status || 'draft') + '</span></summary>',
-        '<div class="answer-meta">' + escapeHtml(note.source_type || '') + ' / ' + escapeHtml(note.evidence_page_codes || '') + '</div>',
-        '<pre>' + escapeHtml(note.answer_text || '') + '</pre>',
-        '<div class="toolbar"><button type="button" data-note-id="' + escapeHtml(note.note_id) + '">編集</button></div>'
-      ].join('');
-      details.querySelector('button').addEventListener('click', () => loadNoteIntoEditor(note));
-      root.appendChild(details);
-    });
+  function renderAnswerFigure(root) {
+    const questionId = currentDetail && currentDetail.question
+      ? currentDetail.question.question_id
+      : '';
+    const figureData = answerFigures[questionId];
+    if (!figureData) return;
+    const isGasHost = /(?:script\.google\.com|googleusercontent\.com)$/i.test(window.location.hostname);
+    const assetBase = isGasHost
+      ? 'https://nikoneco.github.io/hobby-hub/737-study-finder/assets/answer-figures/'
+      : './assets/answer-figures/';
+    const figure = document.createElement('figure');
+    figure.className = 'answer-figure';
+    figure.innerHTML = [
+      '<img loading="lazy" decoding="async" src="' + escapeHtml(assetBase + figureData[0]) + '" alt="' + escapeHtml(figureData[1]) + '">',
+      '<figcaption>' + escapeHtml(figureData[1]) + '</figcaption>'
+    ].join('');
+    root.appendChild(figure);
   }
 
   function renderCandidates(groups) {
@@ -363,170 +359,6 @@ const app = document.getElementById('app');
     });
   }
 
-  function buildPrompt() {
-    if (!selectedQuestionId) {
-      showError(new Error('先に問題を選んでね。'));
-      return;
-    }
-    google.script.run
-      .withSuccessHandler((response) => {
-        document.getElementById('promptOutput').value = unwrap(response);
-      })
-      .withFailureHandler(showError)
-      .apiBuildReviewPrompt(selectedQuestionId);
-  }
-
-  function inferCsvTarget(fileName) {
-    const name = String(fileName || '').toLowerCase();
-    if (name.includes('textbook_pages')) return 'textbook_pages';
-    if (name.includes('textbook_sections')) return 'textbook_sections';
-    if (name.includes('question_bank')) return 'question_bank';
-    if (name.includes('candidate_links')) return 'candidate_links';
-    if (name.includes('answer_notes')) return 'answer_notes';
-    if (name.includes('term_dictionary')) return 'term_dictionary';
-    if (name.includes('source_files')) return 'source_files';
-    return document.getElementById('csvTarget').value;
-  }
-
-  function importCsv() {
-    const fileInput = document.getElementById('csvFile');
-    const file = fileInput.files && fileInput.files[0];
-    if (!file) {
-      showError(new Error('CSVファイルを選んでね。'));
-      return;
-    }
-    const target = inferCsvTarget(file.name);
-    document.getElementById('csvTarget').value = target;
-    document.getElementById('importStatus').textContent = '読み込み中...';
-    const reader = new FileReader();
-    reader.onload = () => {
-      google.script.run
-        .withSuccessHandler((response) => {
-          const result = unwrap(response);
-          document.getElementById('importStatus').textContent =
-            result.sheet_name + ' に ' + result.imported_rows + ' 行取り込みました。';
-          if (result.sheet_name === 'question_bank') loadQuestions();
-        })
-        .withFailureHandler((error) => {
-          document.getElementById('importStatus').textContent = '';
-          showError(error);
-        })
-        .apiImportCsv({
-          sheet_name: target,
-          csv_text: reader.result,
-          mode: document.getElementById('csvReplace').checked ? 'replace' : 'append'
-        });
-    };
-    reader.onerror = () => showError(new Error('CSVを読めませんでした。'));
-    reader.readAsText(file, 'utf-8');
-  }
-
-  function importPreparedAta() {
-    const ata = document.getElementById('ataFilter').value;
-    if (!ata) {
-      showError(new Error('Prepared import needs a selected ATA.'));
-      return;
-    }
-    document.getElementById('preparedImportStatus').textContent = 'ATA' + ata + ' prepared data import running...';
-    google.script.run
-      .withSuccessHandler((response) => {
-        const result = unwrap(response);
-        const total = result.imported.reduce((sum, item) => sum + Number(item.imported_rows || 0), 0);
-        document.getElementById('preparedImportStatus').textContent =
-          'ATA' + result.ata + ' prepared data imported. Total ' + total + ' rows.';
-        loadQuestions();
-      })
-      .withFailureHandler((error) => {
-        document.getElementById('preparedImportStatus').textContent = '';
-        showError(error);
-      })
-      .apiImportPreparedAtaData(ata);
-  }
-
-  function loadNoteIntoEditor(note) {
-    document.getElementById('activeNoteId').value = note.note_id || '';
-    document.getElementById('answerSource').value = note.source_type || 'manual_user';
-    document.getElementById('answerEvidencePages').value = note.evidence_page_codes || '';
-    document.getElementById('answerText').value = note.answer_text || '';
-    const tools = document.querySelector('.admin-tools');
-    if (tools) tools.open = true;
-  }
-
-  function resetAnswerEditor() {
-    document.getElementById('activeNoteId').value = '';
-    document.getElementById('answerSource').value = 'chatgpt_manual';
-    document.getElementById('answerEvidencePages').value = '';
-    document.getElementById('answerText').value = '';
-  }
-
-  function collectAnswerPayload() {
-    if (!selectedQuestionId) throw new Error('先に問題を選んでね。');
-    const answerText = document.getElementById('answerText').value.trim();
-    if (!answerText) throw new Error('回答本文が空です。');
-    return {
-      question_id: selectedQuestionId,
-      answer_text: answerText,
-      final_answer_text: answerText,
-      evidence_page_codes: document.getElementById('answerEvidencePages').value.trim(),
-      evidence_page_ids: '',
-      evidence_excerpts: '',
-      source_type: document.getElementById('answerSource').value,
-      status: 'reviewed_ok'
-    };
-  }
-
-  function saveDraft() {
-    let payload;
-    try {
-      payload = collectAnswerPayload();
-    } catch (error) {
-      showError(error);
-      return;
-    }
-    const noteId = document.getElementById('activeNoteId').value;
-    const runner = google.script.run
-      .withSuccessHandler((response) => {
-        unwrap(response);
-        delete currentDetailsByQuestionId[selectedQuestionId];
-        loadDetail(selectedQuestionId, true);
-      })
-      .withFailureHandler(showError);
-    if (noteId) {
-      runner.apiUpdateAnswerNote(noteId, payload);
-    } else {
-      runner.apiSaveAnswerNote(payload);
-    }
-  }
-
-  function adoptAnswer() {
-    let payload;
-    try {
-      payload = collectAnswerPayload();
-    } catch (error) {
-      showError(error);
-      return;
-    }
-    google.script.run
-      .withSuccessHandler((response) => {
-        unwrap(response);
-        delete currentDetailsByQuestionId[selectedQuestionId];
-        loadDetail(selectedQuestionId, true);
-      })
-      .withFailureHandler(showError)
-      .apiSaveConfirmedAnswer(payload);
-  }
-
-  function runSetup() {
-    google.script.run
-      .withSuccessHandler((response) => {
-        const data = unwrap(response);
-        alert('初期設定完了: ' + data.study737Db.url);
-        loadQuestions();
-      })
-      .withFailureHandler(showError)
-      .setupProject();
-  }
-
   function showError(error) {
     alert(error.message || String(error));
   }
@@ -564,19 +396,11 @@ const app = document.getElementById('app');
       .apiGetRandomQuestionDetail({ ata: selectedAta });
   }
 
-  document.getElementById('setupButton').addEventListener('click', runSetup);
   document.getElementById('ataFilter').addEventListener('change', markQuestionsPending);
   document.getElementById('loadQuestions').addEventListener('click', loadQuestions);
   document.getElementById('randomQuestionButton').addEventListener('click', loadRandomQuestion);
   document.getElementById('toggleQuestionListButton').addEventListener('click', toggleQuestionList);
   document.getElementById('revealAnswerButton').addEventListener('click', toggleAnswerReveal);
-  document.getElementById('importPreparedButton').addEventListener('click', importPreparedAta);
-  document.getElementById('promptButton').addEventListener('click', buildPrompt);
-  document.getElementById('saveDraftButton').addEventListener('click', saveDraft);
-  document.getElementById('adoptButton').addEventListener('click', adoptAnswer);
-  document.getElementById('clearDraftButton').addEventListener('click', resetAnswerEditor);
-  document.getElementById('importCsvButton').addEventListener('click', importCsv);
-
   renderAtaFilterOptions();
   syncQuestionListVisibility();
   setAnswerVisibility(false);

@@ -5,9 +5,11 @@ import csv
 import hashlib
 import re
 import unicodedata
+from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pdfplumber
 from pypdf import PdfReader
 
 
@@ -32,8 +34,15 @@ ATA_PAGE_RE = re.compile(
     r"737-800\s*標準問題\s+JHZ/T\s+737\s+Team\s+(?P<ata>(?:\d{2}|[7７][XxＸｘ]))\s+(?P<title>.+?)\s+Check\s+(?P<body>.*)"
 )
 CONTINUATION_PAGE_RE = re.compile(r"737-800\s*標準問題\s+JHZ/T\s+737\s+Team\s+(?P<body>.*)")
+LAYOUT_ATA_HEADER_RE = re.compile(
+    r"^(?P<ata>(?:\d{2}|[5７7][XxＸｘ]))\s+(?P<title>.+?)(?:\s+Check)?$",
+    re.IGNORECASE,
+)
 QUESTION_END_RE = re.compile(
     r"(.*?(?:答えなさい。?|説明しなさい。?|記入しなさい。?|答えられる。?|説明できる。?|述べなさい。?))"
+)
+QUESTION_COMPLETE_RE = re.compile(
+    r"(?:答えなさい|説明しなさい|記入しなさい|答えられる|説明できる|述べなさい|分かりますか|わかりますか)[。．]?$|[?？]$"
 )
 
 DEFAULT_STOP_MARKERS = [
@@ -89,6 +98,14 @@ def normalize_text(value: str) -> str:
 
 def compact_text(value: str) -> str:
     return re.sub(r"\s+", " ", value or "").strip()
+
+
+def clean_layout_text(value: str) -> str:
+    text = unicodedata.normalize("NFKC", value or "")
+    text = re.sub(r"\s+", " ", text)
+    text = re.sub(r"\s+([、。?？)])", r"\1", text)
+    text = re.sub(r"([(])\s+", r"\1", text)
+    return text.strip()
 
 
 def stable_question_id(ata: str, text: str, order: int) -> str:
@@ -154,6 +171,131 @@ def clean_question_text(question: str, ata: str, section_name: str) -> str:
     if cleaned.startswith(prefix):
         cleaned = cleaned[len(prefix) :].strip()
     return cleaned
+
+
+def is_layout_noise(text: str) -> bool:
+    normalized = normalize_text(text)
+    return (
+        not normalized
+        or normalized in {"737-800 標準問題", "737-800標準問題", "JHZ/T", "737 TEAM"}
+    )
+
+
+def is_layout_question_complete(text: str) -> bool:
+    value = clean_layout_text(text)
+    value = re.sub(r"\s*[（(][^()（）]*[）)]\s*$", "", value)
+    return bool(QUESTION_COMPLETE_RE.search(value))
+
+
+def is_parenthetical_continuation(text: str) -> bool:
+    value = clean_layout_text(text)
+    return value.startswith(("(", "（"))
+
+
+def contextualize_question(question: str, subsection_name: str) -> str:
+    question = clean_layout_text(question)
+    subsection = clean_layout_text(subsection_name)
+    if not subsection:
+        return question
+
+    normalized = normalize_text(question)
+    if re.match(r"^主要\s*COMPONENT", normalized):
+        suffix = re.sub(r"^主要\s*Component\s*", "", question, flags=re.IGNORECASE)
+        return f"{subsection}の主要Component {suffix}".replace("  ", " ")
+    if normalized in {"目的が答えられる。", "目的が答えられる"}:
+        return f"{subsection}の目的を答えなさい。"
+    if re.match(r"^構成\s*COMPONENT", normalized):
+        return f"{subsection}の{question}"
+    if "関連COMPONENT" in normalized and subsection.upper() not in normalized:
+        return f"{subsection}に関連するComponentを答えなさい。"
+    return question
+
+
+def extract_layout_question_records(pdf_path: Path, target_ata: str) -> list[dict[str, str]]:
+    target_ata = normalize_ata_key(target_ata)
+    records: list[dict[str, str]] = []
+    current_ata = ""
+    current_section_name = ""
+    current_subsection_name = ""
+    pending_question = ""
+    pending_page = 0
+    pending_subsection = ""
+
+    def flush_pending() -> None:
+        nonlocal pending_question, pending_page, pending_subsection
+        question = clean_layout_text(pending_question)
+        if not question:
+            return
+        records.append(
+            {
+                "pdf_page": str(pending_page),
+                "section_name": current_section_name,
+                "subsection_name": pending_subsection,
+                "question_text": contextualize_question(question, pending_subsection),
+            }
+        )
+        pending_question = ""
+        pending_page = 0
+        pending_subsection = ""
+
+    with pdfplumber.open(str(pdf_path)) as pdf:
+        for page_number, page in enumerate(pdf.pages, start=1):
+            layout_text = page.extract_text(layout=True, x_tolerance=2, y_tolerance=2) or ""
+            raw_lines = [line.rstrip() for line in layout_text.splitlines() if line.strip()]
+            page_header_seen = False
+
+            for raw_line in raw_lines:
+                indent = len(raw_line) - len(raw_line.lstrip())
+                text = clean_layout_text(raw_line)
+                if is_layout_noise(text):
+                    continue
+
+                header_match = LAYOUT_ATA_HEADER_RE.match(text)
+                if header_match and indent <= 10:
+                    flush_pending()
+                    current_ata = normalize_ata_key(header_match.group("ata"))
+                    current_section_name = clean_layout_text(header_match.group("title"))
+                    current_subsection_name = ""
+                    page_header_seen = True
+                    continue
+
+                if current_ata != target_ata:
+                    continue
+
+                if indent <= 10:
+                    flush_pending()
+                    current_subsection_name = text
+                    continue
+
+                if not pending_question:
+                    pending_question = text
+                    pending_page = page_number
+                    pending_subsection = current_subsection_name
+                    continue
+
+                if is_parenthetical_continuation(text):
+                    pending_question = clean_layout_text(pending_question + " " + text)
+                    continue
+
+                if is_layout_question_complete(pending_question):
+                    flush_pending()
+                    pending_question = text
+                    pending_page = page_number
+                    pending_subsection = current_subsection_name
+                    continue
+
+                if not is_layout_question_complete(pending_question):
+                    pending_question = clean_layout_text(pending_question + " " + text)
+                    continue
+
+            if current_ata == target_ata and pending_question and is_layout_question_complete(pending_question):
+                flush_pending()
+
+            if page_header_seen and current_ata != target_ata:
+                current_subsection_name = ""
+
+    flush_pending()
+    return records
 
 
 def expand_target_specific_questions(question: str, target_ata: str) -> list[str]:
@@ -275,46 +417,15 @@ def expand_ata26_questions(question: str) -> list[str]:
 
 
 def extract_rows(pdf_path: Path, target_ata: str, source_id: str) -> list[dict[str, str]]:
-    reader = PdfReader(str(pdf_path))
     now = datetime.now(timezone.utc).isoformat()
     rows: list[dict[str, str]] = []
-    current_ata = ""
-    current_section_name = ""
     target_ata = normalize_ata_key(target_ata)
-    stop_markers = STOP_MARKERS_BY_ATA.get(target_ata, DEFAULT_STOP_MARKERS)
 
-    for page_number, page in enumerate(reader.pages, start=1):
-        text = compact_text(page.extract_text() or "")
-        match = ATA_PAGE_RE.search(text)
-        if match:
-            current_ata = normalize_ata_key(match.group("ata"))
-            current_section_name = match.group("title").strip()
-            body = match.group("body")
-        elif target_ata == "5X" and "5X STRUCTURES Check" in text:
-            current_ata = "5X"
-            current_section_name = "STRUCTURES"
-            body = text.split("5X STRUCTURES Check", 1)[1]
-        elif target_ata == "30" and "Check WING THERMAL ANTI ICE SYSTEM" in text:
-            current_ata = "30"
-            current_section_name = "ICE AND RAIN PROTECTION SYSTEM"
-            body = text.split("Check WING THERMAL ANTI ICE SYSTEM", 1)[1]
-        elif current_ata == target_ata:
-            continuation = CONTINUATION_PAGE_RE.search(text)
-            body = continuation.group("body") if continuation else text
-        else:
-            body = ""
-
-        if current_ata != target_ata or not body:
-            continue
-
-        questions: list[str] = []
-        for question in split_questions(body, stop_markers):
-            cleaned_question = clean_question_text(question, target_ata, current_section_name)
-            questions.extend(expand_target_specific_questions(cleaned_question, target_ata))
-        if target_ata == "26":
-            questions = list(dict.fromkeys(questions))
-
+    for record in extract_layout_question_records(pdf_path, target_ata):
+        questions = expand_target_specific_questions(record["question_text"], target_ata)
         for question in questions:
+            if not question:
+                continue
             question_type = classify_question(question)
             order = len(rows) + 1
             rows.append(
@@ -322,9 +433,9 @@ def extract_rows(pdf_path: Path, target_ata: str, source_id: str) -> list[dict[s
                     "question_id": stable_question_id(target_ata, question, order),
                     "ata": target_ata,
                     "source_id": source_id,
-                    "pdf_page": str(page_number),
-                    "section_name": current_section_name,
-                    "subsection_name": "",
+                    "pdf_page": record["pdf_page"],
+                    "section_name": record["section_name"],
+                    "subsection_name": record["subsection_name"],
                     "question_text": question,
                     "normalized_question": normalize_text(question),
                     "question_type": question_type,
@@ -335,6 +446,46 @@ def extract_rows(pdf_path: Path, target_ata: str, source_id: str) -> list[dict[s
                     "updated_at": now,
                 }
             )
+    return rows
+
+
+def read_existing_rows(path: Path) -> list[dict[str, str]]:
+    if not path.exists():
+        return []
+    with path.open(newline="", encoding="utf-8-sig") as handle:
+        return list(csv.DictReader(handle))
+
+
+def preserve_existing_question_identity(
+    rows: list[dict[str, str]],
+    existing_rows: list[dict[str, str]],
+) -> list[dict[str, str]]:
+    if not existing_rows:
+        return rows
+
+    new_by_page: dict[str, list[dict[str, str]]] = defaultdict(list)
+    old_by_page: dict[str, list[dict[str, str]]] = defaultdict(list)
+    for row in rows:
+        new_by_page[str(row["pdf_page"])].append(row)
+    for row in existing_rows:
+        old_by_page[str(row["pdf_page"])].append(row)
+
+    pages = sorted(set(new_by_page) | set(old_by_page), key=lambda value: int(value or 0))
+    mismatches = [
+        f"page {page}: existing={len(old_by_page[page])}, extracted={len(new_by_page[page])}"
+        for page in pages
+        if len(old_by_page[page]) != len(new_by_page[page])
+    ]
+    if mismatches:
+        raise ValueError(
+            "Question identity preservation failed; per-page counts differ. "
+            + "; ".join(mismatches)
+        )
+
+    for page in pages:
+        for new_row, old_row in zip(new_by_page[page], old_by_page[page], strict=True):
+            new_row["question_id"] = old_row["question_id"]
+            new_row["created_at"] = old_row.get("created_at") or new_row["created_at"]
     return rows
 
 
@@ -352,14 +503,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--out-dir", type=Path, default=Path("data"))
     parser.add_argument("--ata", default="24")
     parser.add_argument("--source-id", default="")
+    parser.add_argument("--preserve-ids-from", type=Path, default=None)
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
     source_id = args.source_id or f"src_question_bank_{args.ata}"
+    output_path = args.out_dir / f"question_bank_ata{args.ata}.csv"
+    preserve_path = args.preserve_ids_from
+    if preserve_path is None and output_path.exists():
+        preserve_path = output_path
+    existing_rows = read_existing_rows(preserve_path) if preserve_path else []
     rows = extract_rows(args.pdf, args.ata, source_id)
-    write_csv(args.out_dir / f"question_bank_ata{args.ata}.csv", rows)
+    rows = preserve_existing_question_identity(rows, existing_rows)
+    write_csv(output_path, rows)
     print(f"question_bank,{len(rows)}")
     return 0
 

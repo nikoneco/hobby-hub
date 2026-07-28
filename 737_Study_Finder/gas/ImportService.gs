@@ -158,14 +158,15 @@ function clearRowsByAta_(sheet, schema, ata) {
 }
 
 function normalizeAtaKey_(value) {
-  const text = String(value || '').trim().toUpperCase();
+  const text = String(value === null || value === undefined ? '' : value).trim().toUpperCase();
   if (/^5X$/.test(text)) {
     return '5X';
   }
   if (/^7X$/.test(text)) {
     return '7X';
   }
-  return text.replace(/\D/g, '');
+  const digits = text.replace(/\D/g, '');
+  return digits ? digits.padStart(2, '0') : '';
 }
 
 function clearDataRows_(sheet) {

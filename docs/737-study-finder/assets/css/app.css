@@ -379,6 +379,26 @@
     background: var(--panel-soft);
   }
 
+  .answer-figure {
+    margin: 16px 0 0;
+  }
+
+  .answer-figure img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  .answer-figure figcaption {
+    margin-top: 7px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
   .answer-card.confirmed {
     border-color: rgba(107, 207, 136, 0.45);
     background: rgba(107, 207, 136, 0.1);

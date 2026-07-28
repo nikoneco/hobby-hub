@@ -20,14 +20,13 @@ module.exports = {
     ]
   },
   q_24_a59763ae0357: {
-    evidence_page_codes: ['D0-06'],
+    evidence_page_codes: ['D1-03', 'D1-05', 'D1-06'],
     answer_lines: [
-      '- Flight Compartment: P5 Overhead PanelのModuleがManual Control、Indication、DC/Standby Power System BITEを行う。P6/P18にはCircuit BreakerやRelayがあり、P6にはSPCUがある。',
-      '- External Power Panel: Nose Fuselage右側にあり、AC External Power Receptacleを持つ。',
-      '- Forward Lower Fuselage: Electrical Power Systemや他System用RelayをJunction Box内に持つ。',
-      '- EE Compartment: Main Battery、Main Battery Charger、Aux Battery/Charger(INT)、GCU、BPCU、PDP、SCUなどを収容する。GCU/BPCUはAC Electrical PowerやExternal Power SystemのBITEを供給する。',
-      '- Engine: IDGはEngine Accessory GearboxのForward Face、Air/Oil CoolerはEngine Fan Caseにある。',
-      '- APU Compartment: APU Starter GeneratorはAPU Gearboxにある。'
+      '- BPCU: EE CompartmentのE4 Rackにある。External Power DistributionをControlし、EPC/BTB/Ground Service/Load Shed/Indicationなどを制御する。',
+      '- EPC: PDP 2にある。External Power 115v AC 400Hz 3 PhaseをTie Busへ接続する。',
+      '- P5-4 AC Systems, Generator and APU Module: P5 Overhead Panelにあり、External PowerのManual ControlとIndicationを行う。',
+      '- Ground Service Switch: Forward Attendant Panelにあり、External PowerからAC/DC Ground Service BusへPower Supplyする操作に使う。',
+      '- External Power Panel/Receptacle: Nose Fuselage右側にあり、External Power Sourceを接続する。'
     ]
   },
   q_24_3d0f25774982: {
@@ -91,13 +90,11 @@ module.exports = {
     ]
   },
   q_24_97d3f71cc615: {
-    evidence_page_codes: ['D1-03', 'D1-05', 'D1-06'],
+    evidence_page_codes: ['D2-04'],
     answer_lines: [
-      '- BPCU: EE CompartmentのE4 Rackにある。External Power DistributionをControlし、EPC/BTB/Ground Service/Load Shed/Indicationなどを制御する。',
-      '- EPC: PDP 2にある。External Power 115v AC 400Hz 3 PhaseをTie Busへ接続する。',
-      '- P5-4 AC Systems, Generator and APU Module: P5 Overhead Panelにあり、External PowerのManual ControlとIndicationを行う。',
-      '- Ground Service Switch: Forward Attendant Panelにあり、External PowerからAC/DC Ground Service BusへPower Supplyする操作に使う。',
-      '- External Power Panel/Receptacle: Nose Fuselage右側にあり、External Power Sourceを接続する。'
+      '- IDG: Engine Accessory GearboxのFront Face 7:00 Position、Engine Starter下方にある。EngineのVariable SpeedをConstant Speedに変換し、3 Phase 115/200v AC 400Hzを発生する。',
+      '- IDG Air/Oil Cooler: Engine Fan Case後方6:30 PositionのLower Inside Sectionにある。Fan AirでIDG Oil Temperatureを下げる。',
+      '- Generator Drive and Standby Power Module: Flight CompartmentのP5 Forward Overhead Panelにあり、IDG Disconnect、DRIVE LightによるGenerator Drive SystemのControlとIndicationを行う。'
     ]
   },
   q_24_deb0426f2ff3: {
@@ -123,11 +120,14 @@ module.exports = {
     ]
   },
   q_24_780205016b20: {
-    evidence_page_codes: ['D2-04'],
+    evidence_page_codes: ['D3-04', 'D3-07', 'D3-08', 'D3-14', 'D3-20', 'D3-24'],
     answer_lines: [
-      '- IDG: Engine Accessory GearboxのFront Face 7:00 Position、Engine Starter下方にある。AC Powerを発生する。',
-      '- IDG Air/Oil Cooler: Engine Fan Case後方6:30 PositionのLower Inside Sectionにある。IDG Oil Temperatureを下げる。',
-      '- Generator Drive and Standby Power Module: Flight CompartmentのP5 Forward Overhead Panelにあり、Generator Drive SystemのIndicationとControlを行う。'
+      '- IDG 1/2: 各Engine Accessory Gearboxにある。3 Phase 115/200v AC 400Hzを発生し、各AC Transfer Busの通常Power Sourceとなる。',
+      '- GCU 1: EE Compartment E2 Rack、GCU 2: E4 Rack。IDG Excitation、GCB/BTB Control、Electrical Protection、IndicationおよびBITEを行う。',
+      '- APU Starter Generator: APU Gearbox右側にある。APU Start時はStarter、発電時はAC Power Sourceとして作動する。',
+      '- AGCU / SCU: EE Compartment E2 Rack。AGCUはAPU GeneratorのControl/Protection、SCUはAPU Generator Output RegulationとAPU Startを行う。',
+      '- PDP 1(P91): EE Compartment左側、PDP 2(P92): 右側。AC Bus、GCB、BTB、APB/EPCなどを収容しPowerをDistributionする。',
+      '- P5-4 AC Systems, Generator and APU Module: Flight Compartment P5 Forward Overhead Panelにあり、Generator/APU/External PowerのManual ControlとIndicationを行う。'
     ]
   },
   q_24_f559e34f0867: {

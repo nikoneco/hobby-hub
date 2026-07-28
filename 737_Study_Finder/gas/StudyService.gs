@@ -2,7 +2,7 @@ function getQuestions(filters) {
   const spreadsheet = openStudySpreadsheet_();
   const sheet = getSheet_(spreadsheet, 'question_bank');
   return readObjects_(sheet).filter(function (question) {
-    if (filters.ata && String(question.ata) !== String(filters.ata)) {
+    if (filters.ata && normalizeAtaKey_(question.ata) !== normalizeAtaKey_(filters.ata)) {
       return false;
     }
     if (filters.status && String(question.check_status) !== String(filters.status)) {
@@ -37,19 +37,14 @@ function getQuestionsBundle(filters) {
       return questionIdSet[String(row.question_id)];
     })
   );
-  const confirmedByQuestionId = groupRowsByQuestionId_(
-    readObjects_(getSheet_(spreadsheet, 'confirmed_answers')).filter(function (row) {
-      return questionIdSet[String(row.question_id)];
-    })
-  );
-
   const detailsById = questions.reduce(function (details, question) {
     const questionId = String(question.question_id);
+    const answerNotes = notesByQuestionId[questionId] || [];
     details[questionId] = {
       question: question,
       candidates: groupCandidates_(candidatesByQuestionId[questionId] || []),
-      answerNotes: notesByQuestionId[questionId] || [],
-      confirmedAnswers: confirmedByQuestionId[questionId] || []
+      answer: selectCanonicalAnswerNote_(answerNotes),
+      answerNotes: answerNotes
     };
     return details;
   }, {});
@@ -70,14 +65,26 @@ function getQuestionDetail(questionId) {
   const candidates = readObjectsByColumnValue_(getSheet_(spreadsheet, 'candidate_links'), 'question_id', questionId)
     .sort(function (a, b) { return Number(a.rank) - Number(b.rank); });
   const notes = readObjectsByColumnValue_(getSheet_(spreadsheet, 'answer_notes'), 'question_id', questionId);
-  const confirmed = readObjectsByColumnValue_(getSheet_(spreadsheet, 'confirmed_answers'), 'question_id', questionId);
 
   return {
     question: question,
     candidates: groupCandidates_(candidates),
-    answerNotes: notes,
-    confirmedAnswers: confirmed
+    answer: selectCanonicalAnswerNote_(notes),
+    answerNotes: notes
   };
+}
+
+function selectCanonicalAnswerNote_(notes) {
+  if (!notes || !notes.length) {
+    return null;
+  }
+  return notes.slice().sort(function (a, b) {
+    const updatedDifference = String(b.updated_at || '').localeCompare(String(a.updated_at || ''));
+    if (updatedDifference !== 0) {
+      return updatedDifference;
+    }
+    return String(b.created_at || '').localeCompare(String(a.created_at || ''));
+  })[0];
 }
 
 function getRandomQuestionDetail(filters) {
