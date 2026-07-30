@@ -55,7 +55,7 @@ const CONFIG = {
       MODULE_ID: 'jack_load',
       NAME: 'JACK LOAD',
       DESCRIPTION: '航空機JACK UP時の各JACK荷重とLimit判定を計算',
-      WEB_APP_URL: 'https://nikoneco.github.io/hobby-hub/jack-load/',
+      WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbzO_TsuxIRSqSn5a-YOGyOPDRgaJNHZRDr_8GZpGCOMhYkzLg5QIa3kcli8ETOx1fmEKQ/exec',
       ICON: 'jack',
       DISPLAY_ORDER: 6
     }

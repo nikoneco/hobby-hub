@@ -56,7 +56,7 @@
         "enabled": true,
         "display_order": 6,
         "icon": "jack",
-        "target_url": "./jack-load/"
+        "target_url": "https://script.google.com/macros/s/AKfycbzO_TsuxIRSqSn5a-YOGyOPDRgaJNHZRDr_8GZpGCOMhYkzLg5QIa3kcli8ETOx1fmEKQ/exec"
       }
     ]
   },
@@ -115,7 +115,7 @@
         "enabled": true,
         "display_order": 6,
         "icon": "jack",
-        "target_url": "./jack-load/"
+        "target_url": "https://script.google.com/macros/s/AKfycbzO_TsuxIRSqSn5a-YOGyOPDRgaJNHZRDr_8GZpGCOMhYkzLg5QIa3kcli8ETOx1fmEKQ/exec"
       }
     ]
   }

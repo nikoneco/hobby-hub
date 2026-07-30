@@ -53,7 +53,7 @@
     "enabled": true,
     "display_order": 6,
     "icon": "jack",
-    "target_url": "./jack-load/"
+    "target_url": "https://script.google.com/macros/s/AKfycbzO_TsuxIRSqSn5a-YOGyOPDRgaJNHZRDr_8GZpGCOMhYkzLg5QIa3kcli8ETOx1fmEKQ/exec"
   }
 ];
   window.hobbyHubOpenModuleUrl = (url) => {
@@ -63,7 +63,7 @@
     study737: './737-study-finder/',
     room_library: './room-library/',
     celestiframe: './celestiframe/',
-    jack_load: './jack-load/',
+    jack_load: 'https://script.google.com/macros/s/AKfycbzO_TsuxIRSqSn5a-YOGyOPDRgaJNHZRDr_8GZpGCOMhYkzLg5QIa3kcli8ETOx1fmEKQ/exec',
     izakaya_scout: './izakaya-scout/',
     lifeboard: './lifeboard/'
   };
