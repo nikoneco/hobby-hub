@@ -60,7 +60,8 @@ function buildDefaultModules_() {
     buildRoomLibraryModule_(),
     buildLifeBoardModule_(),
     buildIzakayaScoutModule_(),
-    buildCelestiFrameModule_()
+    buildCelestiFrameModule_(),
+    buildJackLoadModule_()
   ];
 }
 
@@ -130,6 +131,22 @@ function buildIzakayaScoutModule_() {
 
 function buildCelestiFrameModule_() {
   const app = CONFIG.APPS.CELESTIFRAME;
+  return {
+    module_id: app.MODULE_ID,
+    module_name: app.NAME,
+    description: app.DESCRIPTION,
+    enabled: true,
+    display_order: app.DISPLAY_ORDER,
+    icon: app.ICON,
+    target_url: app.WEB_APP_URL,
+    app_folder_id: '',
+    script_id: '',
+    db_spreadsheet_id: ''
+  };
+}
+
+function buildJackLoadModule_() {
+  const app = CONFIG.APPS.JACK_LOAD;
   return {
     module_id: app.MODULE_ID,
     module_name: app.NAME,

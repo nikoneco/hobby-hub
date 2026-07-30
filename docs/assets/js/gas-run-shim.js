@@ -48,6 +48,15 @@
         "display_order": 5,
         "icon": "celestial",
         "target_url": "https://nikoneco.github.io/CelestiFrame/"
+      },
+      {
+        "module_id": "jack_load",
+        "module_name": "JACK LOAD",
+        "description": "航空機JACK UP時の各JACK荷重とLimit判定を計算",
+        "enabled": true,
+        "display_order": 6,
+        "icon": "jack",
+        "target_url": "./jack-load/"
       }
     ]
   },
@@ -98,6 +107,15 @@
         "display_order": 5,
         "icon": "celestial",
         "target_url": "https://nikoneco.github.io/CelestiFrame/"
+      },
+      {
+        "module_id": "jack_load",
+        "module_name": "JACK LOAD",
+        "description": "航空機JACK UP時の各JACK荷重とLimit判定を計算",
+        "enabled": true,
+        "display_order": 6,
+        "icon": "jack",
+        "target_url": "./jack-load/"
       }
     ]
   }

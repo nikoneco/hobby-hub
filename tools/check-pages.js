@@ -21,6 +21,7 @@ const REQUIRED_FILES = [
   '737-study-finder/assets/answer-figures/ata38-potable-water-system.webp',
   '737-study-finder/assets/answer-figures/ata47-ngs-diagram.webp',
   'celestiframe/index.html',
+  'jack-load/index.html',
   'izakaya-scout/index.html',
   'izakaya-scout/assets/js/gas-run-shim.js',
   'lifeboard/index.html',
@@ -72,6 +73,7 @@ const sw = readGenerated('sw.js');
 assert(sw.includes('offline.html'), 'Service Worker must include offline fallback');
 assert(sw.includes('737-study-finder/index.html'), 'Service Worker must cache 737 page');
 assert(sw.includes('celestiframe/index.html'), 'Service Worker must cache CelestiFrame shell');
+assert(sw.includes('jack-load/index.html'), 'Service Worker must cache JACK LOAD shell');
 assert(sw.includes('izakaya-scout/index.html'), 'Service Worker must cache Izakaya page');
 assert(sw.includes('lifeboard/index.html'), 'Service Worker must cache LifeBoard page');
 

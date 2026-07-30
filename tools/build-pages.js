@@ -5,7 +5,7 @@ const zlib = require('zlib');
 const ROOT = path.resolve(__dirname, '..');
 const DOCS = path.join(ROOT, 'docs');
 const PAGES_BASE = '/hobby-hub/';
-const BUILD_VERSION = '20260712-celestiframe';
+const BUILD_VERSION = '20260730-jack-load';
 
 const APPS = [
   {
@@ -65,6 +65,15 @@ const APPS = [
             display_order: 5,
             icon: 'celestial',
             target_url: 'https://nikoneco.github.io/CelestiFrame/'
+          },
+          {
+            module_id: 'jack_load',
+            module_name: 'JACK LOAD',
+            description: '航空機JACK UP時の各JACK荷重とLimit判定を計算',
+            enabled: true,
+            display_order: 6,
+            icon: 'jack',
+            target_url: './jack-load/'
           }
         ]
       }
@@ -201,6 +210,12 @@ function writeSharedPwaFiles() {
     src: 'https://nikoneco.github.io/CelestiFrame/',
     themeColor: '#07151a'
   }), 'utf8');
+  ensureDir(path.join(DOCS, 'jack-load'));
+  fs.writeFileSync(path.join(DOCS, 'jack-load', 'index.html'), buildExternalAppShell({
+    title: 'JACK LOAD',
+    src: 'https://script.google.com/macros/s/AKfycbzO_TsuxIRSqSn5a-YOGyOPDRgaJNHZRDr_8GZpGCOMhYkzLg5QIa3kcli8ETOx1fmEKQ/exec',
+    themeColor: '#07151a'
+  }), 'utf8');
   fs.writeFileSync(path.join(DOCS, 'manifest.webmanifest'), JSON.stringify({
     name: '趣味HUB',
     short_name: '趣味HUB',
@@ -332,6 +347,7 @@ function buildModeScript(app) {
     study737: './737-study-finder/',
     room_library: './room-library/',
     celestiframe: './celestiframe/',
+    jack_load: './jack-load/',
     izakaya_scout: './izakaya-scout/',
     lifeboard: './lifeboard/'
   };
@@ -472,6 +488,7 @@ function buildServiceWorker() {
     PAGES_BASE + 'assets/js/pwa-client.js',
     PAGES_BASE + 'room-library/index.html',
     PAGES_BASE + 'celestiframe/index.html',
+    PAGES_BASE + 'jack-load/index.html',
     PAGES_BASE + '737-study-finder/index.html',
     PAGES_BASE + '737-study-finder/assets/css/app.css',
     PAGES_BASE + '737-study-finder/assets/css/pwa.css',

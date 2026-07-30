@@ -65,6 +65,9 @@ const app = document.getElementById('app');
     if (id === 'celestiframe') {
       return '月星';
     }
+    if (id === 'jack_load') {
+      return 'JCK';
+    }
     return String(module.icon || 'APP').slice(0, 3).toUpperCase();
   }
 

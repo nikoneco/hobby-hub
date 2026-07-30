@@ -1,4 +1,4 @@
-const CACHE_NAME = "hobby-hub-pwa-20260712-celestiframe";
+const CACHE_NAME = "hobby-hub-pwa-20260730-jack-load";
 const APP_SHELL = [
   "/hobby-hub/",
   "/hobby-hub/index.html",
@@ -13,6 +13,7 @@ const APP_SHELL = [
   "/hobby-hub/assets/js/pwa-client.js",
   "/hobby-hub/room-library/index.html",
   "/hobby-hub/celestiframe/index.html",
+  "/hobby-hub/jack-load/index.html",
   "/hobby-hub/737-study-finder/index.html",
   "/hobby-hub/737-study-finder/assets/css/app.css",
   "/hobby-hub/737-study-finder/assets/css/pwa.css",

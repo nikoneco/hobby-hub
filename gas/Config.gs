@@ -50,6 +50,14 @@ const CONFIG = {
       WEB_APP_URL: 'https://nikoneco.github.io/CelestiFrame/',
       ICON: 'celestial',
       DISPLAY_ORDER: 5
+    },
+    JACK_LOAD: {
+      MODULE_ID: 'jack_load',
+      NAME: 'JACK LOAD',
+      DESCRIPTION: '航空機JACK UP時の各JACK荷重とLimit判定を計算',
+      WEB_APP_URL: 'https://nikoneco.github.io/hobby-hub/jack-load/',
+      ICON: 'jack',
+      DISPLAY_ORDER: 6
     }
   }
 };
