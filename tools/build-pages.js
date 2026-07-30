@@ -5,7 +5,7 @@ const zlib = require('zlib');
 const ROOT = path.resolve(__dirname, '..');
 const DOCS = path.join(ROOT, 'docs');
 const PAGES_BASE = '/hobby-hub/';
-const BUILD_VERSION = '20260730-jack-load';
+const BUILD_VERSION = '20260730-jack-load-redirect';
 
 const APPS = [
   {
@@ -211,7 +211,7 @@ function writeSharedPwaFiles() {
     themeColor: '#07151a'
   }), 'utf8');
   ensureDir(path.join(DOCS, 'jack-load'));
-  fs.writeFileSync(path.join(DOCS, 'jack-load', 'index.html'), buildExternalAppShell({
+  fs.writeFileSync(path.join(DOCS, 'jack-load', 'index.html'), buildRedirectAppShell({
     title: 'JACK LOAD',
     src: 'https://script.google.com/macros/s/AKfycbzO_TsuxIRSqSn5a-YOGyOPDRgaJNHZRDr_8GZpGCOMhYkzLg5QIa3kcli8ETOx1fmEKQ/exec',
     themeColor: '#07151a'
@@ -468,6 +468,42 @@ function buildExternalAppShell(app) {
   </head>
   <body>
     <iframe title="${escapeAttr(app.title)}" src="${escapeAttr(app.src)}"></iframe>
+  </body>
+</html>`;
+}
+
+function buildRedirectAppShell(app) {
+  return `<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta http-equiv="refresh" content="0; url=${escapeAttr(app.src)}">
+    <title>${escapeAttr(app.title)}</title>
+    <link rel="manifest" href="../manifest.webmanifest">
+    <meta name="theme-color" content="${escapeAttr(app.themeColor)}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="${escapeAttr(app.title)}">
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: ${app.themeColor};
+        color: #f8efe0;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      a {
+        color: #ead3a2;
+      }
+    </style>
+    <script>
+      window.location.replace(${JSON.stringify(app.src)});
+    </script>
+  </head>
+  <body>
+    <p>JACK LOADを開いています。自動で切り替わらない場合は <a href="${escapeAttr(app.src)}">こちら</a> を開いてください。</p>
   </body>
 </html>`;
 }
