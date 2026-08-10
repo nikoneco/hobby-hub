@@ -198,8 +198,8 @@ function buildApp(app) {
   html = ensureDocumentMeta(html, app.title);
   html = html.replace(/<base\s+target="_top">\s*/i, '');
   html = html.replace(/<\?!=\s*include\('style'\);\s*\?>/g, [
-    '<link rel="stylesheet" href="./assets/css/app.css">',
-    '<link rel="stylesheet" href="./assets/css/pwa.css">'
+    '<link rel="stylesheet" href="./assets/css/app.css?v=' + BUILD_VERSION + '">',
+    '<link rel="stylesheet" href="./assets/css/pwa.css?v=' + BUILD_VERSION + '">'
   ].join('\n    '));
   html = html.replace(/<\?!=\s*include\('script'\);\s*\?>/g, [
     '<script src="./assets/js/gas-run-shim.js?v=' + BUILD_VERSION + '"></script>',
