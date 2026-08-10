@@ -161,17 +161,32 @@ function Invoke-NodeScript {
 }
 
 function Get-BusFetchIntervalMinutes {
-  $now = Get-Date
+  param([datetime]$Now = (Get-Date))
+  $now = $Now
   $minutes = ($now.Hour * 60) + $now.Minute
   $morningStart = 6 * 60
   $morningEnd = 7 * 60
   if ($minutes -ge $morningStart -and $minutes -lt $morningEnd) {
     return 1
   }
-  return 5
+  return 3
+}
+
+function Test-BusFetchServiceWindow {
+  param([datetime]$Now = (Get-Date))
+  $now = $Now
+  if ($now.Hour -ge 23 -or $now.Hour -lt 6) {
+    Add-Log 'bus-fetch skip service-window=23:00-06:00'
+    return $false
+  }
+  return $true
 }
 
 function Test-BusFetchDue {
+  if (-not (Test-BusFetchServiceWindow)) {
+    return $false
+  }
+
   if (-not (Test-Path -LiteralPath $busFetchStatePath)) {
     return $true
   }

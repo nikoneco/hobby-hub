@@ -173,6 +173,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   active work is pink, and leave/off/10H states are blue.
 - The main bus time shows the scheduled departure time. Delay and remaining
   time are shown separately, such as `19:42 +2 / 3M`.
+- The `次` bus time also uses the scheduled departure time. A temporary
+  NAVITIME predicted-time change does not replace the timetable time.
+- The Windows server fetches NAVITIME every minute from 06:00 through 06:59,
+  every 3 minutes from 07:00 through 22:59, and stops bus acquisition from
+  23:00 through 05:59. Pixoo rendering itself continues every minute.
 - When the home-to-station route has no remaining bus items for the day, the
   bus panel shows `本日のバスは` / `終わりました！`.
 - Weather shows the current temperature and the next-24-hour high temperature,

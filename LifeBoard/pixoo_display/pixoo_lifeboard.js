@@ -527,9 +527,9 @@ function drawRoutePanel(frame, config, options) {
     drawText(frame, location, 4, config.y + 22, COLORS.cyan);
   }
   if (next) {
-    const nextText = '次 ' + shortTime(next.predictedDepartureText || next.scheduledDepartureText);
+    const nextText = '次 ' + shortTime(next.scheduledDepartureText || next.predictedDepartureText);
     if (!drawMixedText(frame, nextText, 31, config.y + 22, COLORS.white, options)) {
-      drawText(frame, 'NXT ' + shortTime(next.predictedDepartureText || next.scheduledDepartureText), 30, config.y + 22, COLORS.white);
+      drawText(frame, 'NXT ' + shortTime(next.scheduledDepartureText || next.predictedDepartureText), 30, config.y + 22, COLORS.white);
     }
   }
 }

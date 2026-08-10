@@ -88,6 +88,19 @@ LifeBoard\logs\bus_timetable_manual.log
 
 ## Scheduled task
 
+The current server-PC runner starts the task every minute, then applies this
+fetch policy inside `LifeBoard_Runner.ps1`:
+
+```text
+06:00-06:59  fetch every 1 minute
+07:00-22:59  fetch every 3 minutes
+23:00-05:59  stop NAVITIME acquisition
+```
+
+Pixoo rendering remains a separate 1 minute task during the stopped window.
+
+The standalone task registration below is retained for manual/test setups.
+
 Register a hidden Windows scheduled task:
 
 ```powershell
