@@ -22,7 +22,15 @@ function doPost(e) {
   if (action === 'importWeatherSnapshot') {
     return handleWeatherSnapshotImportPost_(e);
   }
-  return handleCalendarImportPost_(e);
+  if (action === 'importCalendarEvents') {
+    return handleCalendarImportPost_(e);
+  }
+  return jsonOutput_({
+    ok: false,
+    error: {
+      message: 'Unsupported action: ' + action
+    }
+  });
 }
 
 function include(filename) {

@@ -1,11 +1,11 @@
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
+const crypto = require('crypto');
 
 const ROOT = path.resolve(__dirname, '..');
 const DOCS = path.join(ROOT, 'docs');
 const PAGES_BASE = '/hobby-hub/';
-const BUILD_VERSION = '20260730-jack-load-direct';
 
 const APPS = [
   {
@@ -139,6 +139,35 @@ const APPS = [
   }
 ];
 
+const BUILD_VERSION = process.env.PWA_BUILD_VERSION || createBuildVersion();
+
+function createBuildVersion() {
+  const hash = crypto.createHash('sha256');
+  const files = [__filename];
+  APPS.forEach((app) => {
+    ['index.html', 'style.html', 'script.html'].forEach((name) => {
+      files.push(path.join(app.sourceDir, name));
+    });
+    if (app.staticAssetsDir && fs.existsSync(app.staticAssetsDir)) {
+      files.push(...listFilesRecursively(app.staticAssetsDir));
+    }
+  });
+  files.sort().forEach((filePath) => {
+    hash.update(path.relative(ROOT, filePath).replace(/\\/g, '/'));
+    hash.update('\0');
+    hash.update(fs.readFileSync(filePath));
+    hash.update('\0');
+  });
+  return 'content-' + hash.digest('hex').slice(0, 12);
+}
+
+function listFilesRecursively(directory) {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const fullPath = path.join(directory, entry.name);
+    return entry.isDirectory() ? listFilesRecursively(fullPath) : entry.isFile() ? [fullPath] : [];
+  });
+}
+
 function main() {
   resetDir(DOCS);
   APPS.forEach(buildApp);
@@ -166,6 +195,7 @@ function buildApp(app) {
 
   let html = readSource(app, 'index.html');
   html = inlineIncludes(app, html);
+  html = ensureDocumentMeta(html);
   html = html.replace(/<base\s+target="_top">\s*/i, '');
   html = html.replace(/<\?!=\s*include\('style'\);\s*\?>/g, [
     '<link rel="stylesheet" href="./assets/css/app.css">',
@@ -186,6 +216,20 @@ function buildApp(app) {
     '  </head>'
   ].join('\n'));
   fs.writeFileSync(path.join(app.outDir, 'index.html'), html, 'utf8');
+}
+
+function ensureDocumentMeta(html) {
+  const tags = [];
+  if (!/<meta\s+charset=/i.test(html)) {
+    tags.push('<meta charset="utf-8">');
+  }
+  if (!/<meta\s+name=["']viewport["']/i.test(html)) {
+    tags.push('<meta name="viewport" content="width=device-width, initial-scale=1">');
+  }
+  if (!tags.length) {
+    return html;
+  }
+  return html.replace(/<head>/i, '<head>\n    ' + tags.join('\n    '));
 }
 
 function inlineIncludes(app, html) {
@@ -259,18 +303,28 @@ function buildGasRunShim(app) {
 
     const callbackName = '__gasJsonp_' + Date.now() + '_' + (++requestSeq);
     const script = document.createElement('script');
+    let settled = false;
     const timeout = window.setTimeout(() => {
-      cleanup();
+      if (settled) return;
+      settled = true;
+      cleanup(true);
       if (failureHandler) failureHandler(new Error('GAS API timeout: ' + method));
     }, 30000);
 
-    function cleanup() {
+    function cleanup(keepLateCallback) {
       window.clearTimeout(timeout);
-      delete window[callbackName];
+      if (keepLateCallback) {
+        window[callbackName] = () => {};
+        window.setTimeout(() => { delete window[callbackName]; }, 5 * 60 * 1000);
+      } else {
+        delete window[callbackName];
+      }
       if (script.parentNode) script.parentNode.removeChild(script);
     }
 
     window[callbackName] = (response) => {
+      if (settled) return;
+      settled = true;
       cleanup();
       if (successHandler) successHandler(response);
     };
@@ -280,6 +334,8 @@ function buildGasRunShim(app) {
     url.searchParams.set('callback', callbackName);
     url.searchParams.set('argsB64', encodeArgs(args));
     script.onerror = () => {
+      if (settled) return;
+      settled = true;
       cleanup();
       if (failureHandler) failureHandler(new Error('GAS API load failed: ' + method));
     };

@@ -21,18 +21,28 @@
 
     const callbackName = '__gasJsonp_' + Date.now() + '_' + (++requestSeq);
     const script = document.createElement('script');
+    let settled = false;
     const timeout = window.setTimeout(() => {
-      cleanup();
+      if (settled) return;
+      settled = true;
+      cleanup(true);
       if (failureHandler) failureHandler(new Error('GAS API timeout: ' + method));
     }, 30000);
 
-    function cleanup() {
+    function cleanup(keepLateCallback) {
       window.clearTimeout(timeout);
-      delete window[callbackName];
+      if (keepLateCallback) {
+        window[callbackName] = () => {};
+        window.setTimeout(() => { delete window[callbackName]; }, 5 * 60 * 1000);
+      } else {
+        delete window[callbackName];
+      }
       if (script.parentNode) script.parentNode.removeChild(script);
     }
 
     window[callbackName] = (response) => {
+      if (settled) return;
+      settled = true;
       cleanup();
       if (successHandler) successHandler(response);
     };
@@ -42,6 +52,8 @@
     url.searchParams.set('callback', callbackName);
     url.searchParams.set('argsB64', encodeArgs(args));
     script.onerror = () => {
+      if (settled) return;
+      settled = true;
       cleanup();
       if (failureHandler) failureHandler(new Error('GAS API load failed: ' + method));
     };

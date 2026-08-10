@@ -104,10 +104,10 @@ function buildWeatherSnapshot(html, options) {
   const now = new Date();
   const lookaheadHours = getLookaheadHours(now);
   const windowRows = rows.slice(0, Math.max(1, lookaheadHours));
-  const analysis = analyzeWeatherWindow(windowRows);
   const temps24h = rows.slice(0, 24).map((row) => row.temp).filter(Number.isFinite);
   const high24h = temps24h.length ? Math.max.apply(null, temps24h) : '';
   const low24h = temps24h.length ? Math.min.apply(null, temps24h) : '';
+  const analysis = analyzeWeatherWindow(windowRows, high24h);
   const currentTemp = Number.isFinite(observed.temperature) ? observed.temperature : rows[0].temp;
   const statusText = analysis.label || observed.statusText || labelForKind(analysis.kind);
   const rainText = buildRainText(analysis.precipitationMax);
@@ -126,7 +126,7 @@ function buildWeatherSnapshot(html, options) {
     apparentText: '-',
     humidityText: observed.humidity === '' ? '-' : String(observed.humidity) + '%',
     precipitationText: rainText,
-    windText: Number.isFinite(rows[0].wind) ? String(rows[0].wind) + 'm' : '-',
+    windText: Number.isFinite(rows[0].wind) ? String(rows[0].wind) + 'm/s' : '-',
     highLowText: formatHighLow(high24h, low24h),
     high24hText: high24h === '' ? '-' : formatTemperature(high24h),
     rainChanceText: '-',
@@ -153,11 +153,11 @@ function buildWeatherSnapshot(html, options) {
       weatherIconCode: row.iconCode,
       temperatureText: formatTemperature(row.temp),
       precipitationText: row.rain === '' ? '-' : String(row.rain) + 'mm',
-      windText: Number.isFinite(row.wind) ? String(row.wind) + 'm' : '-'
+      windText: Number.isFinite(row.wind) ? String(row.wind) + 'm/s' : '-'
     })),
     sourceUpdatedAtText: formatLocalDateTime(now),
     sourceUrl: options.url,
-    detailText: 'Weathernews HTML scrape; high is next 24h max',
+    detailText: 'Weathernews 1時間予報 / 最高は今後24時間',
     fetchedAt: now.toISOString()
   };
 }
@@ -218,19 +218,14 @@ function parseObservedWeather(html) {
   };
 }
 
-function analyzeWeatherWindow(rows) {
+function analyzeWeatherWindow(rows, high24h) {
   const kinds = rows.map((row) => row.kind);
   const precipitationMax = Math.max.apply(null, rows.map((row) => Number.isFinite(row.rain) ? row.rain : 0));
-  const half = Math.max(1, Math.ceil(rows.length / 2));
-  const firstKind = dominantKind(kinds.slice(0, half));
-  const secondKind = dominantKind(kinds.slice(half));
-  const hasDry = kinds.some((kind) => kind === 'clear' || kind === 'cloud');
-  const wetKinds = kinds.filter(isWetKind);
-  const hasWet = wetKinds.length > 0;
+  const segments = collapseConsecutiveKinds(kinds.filter((kind) => kind && kind !== 'unknown'));
 
-  if (firstKind && secondKind && firstKind !== secondKind && (isWetKind(firstKind) || isWetKind(secondKind))) {
-    const fromKind = applySuperClear(firstKind, rows);
-    const toKind = applySuperClear(secondKind, rows);
+  if (segments.length === 2) {
+    const fromKind = applySuperClear(segments[0], high24h);
+    const toKind = applySuperClear(segments[1], high24h);
     return {
       kind: highestPriorityKind([fromKind, toKind]),
       mode: 'later',
@@ -241,21 +236,21 @@ function analyzeWeatherWindow(rows) {
     };
   }
 
-  if (hasDry && hasWet) {
-    const dryKind = dominantKind(kinds.filter((kind) => kind === 'clear' || kind === 'cloud')) || 'cloud';
-    const wetKind = highestPriorityKind(wetKinds);
-    const fromKind = applySuperClear(dryKind, rows);
+  if (segments.length > 2) {
+    const fromKind = applySuperClear(segments[0], high24h);
+    const alternateKinds = segments.filter((kind) => kind !== segments[0]);
+    const toKind = applySuperClear(highestPriorityKind(alternateKinds), high24h);
     return {
-      kind: wetKind,
+      kind: highestPriorityKind([fromKind, toKind]),
       mode: 'sometimes',
       fromKind,
-      toKind: wetKind,
+      toKind,
       precipitationMax,
-      label: labelForKind(fromKind) + '時々' + labelForKind(wetKind)
+      label: labelForKind(fromKind) + '時々' + labelForKind(toKind)
     };
   }
 
-  const kind = applySuperClear(highestPriorityKind(kinds), rows);
+  const kind = applySuperClear(highestPriorityKind(kinds), high24h);
   return {
     kind,
     mode: 'single',
@@ -266,30 +261,27 @@ function analyzeWeatherWindow(rows) {
   };
 }
 
+function collapseConsecutiveKinds(kinds) {
+  return kinds.reduce((segments, kind) => {
+    if (!segments.length || segments[segments.length - 1] !== kind) {
+      segments.push(kind);
+    }
+    return segments;
+  }, []);
+}
+
 function classifyHourlyKind(iconCode, rain) {
+  const code = Number(iconCode);
+  if (Number.isFinite(code) && code >= 500 && code < 600) return 'thunder';
+  if (Number.isFinite(code) && code >= 400 && code < 500) return 'snow';
   if (Number.isFinite(rain) && rain >= 5) return 'heavy';
   if (Number.isFinite(rain) && rain >= 1) return 'rain';
   if (Number.isFinite(rain) && rain > 0) return 'drizzle';
-  const code = Number(iconCode);
   if (!Number.isFinite(code)) return 'unknown';
-  if (code >= 500 && code < 600) return 'thunder';
-  if (code >= 400 && code < 500) return 'snow';
   if (code >= 300 && code < 400) return 'rain';
   if ((code >= 200 && code < 300) || (code >= 600 && code < 700)) return 'cloud';
   if (code >= 100 && code < 200) return 'clear';
   return 'unknown';
-}
-
-function dominantKind(kinds) {
-  const counts = new Map();
-  kinds.filter(Boolean).forEach((kind) => counts.set(kind, (counts.get(kind) || 0) + 1));
-  let best = '';
-  for (const kind of counts.keys()) {
-    if (!best || counts.get(kind) > counts.get(best) || (counts.get(kind) === counts.get(best) && priorityOf(kind) < priorityOf(best))) {
-      best = kind;
-    }
-  }
-  return best;
 }
 
 function highestPriorityKind(kinds) {
@@ -310,16 +302,12 @@ function priorityOf(kind) {
   }[kind] || 99;
 }
 
-function applySuperClear(kind, rows) {
+function applySuperClear(kind, high24h) {
   if (kind !== 'clear') {
     return kind;
   }
-  const high24h = Math.max.apply(null, rows.map((row) => row.temp).filter(Number.isFinite));
-  return Number.isFinite(high24h) && high24h >= 35 ? 'superclear' : kind;
-}
-
-function isWetKind(kind) {
-  return ['drizzle', 'rain', 'heavy', 'thunder', 'snow'].includes(kind);
+  const high = Number(high24h);
+  return Number.isFinite(high) && high >= 35 ? 'superclear' : kind;
 }
 
 function weatherClassForKind(kind) {
@@ -536,7 +524,16 @@ function printHelp() {
   ].join('\n'));
 }
 
-main().catch((error) => {
-  console.error(error && error.stack ? error.stack : error);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error && error.stack ? error.stack : error);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {
+  analyzeWeatherWindow,
+  buildWeatherSnapshot,
+  classifyHourlyKind,
+  collapseConsecutiveKinds
+};

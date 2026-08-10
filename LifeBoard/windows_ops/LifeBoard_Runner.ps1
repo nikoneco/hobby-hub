@@ -41,32 +41,68 @@ $busFetchStatePath = Join-Path $logDir 'bus_last_fetch.txt'
 $weatherFetchStatePath = Join-Path $logDir 'weather_last_fetch.txt'
 $logRetentionDays = 7
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+$script:logMutex = New-Object System.Threading.Mutex($false, 'Local\LifeBoardOpsRunnerLog')
 
-function Invoke-LogRotation {
-  $today = (Get-Date).Date
-  if (Test-Path -LiteralPath $logPath) {
-    $logItem = Get-Item -LiteralPath $logPath
-    if ($logItem.LastWriteTime.Date -lt $today) {
-      $archivePath = Join-Path $logDir ('lifeboard_ops_runner_{0}.log' -f $logItem.LastWriteTime.ToString('yyyyMMdd'))
-      if (Test-Path -LiteralPath $archivePath) {
-        $text = [System.IO.File]::ReadAllText($logPath, [System.Text.Encoding]::UTF8)
-        Add-Content -LiteralPath $archivePath -Encoding UTF8 -Value $text
-        Remove-Item -LiteralPath $logPath -Force
-      } else {
-        Move-Item -LiteralPath $logPath -Destination $archivePath -Force
-      }
+function Invoke-WithLogLock {
+  param([scriptblock]$Action)
+  $acquired = $false
+  try {
+    try {
+      $acquired = $script:logMutex.WaitOne(10000)
+    } catch [System.Threading.AbandonedMutexException] {
+      $acquired = $true
+    }
+    if (-not $acquired) {
+      throw 'Timed out waiting for the LifeBoard log lock.'
+    }
+    & $Action
+  } finally {
+    if ($acquired) {
+      $script:logMutex.ReleaseMutex()
     }
   }
+}
 
-  $cutoff = $today.AddDays(-$logRetentionDays)
-  Get-ChildItem -LiteralPath $logDir -Filter 'lifeboard_ops_runner_*.log' -File -ErrorAction SilentlyContinue |
-    Where-Object { $_.LastWriteTime.Date -lt $cutoff } |
-    Remove-Item -Force
+function Invoke-LogRotation {
+  Invoke-WithLogLock {
+    $today = (Get-Date).Date
+    if (Test-Path -LiteralPath $logPath) {
+      $logItem = Get-Item -LiteralPath $logPath
+      if ($logItem.LastWriteTime.Date -lt $today) {
+        $archivePath = Join-Path $logDir ('lifeboard_ops_runner_{0}.log' -f $logItem.LastWriteTime.ToString('yyyyMMdd'))
+        if (Test-Path -LiteralPath $archivePath) {
+          $text = [System.IO.File]::ReadAllText($logPath, [System.Text.Encoding]::UTF8)
+          Add-Content -LiteralPath $archivePath -Encoding UTF8 -Value $text
+          Remove-Item -LiteralPath $logPath -Force
+        } else {
+          Move-Item -LiteralPath $logPath -Destination $archivePath -Force
+        }
+      }
+    }
+
+    $cutoff = $today.AddDays(-$logRetentionDays)
+    Get-ChildItem -LiteralPath $logDir -Filter 'lifeboard_ops_runner_*.log' -File -ErrorAction SilentlyContinue |
+      Where-Object { $_.LastWriteTime.Date -lt $cutoff } |
+      Remove-Item -Force
+  }
 }
 
 function Add-Log {
   param([string]$Message)
-  Add-Content -Path $logPath -Encoding UTF8 -Value ('[{0}] {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Message)
+  $line = '[{0}] {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Message
+  Invoke-WithLogLock {
+    Add-Content -LiteralPath $logPath -Encoding UTF8 -Value $line
+  }
+}
+
+function Add-LogBlock {
+  param([string]$Text)
+  if (-not $Text) {
+    return
+  }
+  Invoke-WithLogLock {
+    Add-Content -LiteralPath $logPath -Encoding UTF8 -Value $Text
+  }
 }
 
 Invoke-LogRotation
@@ -135,7 +171,7 @@ function Invoke-LoggedProcess {
       }
       $text = [System.IO.File]::ReadAllText($path, [System.Text.Encoding]::UTF8).TrimEnd()
       if ($text) {
-        Add-Content -Path $logPath -Encoding UTF8 -Value $text
+        Add-LogBlock -Text $text
       }
     }
     if ($process.ExitCode -ne 0) {
@@ -245,7 +281,9 @@ function Invoke-Bus {
   $script = Join-Path $lifeBoardDir 'bus_fetcher\sync_bus_snapshot.js'
   $modeArg = if ($DryRun) { '--dry-run' } else { '--post' }
   Invoke-NodeScript -ScriptPath $script -Arguments @($modeArg) -StepName 'bus-fetch'
-  Set-Content -LiteralPath $busFetchStatePath -Encoding ASCII -Value ((Get-Date).ToUniversalTime().ToString('o'))
+  if (-not $DryRun) {
+    Set-Content -LiteralPath $busFetchStatePath -Encoding ASCII -Value ((Get-Date).ToUniversalTime().ToString('o'))
+  }
 }
 
 function Invoke-Weather {
@@ -258,11 +296,16 @@ function Invoke-Weather {
   }
   $modeArg = if ($DryRun) { '--dry-run' } else { '--post' }
   Invoke-NodeScript -ScriptPath $script -Arguments @($modeArg) -StepName 'weather-fetch'
-  Set-Content -LiteralPath $weatherFetchStatePath -Encoding ASCII -Value ((Get-Date).ToUniversalTime().ToString('o'))
+  if (-not $DryRun) {
+    Set-Content -LiteralPath $weatherFetchStatePath -Encoding ASCII -Value ((Get-Date).ToUniversalTime().ToString('o'))
+  }
 }
 
 function Invoke-Pixoo {
-  Invoke-Weather
+  param([switch]$SkipWeatherRefresh)
+  if (-not $SkipWeatherRefresh) {
+    Invoke-Weather
+  }
   $script = Join-Path $lifeBoardDir 'pixoo_display\pixoo_lifeboard.js'
   $args = @()
   if (-not $DryRun) {
@@ -297,7 +340,7 @@ try {
     Invoke-TimeTree
   }
   if ($Mode -eq 'Pixoo' -or $Mode -eq 'All') {
-    Invoke-Pixoo
+    Invoke-Pixoo -SkipWeatherRefresh:($Mode -eq 'All')
   }
   Add-Log 'End exit=0'
   exit 0

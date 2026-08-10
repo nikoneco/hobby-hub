@@ -18,6 +18,9 @@ const BUS_TIMETABLE_HEADERS = [
   'note'
 ];
 
+const BUS_DIRECT_FAILURE_CACHE_KEY = 'bus:direct-fetch-failure';
+const BUS_STORED_ROWS_CACHE_KEY = 'bus:stored-snapshot-rows';
+
 function handleBusSnapshotImportPost_(e) {
   try {
     const payload = parseBusSnapshotImportPayload_(e);
@@ -132,6 +135,7 @@ function importBusSnapshots_(payload) {
   }
   sheet.setFrozenRows(1);
   autoResizeSafe_(sheet, BUS_SNAPSHOT_HEADERS.length);
+  CacheService.getScriptCache().remove(BUS_STORED_ROWS_CACHE_KEY);
 
   return {
     importedAt: importedAt,
@@ -200,9 +204,7 @@ function busTimetableValue_(header, row, payload) {
 
 function getStoredBusRouteSnapshot_(route, options) {
   try {
-    const spreadsheet = openLifeBoardSpreadsheet_();
-    const sheet = getSheetByName_(spreadsheet, CONFIG.SHEETS.BUS_SNAPSHOTS);
-    const rows = readObjects_(sheet);
+    const rows = getStoredBusSnapshotRows_();
     const routeId = String(route.route_id || '');
     const row = rows.filter(function (candidate) {
       return String(candidate.route_id || '') === routeId;
@@ -234,6 +236,19 @@ function getStoredBusRouteSnapshot_(route, options) {
     console.warn('Stored bus snapshot fallback unavailable: ' + (error && error.message ? error.message : String(error)));
     return null;
   }
+}
+
+function getStoredBusSnapshotRows_() {
+  const cache = CacheService.getScriptCache();
+  const cached = cache.get(BUS_STORED_ROWS_CACHE_KEY);
+  if (cached) {
+    return JSON.parse(cached);
+  }
+  const spreadsheet = openLifeBoardSpreadsheet_();
+  const sheet = getSheetByName_(spreadsheet, CONFIG.SHEETS.BUS_SNAPSHOTS);
+  const rows = readObjects_(sheet);
+  cache.put(BUS_STORED_ROWS_CACHE_KEY, JSON.stringify(rows), CONFIG.BUS.STORED_CACHE_SECONDS);
+  return rows;
 }
 
 function buildBusTimetableFallbackSnapshot_(route, storedSnapshot, importedAt, error) {
@@ -473,6 +488,11 @@ function fetchRouteSnapshot_(route) {
     return JSON.parse(cached);
   }
 
+  const recentFailure = cache.get(BUS_DIRECT_FAILURE_CACHE_KEY);
+  if (recentFailure) {
+    throw new Error('Bus API direct fetch is in backoff after HTTP ' + recentFailure);
+  }
+
   const url = buildBusApiUrl_(route);
   const response = UrlFetchApp.fetch(url, {
     muteHttpExceptions: true,
@@ -480,6 +500,7 @@ function fetchRouteSnapshot_(route) {
   });
   const status = response.getResponseCode();
   if (status < 200 || status >= 300) {
+    cache.put(BUS_DIRECT_FAILURE_CACHE_KEY, String(status), CONFIG.BUS.DIRECT_FAILURE_BACKOFF_SECONDS);
     throw new Error('Bus API request failed: HTTP ' + status);
   }
 
@@ -499,6 +520,7 @@ function fetchRouteSnapshot_(route) {
   };
 
   cache.put(cacheKey, JSON.stringify(snapshot), CONFIG.BUS.CACHE_SECONDS);
+  cache.remove(BUS_DIRECT_FAILURE_CACHE_KEY);
   return snapshot;
 }
 

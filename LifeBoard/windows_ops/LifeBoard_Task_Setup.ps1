@@ -150,9 +150,8 @@ function Write-LocalSettings {
   }
 
   $importUrl = Read-Default -Prompt 'LifeBoard GAS Web App URL' -Default $existingImportUrl
-  Write-Host 'LifeBoard import token input is visible so it can be pasted.' -ForegroundColor Yellow
   $tokenPrompt = if ($existingToken) { 'LifeBoard import token (blank keeps current)' } else { 'LifeBoard import token' }
-  $tokenInput = Read-Default -Prompt $tokenPrompt
+  $tokenInput = Read-SecretText -Prompt $tokenPrompt
   $importToken = if ($tokenInput) { $tokenInput } else { $existingToken }
 
   if (-not $importUrl) {

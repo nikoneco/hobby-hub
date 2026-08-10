@@ -1,4 +1,4 @@
-const CACHE_NAME = "hobby-hub-pwa-20260730-jack-load-direct";
+const CACHE_NAME = "hobby-hub-pwa-content-290d51330c05";
 const APP_SHELL = [
   "/hobby-hub/",
   "/hobby-hub/index.html",

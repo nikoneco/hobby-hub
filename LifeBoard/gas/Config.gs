@@ -19,6 +19,8 @@ const CONFIG = {
     API_BASE_URL: 'https://transfer-cloud.navitime.biz/apiv1/',
     PAGE_BASE_URL: 'https://transfer-cloud.navitime.biz/keiseibus-group/approachings',
     CACHE_SECONDS: 25,
+    DIRECT_FAILURE_BACKOFF_SECONDS: 600,
+    STORED_CACHE_SECONDS: 60,
     STORED_MAX_AGE_MINUTES: 15,
     MAX_ITEMS_PER_ROUTE: 3
   },
@@ -48,6 +50,7 @@ const CONFIG = {
   ],
   RAIL: {
     CACHE_SECONDS: 60,
+    FAILURE_CACHE_SECONDS: 120,
     SOURCE_NOTE: 'Yahoo!路線情報（レスキューナウ）から取得',
     DEFAULT_ROUTES: [
       {

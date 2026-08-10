@@ -21,28 +21,8 @@ function getRailSnapshot_() {
   return {
     fetchedAt: nowIso_(),
     sourceNote: CONFIG.RAIL.SOURCE_NOTE,
-    routes: routes.map(fetchRailRouteSnapshotSafely_)
+    routes: fetchRailRouteSnapshots_(routes)
   };
-}
-
-function fetchRailRouteSnapshotSafely_(route) {
-  try {
-    return fetchRailRouteSnapshot_(route);
-  } catch (error) {
-    console.error('Rail route failed: ' + route.route_id + ': ' + (error && error.stack ? error.stack : error));
-    return {
-      routeId: String(route.route_id || ''),
-      displayName: String(route.display_name || route.label || ''),
-      lineId: String(route.yahoo_line_id || route.line_id || ''),
-      officialUrl: buildRailSourceUrl_(route),
-      statusText: '確認できず',
-      severity: 'unknown',
-      detailText: formatRailFetchError_(error),
-      directionText: '',
-      sourceUpdatedAtText: '',
-      fetchedAt: nowIso_()
-    };
-  }
 }
 
 function formatRailFetchError_(error) {
@@ -53,21 +33,76 @@ function formatRailFetchError_(error) {
   return message;
 }
 
-function fetchRailRouteSnapshot_(route) {
+function fetchRailRouteSnapshots_(routes) {
   const cache = CacheService.getScriptCache();
-  const cacheKey = 'rail:v2:' + route.route_id + ':' + String(route.display_name || route.label || '');
-  const cached = cache.get(cacheKey);
-  if (cached) {
-    return JSON.parse(cached);
+  const cacheKeys = routes.map(buildRailCacheKey_);
+  const cachedValues = cache.getAll(cacheKeys);
+  const results = new Array(routes.length);
+  const pending = [];
+
+  routes.forEach(function (route, index) {
+    const cacheKey = cacheKeys[index];
+    const cached = cachedValues[cacheKey];
+    if (cached) {
+      try {
+        results[index] = JSON.parse(cached);
+        return;
+      } catch (error) {
+        cache.remove(cacheKey);
+      }
+    }
+    pending.push({ route: route, index: index, cacheKey: cacheKey });
+  });
+
+  if (!pending.length) {
+    return results;
   }
 
-  const response = UrlFetchApp.fetch(buildRailSourceUrl_(route), {
-    muteHttpExceptions: true,
-    headers: {
-      Accept: 'text/html',
-      'User-Agent': 'Mozilla/5.0'
+  let responses;
+  try {
+    responses = UrlFetchApp.fetchAll(pending.map(function (entry) {
+      return {
+        url: buildRailSourceUrl_(entry.route),
+        muteHttpExceptions: true,
+        headers: {
+          Accept: 'text/html',
+          'User-Agent': 'Mozilla/5.0'
+        }
+      };
+    }));
+  } catch (error) {
+    console.error('Rail fetchAll failed: ' + (error && error.stack ? error.stack : error));
+    pending.forEach(function (entry) {
+      results[entry.index] = cacheRailUnavailableSnapshot_(cache, entry, error);
+    });
+    return results;
+  }
+
+  pending.forEach(function (entry, responseIndex) {
+    try {
+      const snapshot = parseRailRouteResponse_(entry.route, responses[responseIndex]);
+      cache.put(entry.cacheKey, JSON.stringify(snapshot), CONFIG.RAIL.CACHE_SECONDS);
+      results[entry.index] = snapshot;
+    } catch (error) {
+      console.error('Rail route failed: ' + entry.route.route_id + ': ' + (error && error.stack ? error.stack : error));
+      results[entry.index] = cacheRailUnavailableSnapshot_(cache, entry, error);
     }
   });
+
+  return results;
+}
+
+function buildRailCacheKey_(route) {
+  return 'rail:v2:' + route.route_id + ':' + String(route.display_name || route.label || '');
+}
+
+function cacheRailUnavailableSnapshot_(cache, entry, error) {
+  const snapshot = buildRailUnavailableSnapshot_(entry.route, error);
+  cache.put(entry.cacheKey, JSON.stringify(snapshot), CONFIG.RAIL.FAILURE_CACHE_SECONDS);
+  return snapshot;
+}
+
+function parseRailRouteResponse_(route, response) {
   const status = response.getResponseCode();
   if (status < 200 || status >= 300) {
     throw new Error('Rail page request failed: HTTP ' + status);
@@ -90,9 +125,22 @@ function fetchRailRouteSnapshot_(route) {
     sourceUpdatedAtText: extractYahooRailUpdatedAt_(operationText) || extractYahooRailUpdatedAt_(text),
     fetchedAt: nowIso_()
   };
-
-  cache.put(cacheKey, JSON.stringify(snapshot), CONFIG.RAIL.CACHE_SECONDS);
   return snapshot;
+}
+
+function buildRailUnavailableSnapshot_(route, error) {
+  return {
+    routeId: String(route.route_id || ''),
+    displayName: String(route.display_name || route.label || ''),
+    lineId: String(route.yahoo_line_id || route.line_id || ''),
+    officialUrl: buildRailSourceUrl_(route),
+    statusText: '確認できず',
+    severity: 'unknown',
+    detailText: formatRailFetchError_(error),
+    directionText: '',
+    sourceUpdatedAtText: '',
+    fetchedAt: nowIso_()
+  };
 }
 
 function buildRailSourceUrl_(route) {
@@ -176,21 +224,6 @@ function findYahooRailMainIndex_(text, routeName) {
     }
     searchIndex = index + routeName.length;
   }
-}
-
-function extractRailSection_(text, startLabel, endLabels) {
-  const startIndex = text.lastIndexOf(startLabel);
-  if (startIndex < 0) {
-    return text;
-  }
-  let endIndex = text.length;
-  endLabels.forEach(function (label) {
-    const index = text.indexOf(label, startIndex + startLabel.length);
-    if (index > startIndex && index < endIndex) {
-      endIndex = index;
-    }
-  });
-  return text.slice(startIndex + startLabel.length, endIndex).trim();
 }
 
 function extractYahooRailStatus_(operationText) {

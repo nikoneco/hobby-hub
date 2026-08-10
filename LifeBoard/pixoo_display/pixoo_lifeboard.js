@@ -1023,12 +1023,12 @@ function buildRailStatus(lifeData, animationPhase) {
     : 0;
   const issue = issues[issueIndex] || null;
   if (issue) {
-    const severity = String(issue.severity || '').toLowerCase();
     const code = normalizeRailIssueCode(issue);
-    const suspended = severity === 'suspended' || code === 'STOP';
+    const suspended = code === 'STOP';
+    const delayed = code === 'DELAY';
     return {
-      text: suspended ? 'JR STOP' : 'JR DELAY',
-      title: suspended ? 'JR STOP!' : 'JR Delay!',
+      text: suspended ? 'JR STOP' : delayed ? 'JR DELAY' : 'JR CHECK',
+      title: suspended ? 'JR STOP!' : delayed ? 'JR Delay!' : 'JR CHECK!',
       line: normalizeRailLineName(issue),
       lineJp: normalizeRailLineJapanese(issue),
       code,
@@ -1036,18 +1036,16 @@ function buildRailStatus(lifeData, animationPhase) {
       issueCount: issues.length,
       issueIndex,
       positionText: issues.length > 1 ? String(issueIndex + 1) + '/' + String(issues.length) : '',
-      message: suspended ? 'STOP' : 'DELAY',
-      messageJp: suspended ? '運転見合わせ' : '遅延注意',
-      color: suspended ? COLORS.red : COLORS.amber
+      message: suspended ? 'STOP' : delayed ? 'DELAY' : 'CHECK',
+      messageJp: suspended ? '運転見合わせ' : delayed ? '遅延注意' : '確認してください',
+      color: suspended ? COLORS.red : delayed ? COLORS.amber : COLORS.yellow
     };
   }
   return { text: 'JR OK', line: 'JR', code: 'OK', issue: null, color: COLORS.green };
 }
 
 function isRailIssue(route) {
-  const severity = String(route && route.severity || '').toLowerCase();
-  const status = String(route && route.statusText || '');
-  return (severity && severity !== 'normal') || (status && status !== '平常運転' && status !== '通常運転');
+  return normalizeRailIssueCode(route) !== 'OK';
 }
 
 function normalizeRailLineName(route) {
@@ -1084,7 +1082,7 @@ function railSeverityRank(route) {
   const code = normalizeRailIssueCode(route);
   if (code === 'STOP') return 0;
   if (code === 'DELAY') return 1;
-  if (code === 'UNK') return 2;
+  if (code === 'CHECK') return 2;
   return 3;
 }
 
@@ -1099,8 +1097,8 @@ function normalizeRailIssueCode(route) {
   const status = String(route && route.statusText || '');
   if (severity === 'suspended' || status.indexOf('見合わせ') >= 0) return 'STOP';
   if (severity === 'delay' || status.indexOf('遅') >= 0) return 'DELAY';
-  if (severity === 'unknown') return 'UNK';
-  return 'INFO';
+  if (severity === 'normal' || status === '平常運転' || status === '通常運転') return 'OK';
+  return 'CHECK';
 }
 
 function buildWeatherStatus(lifeData) {
@@ -1850,15 +1848,6 @@ function readPngImage(inputPath) {
   return { width, height, rgba };
 }
 
-function pngBytesPerPixel(colorType) {
-  if (colorType === 0) return 1;
-  if (colorType === 2) return 3;
-  if (colorType === 3) return 1;
-  if (colorType === 4) return 2;
-  if (colorType === 6) return 4;
-  throw new Error('Unsupported PNG color type: ' + colorType);
-}
-
 function pngBitsPerPixel(colorType, bitDepth) {
   if (colorType === 0) return bitDepth;
   if (colorType === 2) return bitDepth * 3;
@@ -2038,7 +2027,18 @@ function printHelp() {
   ].join('\n'));
 }
 
-main().catch((error) => {
-  console.error(error && error.stack ? error.stack : error);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error && error.stack ? error.stack : error);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {
+  buildRailStatus,
+  buildWeatherStatus,
+  compareRailIssues,
+  isRailIssue,
+  normalizeRailIssueCode,
+  renderLifeBoardFrames
+};

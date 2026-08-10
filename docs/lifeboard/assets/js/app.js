@@ -2,6 +2,7 @@ const app = document.getElementById('app');
   const bootstrap = JSON.parse(app.dataset.bootstrap || '{}');
   const AUTO_REFRESH_INTERVAL_MS = 60 * 1000;
   const BUS_DEPARTURE_GRACE_MS = 60 * 1000;
+  const CALENDAR_STALE_MS = 3 * 60 * 60 * 1000;
   let autoRefreshTimer = null;
   let failureCount = 0;
   let clockTimer = null;
@@ -23,10 +24,12 @@ const app = document.getElementById('app');
       updateAutoStatus('前回更新中');
       return;
     }
+    clearAutoRefresh();
     const requestId = refreshRequestId + 1;
     refreshRequestId = requestId;
     isRefreshing = true;
     setLoading(true);
+    updateAutoStatus('更新中');
     google.script.run
       .withSuccessHandler((response) => {
         if (requestId !== refreshRequestId) {
@@ -38,20 +41,22 @@ const app = document.getElementById('app');
         } catch (error) {
           handleRefreshError(error);
         } finally {
-          isRefreshing = false;
-          setLoading(false);
-          scheduleNextAutoRefresh();
+          finishRefresh();
         }
       })
       .withFailureHandler((error) => {
         if (requestId === refreshRequestId) {
           handleRefreshError(error);
-          isRefreshing = false;
-          setLoading(false);
-          scheduleNextAutoRefresh();
+          finishRefresh();
         }
       })
       .apiGetLifeBoardData();
+  }
+
+  function finishRefresh() {
+    isRefreshing = false;
+    setLoading(false);
+    scheduleNextAutoRefresh();
   }
 
   function handleRefreshError(error) {
@@ -59,6 +64,7 @@ const app = document.getElementById('app');
     document.getElementById('lastUpdated').textContent = error && error.message ? error.message : String(error);
     if (failureCount >= 3) {
       clearAutoRefresh();
+      updateAutoStatus('連続失敗で停止 / 更新ボタンで再試行');
     }
   }
 
@@ -133,102 +139,6 @@ const app = document.getElementById('app');
     return { label: value || '天気確認', tone: 'weather-alert' };
   }
 
-  function renderLifeTags(data) {
-    const root = document.getElementById('lifeTags');
-    if (!root) {
-      return;
-    }
-    const tags = buildLifeTags(data || {});
-    root.innerHTML = tags.map((tag) => [
-      '<span class="life-tag tag-' + normalizeClassName(tag.tone || 'normal') + '">',
-      escapeHtml(tag.label),
-      '</span>'
-    ].join('')).join('');
-  }
-
-  function buildLifeTags(data) {
-    const tags = [];
-    addWeatherTags(tags, data.weather);
-    addBusTags(tags, data.bus);
-    addRailTags(tags, data.rail);
-    addCalendarTags(tags, data.calendar);
-    addGarbageTags(tags, data.garbage);
-    return tags.length ? tags.slice(0, 8) : [{ label: '平常', tone: 'normal' }];
-  }
-
-  function addWeatherTags(tags, weather) {
-    const location = weather && weather.locations && weather.locations[0];
-    if (!location) {
-      return;
-    }
-    const apparent = extractNumber(location.apparentText);
-    const wind = extractNumber(location.windText);
-    if (String(location.umbrellaText || '').indexOf('不要') < 0 && String(location.umbrellaText || '').indexOf('-') < 0) {
-      addUniqueTag(tags, '雨注意', 'weather');
-    }
-    if (apparent >= 30) {
-      addUniqueTag(tags, '暑さ注意', 'weather');
-    } else if (apparent <= 8 && apparent !== null) {
-      addUniqueTag(tags, '寒さ注意', 'weather');
-    }
-    if (wind >= 18) {
-      addUniqueTag(tags, '強風', 'weather');
-    }
-  }
-
-  function addBusTags(tags, bus) {
-    const routes = bus && bus.routes ? bus.routes : [];
-    if (!routes.length) {
-      return;
-    }
-    const hasEmptyRoute = routes.some((route) => !route.items || !route.items.length);
-    const allItems = routes.reduce((items, route) => items.concat(route.items || []), []);
-    const hasDelay = allItems.some((item) => isDelayText(item.delayText));
-    if (hasDelay) {
-      addUniqueTag(tags, 'バス遅れあり', 'bus');
-    }
-    if (hasEmptyRoute) {
-      addUniqueTag(tags, '接近情報なし', 'bus');
-    }
-  }
-
-  function addRailTags(tags, rail) {
-    const routes = rail && rail.routes ? rail.routes : [];
-    const hasIssue = routes.some((route) => {
-      const severity = String(route.severity || '').toLowerCase();
-      const status = String(route.statusText || '');
-      return severity && severity !== 'normal' || (status && status !== '平常運転' && status !== '通常運転');
-    });
-    if (hasIssue) {
-      addUniqueTag(tags, '電車確認', 'rail');
-    }
-  }
-
-  function addCalendarTags(tags, calendar) {
-    const events = calendar && calendar.headerEvents ? calendar.headerEvents : [];
-    const today = formatLocalDateKey(new Date());
-    const todayCount = events.filter((event) => event.date === today).length;
-    if (todayCount >= 3) {
-      addUniqueTag(tags, '予定多め', 'calendar');
-    }
-  }
-
-  function addGarbageTags(tags, garbage) {
-    const days = garbage && garbage.days ? garbage.days : [];
-    if (days[0] && days[0].items && days[0].items.length) {
-      addUniqueTag(tags, '今日ゴミ', 'garbage');
-    }
-    if (days[1] && days[1].items && days[1].items.length) {
-      addUniqueTag(tags, '明日ゴミ', 'garbage');
-    }
-  }
-
-  function addUniqueTag(tags, label, tone) {
-    if (!tags.some((tag) => tag.label === label)) {
-      tags.push({ label: label, tone: tone });
-    }
-  }
-
   function isDelayText(text) {
     const value = String(text || '');
     return value && value !== '遅れなし' && value !== '-' && (value.indexOf('+') >= 0 || value.indexOf('遅') >= 0);
@@ -237,13 +147,6 @@ const app = document.getElementById('app');
   function extractNumber(value) {
     const match = String(value || '').match(/-?\d+(?:\.\d+)?/);
     return match ? Number(match[0]) : null;
-  }
-
-  function formatLocalDateKey(date) {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return y + '-' + m + '-' + d;
   }
 
   function renderBusSnapshot(snapshot) {
@@ -363,10 +266,7 @@ const app = document.getElementById('app');
     const root = document.getElementById('calendarTopEvents');
     root.innerHTML = '';
     const events = snapshot && snapshot.headerEvents ? snapshot.headerEvents : [];
-    document.getElementById('calendarSourceNote').textContent = [
-      snapshot && snapshot.sourceNote ? snapshot.sourceNote : 'TimeTree',
-      snapshot && snapshot.importedAt ? '取込 ' + formatLocalDateTime(snapshot.importedAt) : ''
-    ].filter(Boolean).join(' / ');
+    document.getElementById('calendarSourceNote').textContent = formatCalendarSourceNote(snapshot);
     const days = buildTopCalendarDays(events, garbageSnapshot);
     if (!days.length) {
       root.innerHTML = '<p class="top-calendar-empty">' + escapeHtml(snapshot && snapshot.errorText ? snapshot.errorText : '直近の予定なし') + '</p>';
@@ -379,10 +279,7 @@ const app = document.getElementById('app');
     const root = document.getElementById('calendarDetailEvents');
     root.innerHTML = '';
     const events = snapshot && snapshot.events ? snapshot.events : [];
-    document.getElementById('calendarDetailSourceNote').textContent = [
-      snapshot && snapshot.sourceNote ? snapshot.sourceNote : 'TimeTree',
-      snapshot && snapshot.importedAt ? '取込 ' + formatLocalDateTime(snapshot.importedAt) : ''
-    ].filter(Boolean).join(' / ');
+    document.getElementById('calendarDetailSourceNote').textContent = formatCalendarSourceNote(snapshot);
     if (!events.length) {
       root.innerHTML = '<article class="calendar-detail-card"><p class="empty">' + escapeHtml(snapshot && snapshot.errorText ? snapshot.errorText : '予定なし') + '</p></article>';
       return;
@@ -595,6 +492,19 @@ const app = document.getElementById('app');
     ].join('')).join('') + '</ul>';
   }
 
+  function formatCalendarSourceNote(snapshot) {
+    const importedAt = snapshot && snapshot.importedAt ? String(snapshot.importedAt) : '';
+    const parts = [
+      snapshot && snapshot.sourceNote ? snapshot.sourceNote : 'TimeTree',
+      importedAt ? '取込 ' + formatLocalDateTime(importedAt) : ''
+    ].filter(Boolean);
+    const importedMs = Date.parse(importedAt);
+    if (Number.isFinite(importedMs) && Date.now() - importedMs >= CALENDAR_STALE_MS) {
+      parts.push('3時間以上未更新');
+    }
+    return parts.join(' / ');
+  }
+
   function renderBusFallback(route, timetableItems) {
     const message = route.statusText || '接近情報なし';
     if (!timetableItems.length) {
@@ -697,6 +607,10 @@ const app = document.getElementById('app');
 
   function scheduleNextAutoRefresh() {
     clearAutoRefresh();
+    if (failureCount >= 3) {
+      updateAutoStatus('連続失敗で停止 / 更新ボタンで再試行');
+      return;
+    }
     const intervalMs = getAutoRefreshIntervalMs();
     updateAutoStatus('次回 ' + formatDuration(intervalMs) + '後');
     autoRefreshTimer = setTimeout(() => {
@@ -732,7 +646,7 @@ const app = document.getElementById('app');
 
   function setLoading(isLoading) {
     const button = document.getElementById('refreshButton');
-    button.disabled = false;
+    button.disabled = isLoading;
     button.textContent = isLoading ? '更新中...' : '更新';
     button.setAttribute('aria-busy', isLoading ? 'true' : 'false');
   }
