@@ -30,6 +30,7 @@ try {
   $env:TIMETREE_EMAIL = Get-BatSetting 'LIFEBOARD_TIMETREE_EMAIL'
   $env:TIMETREE_PASSWORD = Get-BatSetting 'LIFEBOARD_TIMETREE_PASSWORD'
   $env:TIMETREE_CALENDAR_SELECTION = Get-BatSetting 'LIFEBOARD_TIMETREE_CALENDAR_SELECTION'
+  $env:LIFEBOARD_IMPORT_URL = Get-BatSetting 'LIFEBOARD_IMPORT_URL'
   $env:LIFEBOARD_IMPORT_TOKEN = Get-BatSetting 'LIFEBOARD_IMPORT_TOKEN'
   if (Test-Path -LiteralPath $defaultPythonPath) {
     $env:TIMETREE_EXPORTER_COMMAND = ('"{0}" -m timetree_exporter' -f $defaultPythonPath)
