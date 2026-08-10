@@ -195,7 +195,7 @@ function buildApp(app) {
 
   let html = readSource(app, 'index.html');
   html = inlineIncludes(app, html);
-  html = ensureDocumentMeta(html);
+  html = ensureDocumentMeta(html, app.title);
   html = html.replace(/<base\s+target="_top">\s*/i, '');
   html = html.replace(/<\?!=\s*include\('style'\);\s*\?>/g, [
     '<link rel="stylesheet" href="./assets/css/app.css">',
@@ -218,13 +218,16 @@ function buildApp(app) {
   fs.writeFileSync(path.join(app.outDir, 'index.html'), html, 'utf8');
 }
 
-function ensureDocumentMeta(html) {
+function ensureDocumentMeta(html, title) {
   const tags = [];
   if (!/<meta\s+charset=/i.test(html)) {
     tags.push('<meta charset="utf-8">');
   }
   if (!/<meta\s+name=["']viewport["']/i.test(html)) {
     tags.push('<meta name="viewport" content="width=device-width, initial-scale=1">');
+  }
+  if (!/<title(?:\s[^>]*)?>/i.test(html)) {
+    tags.push('<title>' + escapeAttr(title || '趣味HUB') + '</title>');
   }
   if (!tags.length) {
     return html;

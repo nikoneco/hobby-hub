@@ -320,13 +320,18 @@
   }
 
   .section-title p {
+    min-width: 0;
     color: var(--muted);
     font-size: 13px;
+    overflow-wrap: anywhere;
+    text-align: right;
   }
 
   .section-title h2 {
+    flex: 0 0 auto;
     color: var(--paper);
     font-size: 20px;
+    white-space: nowrap;
   }
 
   .bus-grid,
