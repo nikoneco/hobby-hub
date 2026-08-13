@@ -8,6 +8,25 @@ const ATAS = ['00', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', 
 const CAUSALITY_EXPECTATIONS = {
   q_00_6352bd22fdd7: ['PROGRAM SWITCH', 'PROGRAM SWITCH'],
   q_00_0bef0d5f1f3c: ['LOADABLE SOFTWARE', 'DATA LOADER'],
+  q_23_d0f057bd346f: ['FI SYS', 'FI SYSTEM'],
+  q_23_6fa9166a6c7a: ['REU', 'REU'],
+  q_23_ba8a614b38c4: ['ACP', 'ACP'],
+  q_23_145ee54e2d4f: ['SI SYS', 'SI SYSTEM'],
+  q_23_19c3b2e59824: ['PA SYSTEM', 'PA SYSTEM'],
+  q_23_67a8598753b6: ['VHF SYS', 'VHF SYSTEM'],
+  q_23_aa2243903242: ['HF SYS', 'HF SYSTEM'],
+  q_23_4e6bf8bafaa8: ['OFF SIDE', 'OFF SIDE'],
+  q_23_15bfa3e82f63: ['HF SYS', 'TUNE SEQUENCE'],
+  q_23_c7b4c67b70e4: ['SELCAL SYS', 'SELCAL SYSTEM'],
+  q_23_89babf1cd5fa: ['HGA', 'HGA'],
+  q_23_db91d96190d7: ['AUDIO BITE', 'AUDIO BITE'],
+  q_23_ce9eacc91f55: ['DIU', 'DIU'],
+  q_23_fc4b2f3373c4: ['IFE', 'AVOD'],
+  q_23_75b788e9fe02: ['IFE', 'HEAD END'],
+  q_23_f22b8be31d5f: ['IFE', 'MPEG1'],
+  q_23_e7a3d3ce2c6b: ['IFE', 'POWER'],
+  q_23_3f4cfd02c8ea: ['VIDEO SURVEILLANCE', 'FDEVSS'],
+  q_23_8d1419a9b489: ['VIDEO SURVEILLANCE', 'CDS'],
   q_24_a59763ae0357: ['EXTERNAL POWER', 'BPCU'],
   q_24_97d3f71cc615: ['GENERATOR DRIVE', 'IDG'],
   q_24_780205016b20: ['AC GENERATION', 'GCU'],
@@ -124,9 +143,9 @@ function main() {
     pages.push(...readCsv(`textbook_pages_ata${ata}.csv`));
   });
 
-  assert(questions.length === 722, `Expected 722 questions, got ${questions.length}`);
-  assert(preparedQuestions.length === 722, `Expected 722 prepared questions, got ${preparedQuestions.length}`);
-  assert(answers.length === 722, `Expected 722 answers, got ${answers.length}`);
+  assert(questions.length === 758, `Expected 758 questions, got ${questions.length}`);
+  assert(preparedQuestions.length === 758, `Expected 758 prepared questions, got ${preparedQuestions.length}`);
+  assert(answers.length === 758, `Expected 758 answers, got ${answers.length}`);
   assertUnique(questions, 'question_id', 'question bank');
   assertUnique(answers, 'note_id', 'answer notes');
   assertUnique(candidates, 'candidate_id', 'candidate links');

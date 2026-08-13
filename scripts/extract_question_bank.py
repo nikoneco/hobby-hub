@@ -311,9 +311,131 @@ def expand_target_specific_questions(question: str, target_ata: str) -> list[str
         return expand_ata26_questions(question)
     if target_ata == "27":
         return [normalize_ata27_question(question)]
+    if target_ata == "23":
+        return expand_ata23_questions(question)
     if target_ata == "34":
         return expand_ata34_questions(question)
     return [question]
+
+
+ATA23_REPAIRED_QUESTION_IDS = {
+    "FI SYSの目的、構成ComponentおよびLocation、作動概要について説明しなさい。": "q_23_d0f057bd346f",
+    "機体のSI JACK Locationを全て記入しなさい。": "q_23_709bc1feb618",
+    "CBN to CBNの呼出し時の作動について説明しなさい。": "q_23_b55819d2f5f9",
+    "ATT PNLの中のCard名称を記入しなさい。": "q_23_32e5be43f528",
+    "PAのGain CONT'Lについて説明しなさい。": "q_23_0e4df080c2cd",
+    "CPTからCBNにむけてアナウンスをする場合のFollowを記入しなさい。（SPKRまでの経路）": "q_23_2f14945bd648",
+    "VHFおよびHF ANTのLocationを示しなさい。": "q_23_4830dd957c66",
+    "RCPが故障した場合の現象について記入しなさい。": "q_23_07c949aa27ac",
+    "機体の識別はどのように設定しているか記入しなさい。": "q_23_5d5419c3366e",
+    "Voice RECの音は、どこの音声を何時間記録するか記入しなさい。": "q_23_b63c14ea4033",
+    "Voice RECの「OFF」L'Tの点灯について説明しなさい。": "q_23_c8c2293bfc89",
+    "ELT SYSの目的、主要構成ComponentおよびLocationについて記入しなさい。": "q_23_3e6e83d619cd",
+    "ELTから発射される電波の種類、その特徴について記入しなさい。": "q_23_d3860b5a7039",
+    "Static Dischargerが機体に取付いている目的を記入しなさい。": "q_23_9ab5dd8fcb63",
+    "Video Surveillance SYSの主要構成ComponentおよびLocationを記入しなさい。": "q_23_3f4cfd02c8ea",
+    "Video Surveillance SYSが表示される場所と表示させる方法を説明しなさい。": "q_23_60ffdf58f819",
+}
+
+
+def expand_ata23_questions(question: str) -> list[str]:
+    text = clean_layout_text(question)
+    upper = text.upper()
+    if "FI SYSの目的" in text and "REUの機能" in text:
+        return [
+            "FI SYSの目的、構成ComponentおよびLocation、作動概要について説明しなさい。",
+            "REUの機能について記入しなさい。",
+        ]
+    if "FI SYSの目的" in text and "SI SYSの目的" in text:
+        return [
+            "FI SYSの目的、構成ComponentおよびLocation、作動概要について説明しなさい。",
+            "REUの機能について記入しなさい。",
+            "ACPのEmergency Operationについて記入しなさい。",
+            "Navigation Alert Audioの4つを記入しなさい。",
+            "SI SYSの目的、構成ComponentおよびLocation、作動概要について説明しなさい。",
+        ]
+    if "SI JACK" in upper and "GND CREW CALL" in upper:
+        return [
+            "機体のSI JACK Locationを全て記入しなさい。",
+            "P5のSI SWの働きについて記入しなさい。",
+            "GND Crew Callをした時の作動について記入しなさい。",
+            "FLT CrewをGNDおよびCBNから呼び出した時の作動を説明しなさい。",
+        ]
+    if "ATT PNL" in upper and "PAのPRIORITY" in upper:
+        return [
+            "ATT PNLの中のCard名称を記入しなさい。",
+            "PA Systemの機能を4つ記入しなさい。",
+            "PA Systemの主要構成ComponentおよびLocationについて記入しなさい。",
+            "PA AMPの機能について全て記入しなさい。",
+            "PAのPriorityについて説明しなさい。",
+        ]
+    if "CPTからCBN" in text and "VHF SYSの目的" in text:
+        return [
+            "CPTからCBNにむけてアナウンスをする場合のFollowを記入しなさい。（SPKRまでの経路）",
+            "VHF SYSの目的、主要構成ComponentおよびLocationについて説明しなさい。",
+        ]
+    if "VHFおよびHF ANT" in text and "HF SYSの目的" in text:
+        return [
+            "VHFおよびHF ANTのLocationを示しなさい。",
+            "HF SYSの目的、主要構成ComponentおよびLocationについて説明しなさい。",
+        ]
+    if "RCPが故障" in text and "HF COUPLER" in upper:
+        return [
+            "RCPが故障した場合の現象について記入しなさい。",
+            "HF Couplerの機能について説明しなさい。",
+            "OFF Side Controlについて記入しなさい。",
+            "HF SYSを送信するまでの作動を簡単に記入しなさい。",
+            "SELCAL SYSの目的、主要構成ComponentおよびLocationについて記入しなさい。",
+        ]
+    if "機体の識別" in text and "BULK ERASE" in upper:
+        return [
+            "機体の識別はどのように設定しているか記入しなさい。",
+            "機体が呼出された時のCPTでの表示について記入しなさい。",
+            "SATCOM SYSの目的、主要構成ComponentおよびLocationについて記入しなさい。",
+            "HGAの特徴を記入しなさい。",
+            "LNA/Diplexerの働きを記入しなさい。",
+            "ACARS SYSの目的、主要構成ComponentおよびLocationについて記入しなさい。",
+            "Voice REC SYSの目的、作動、構成Componentについて記入しなさい。",
+            "Voice RECの作動時期を記入しなさい。",
+            "Voice RECの「Bulk Erase」について説明しなさい。",
+        ]
+    if "どこの音声を何時間" in text and "モニター" in text:
+        return [
+            "Voice RECの音は、どこの音声を何時間記録するか記入しなさい。",
+            "Voice RECへ記録される音声のモニターについて説明しなさい。",
+        ]
+    if "ELT SYSの目的" in text and "自動/手動" in text:
+        return [
+            "ELT SYSの目的、主要構成ComponentおよびLocationについて記入しなさい。",
+            "ELTの作動について、自動/手動各々について説明しなさい。",
+        ]
+    if "ELTから発射" in text and "停止方法" in text:
+        return [
+            "ELTから発射される電波の種類、その特徴について記入しなさい。",
+            "ELTを取り扱う際の注意事項および手動作動後の停止方法を説明しなさい。",
+        ]
+    if "STATIC DISCHARGER" in upper and "PES AUDIO" in upper:
+        return [
+            "Static Dischargerが機体に取付いている目的を記入しなさい。",
+            "PES Audio SYSの主要構成Component、Locationおよび機能を説明しなさい。",
+            "Audio BITE PNLの機能について記入しなさい。",
+            "DIUの機能について記入しなさい。",
+        ]
+    if "VIDEO SURVEILLANCE SYSの主要構成" in upper and "不可欠" in text:
+        return [
+            "737-800型機のIFEの特徴を9つ挙げて記入しなさい。",
+            "IFEの主要構成ComponentおよびLocationについて記入しなさい。",
+            "IFEのお客様への音および映像の形式を記入しなさい。",
+            "IFE立ち上げ時の注意事項を記入しなさい。",
+            "Video Surveillance SYSの主要構成ComponentおよびLocationを記入しなさい。",
+            "Video Surveillance SYSの作動に不可欠なSystemについて説明しなさい。",
+        ]
+    replacements = {
+        "機体のSI JACK Location を全て記入しなさい。": "機体のSI JACK Locationを全て記入しなさい。",
+        "CPTからCBNにむけてアナウンスをする場合のFollowを記入しなさい。 (SPKRまでの経路)": "CPTからCBNにむけてアナウンスをする場合のFollowを記入しなさい。（SPKRまでの経路）",
+        "PES Audio SYSの主要構成Component Location、および機能を説明しなさい。": "PES Audio SYSの主要構成Component Location、および機能を説明しなさい。",
+    }
+    return [replacements.get(text, text)]
 
 
 ATA34_REPAIRED_QUESTION_IDS = {
@@ -517,15 +639,16 @@ def preserve_existing_question_identity(
         return rows
 
     target_ata = normalize_ata_key(rows[0].get("ata", "")) if rows else ""
-    if target_ata == "34":
+    if target_ata in {"23", "34"}:
         old_by_normalized: dict[str, list[dict[str, str]]] = defaultdict(list)
         old_by_id = {row.get("question_id", ""): row for row in existing_rows}
         for old_row in existing_rows:
             old_by_normalized[normalize_text(old_row.get("question_text", ""))].append(old_row)
 
+        repaired_ids = ATA23_REPAIRED_QUESTION_IDS if target_ata == "23" else ATA34_REPAIRED_QUESTION_IDS
         overrides = {
             normalize_text(question): question_id
-            for question, question_id in ATA34_REPAIRED_QUESTION_IDS.items()
+            for question, question_id in repaired_ids.items()
         }
         assigned_ids: set[str] = set()
         for row in rows:
@@ -541,7 +664,7 @@ def preserve_existing_question_identity(
                 row["question_id"] = matches[0]["question_id"]
                 row["created_at"] = matches[0].get("created_at") or row["created_at"]
             if row["question_id"] in assigned_ids:
-                raise ValueError(f"Duplicate question identity after ATA34 repair: {row['question_id']}")
+                raise ValueError(f"Duplicate question identity after ATA{target_ata} repair: {row['question_id']}")
             assigned_ids.add(row["question_id"])
         return rows
 
