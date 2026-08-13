@@ -17,7 +17,8 @@ const app = document.getElementById('app');
   let questionLoadRetryAttempt = 0;
   let questionLoadRetryMax = 0;
   let questionLoadRetryStartedAt = 0;
-  const QUESTION_LOAD_ESTIMATE_SECONDS = 55;
+  let questionLoadEstimateSeconds = 30;
+  const QUESTION_LOAD_ESTIMATE_STORAGE_KEY = 'studyFinderLoadEstimatesV1';
   const QUESTION_LOAD_STAGES = [
     { after: 0, progress: 8, label: '接続を準備しています' },
     { after: 3, progress: 18, label: '問題データを取得しています' },
@@ -169,6 +170,7 @@ const app = document.getElementById('app');
     questionLoadRetryAttempt = 0;
     questionLoadRetryMax = 0;
     questionLoadRetryStartedAt = 0;
+    questionLoadEstimateSeconds = loadStoredQuestionEstimate(getSelectedAtaKey());
     updateQuestionLoadProgress(requestId);
     questionLoadTimer = window.setInterval(() => updateQuestionLoadProgress(requestId), 1000);
   }
@@ -197,7 +199,7 @@ const app = document.getElementById('app');
     const stageElapsed = Math.max(0, elapsedSeconds - activeStage.after);
     const targetProgress = Math.min(96, activeStage.progress + stageProgressSpan * Math.min(1, stageElapsed / stageSpan));
     questionLoadProgress = Math.max(questionLoadProgress, targetProgress);
-    const remainingSeconds = Math.max(0, QUESTION_LOAD_ESTIMATE_SECONDS - elapsedSeconds);
+    const remainingSeconds = Math.max(0, questionLoadEstimateSeconds - elapsedSeconds);
     let etaText = remainingSeconds > 0
       ? '目安 あと' + formatRemainingTime(remainingSeconds)
       : '通常より時間がかかっています';
@@ -224,6 +226,29 @@ const app = document.getElementById('app');
     if (seconds < 60) return '約' + Math.ceil(seconds / 5) * 5 + '秒';
     const minutes = Math.ceil(seconds / 30) / 2;
     return '約' + minutes + '分';
+  }
+
+  function loadStoredQuestionEstimate(ata) {
+    try {
+      const estimates = JSON.parse(window.localStorage.getItem(QUESTION_LOAD_ESTIMATE_STORAGE_KEY) || '{}');
+      const stored = Number(estimates[normalizeAtaKey(ata) || 'all']);
+      if (Number.isFinite(stored)) return Math.max(10, Math.min(90, stored));
+    } catch (error) {
+      // Storage can be unavailable in private browsing. The default still works.
+    }
+    return 30;
+  }
+
+  function rememberQuestionLoadDuration(ata) {
+    const elapsedSeconds = Math.max(1, Math.round((Date.now() - questionLoadStartedAt) / 1000));
+    const learnedEstimate = Math.ceil(Math.max(10, Math.min(90, elapsedSeconds * 1.4)) / 5) * 5;
+    try {
+      const estimates = JSON.parse(window.localStorage.getItem(QUESTION_LOAD_ESTIMATE_STORAGE_KEY) || '{}');
+      estimates[normalizeAtaKey(ata) || 'all'] = learnedEstimate;
+      window.localStorage.setItem(QUESTION_LOAD_ESTIMATE_STORAGE_KEY, JSON.stringify(estimates));
+    } catch (error) {
+      // The estimate is optional and must never block studying.
+    }
   }
 
   function handleGasApiProgress(event) {
@@ -325,6 +350,7 @@ const app = document.getElementById('app');
         const questions = Array.isArray(data) ? data : (data.questions || []);
         currentDetailsByQuestionId = Array.isArray(data) ? {} : (data.detailsById || {});
         currentTermDictionary = Array.isArray(data) ? [] : (data.termDictionary || []);
+        rememberQuestionLoadDuration(ata);
         renderQuestions(questions);
         loadedAtaKey = normalizeAtaKey(ata);
         setQuestionLoadState('loaded', label + ' 読み込み完了', questions.length + '問', {
