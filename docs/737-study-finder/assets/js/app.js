@@ -12,11 +12,13 @@ const app = document.getElementById('app');
   let questionLoadRequestId = 0;
   let questionLoadTimer = 0;
   let questionLoadStartedAt = 0;
+  let questionLoadAttemptStartedAt = 0;
   let questionLoadProgress = 0;
   let questionLoadStageIndex = 0;
   let questionLoadRetryAttempt = 0;
   let questionLoadRetryMax = 0;
   let questionLoadRetryStartedAt = 0;
+  let questionLoadRetryTimeoutSeconds = 50;
   let questionLoadEstimateSeconds = 30;
   const QUESTION_LOAD_ESTIMATE_STORAGE_KEY = 'studyFinderLoadEstimatesV1';
   const QUESTION_LOAD_STAGES = [
@@ -165,6 +167,7 @@ const app = document.getElementById('app');
   function startQuestionLoadProgress(requestId) {
     stopQuestionLoadProgress();
     questionLoadStartedAt = Date.now();
+    questionLoadAttemptStartedAt = questionLoadStartedAt;
     questionLoadProgress = 0;
     questionLoadStageIndex = 0;
     questionLoadRetryAttempt = 0;
@@ -185,7 +188,7 @@ const app = document.getElementById('app');
       stopQuestionLoadProgress();
       return;
     }
-    const elapsedSeconds = Math.max(0, Math.floor((Date.now() - questionLoadStartedAt) / 1000));
+    const elapsedSeconds = Math.max(0, Math.floor((Date.now() - questionLoadAttemptStartedAt) / 1000));
     while (
       questionLoadStageIndex + 1 < QUESTION_LOAD_STAGES.length
       && elapsedSeconds >= QUESTION_LOAD_STAGES[questionLoadStageIndex + 1].after
@@ -209,7 +212,7 @@ const app = document.getElementById('app');
       const retryElapsedSeconds = questionLoadRetryStartedAt
         ? Math.max(0, Math.floor((Date.now() - questionLoadRetryStartedAt) / 1000))
         : 0;
-      const retryRemainingSeconds = Math.max(1, 30 - retryElapsedSeconds);
+      const retryRemainingSeconds = Math.max(1, questionLoadRetryTimeoutSeconds - retryElapsedSeconds);
       etaText = questionLoadRetryAttempt + '/' + questionLoadRetryMax + '回目・目安 あと'
         + formatRemainingTime(retryRemainingSeconds);
     }
@@ -268,6 +271,10 @@ const app = document.getElementById('app');
       questionLoadRetryAttempt = Number(detail.attempt);
       questionLoadRetryMax = Number(detail.maxAttempts || 0);
       questionLoadRetryStartedAt = Date.now();
+      questionLoadRetryTimeoutSeconds = Number(detail.attemptTimeoutSeconds || 50);
+      questionLoadAttemptStartedAt = questionLoadRetryStartedAt;
+      questionLoadProgress = 8;
+      questionLoadStageIndex = 0;
     }
     updateQuestionLoadProgress(questionLoadRequestId);
   }
@@ -376,9 +383,17 @@ const app = document.getElementById('app');
     document.getElementById('questionList').textContent = '読み込みに失敗しました。';
     setQuestionLoadState('failed', label + ' の読み込みに失敗しました。', '要確認', {
       progress: questionLoadProgress,
-      stage: '通信状態を確認して、もう一度読み込みを押してください'
+      stage: formatQuestionLoadFailure(error),
+      eta: '読み込みボタンから再試行できます'
     });
-    showError(error);
+  }
+
+  function formatQuestionLoadFailure(error) {
+    const message = String(error && error.message ? error.message : error || '');
+    if (/timeout/i.test(message)) {
+      return '応答に時間がかかりました。少し待ってから、もう一度試してください';
+    }
+    return '通信状態を確認して、もう一度試してください';
   }
 
   function formatElapsedLoadTime() {

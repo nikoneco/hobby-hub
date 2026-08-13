@@ -1,7 +1,8 @@
 (() => {
   const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbzPwkINDY--2PUYQg5xGoPDtkCLYvGoItobfEJocINxBFviRzcCrxb7Iu5lylirQ7tLOg/exec";
   const STATIC_RESPONSES = {};
-  const JSONP_RETRY_DELAYS = [0,1000,3000];
+  const JSONP_RETRY_DELAYS = [0,1500];
+  const JSONP_ATTEMPT_TIMEOUT_MS = 50000;
   let requestSeq = 0;
 
   function notifyProgress(method, phase, detail) {
@@ -9,7 +10,8 @@
       detail: Object.assign({
         method,
         phase,
-        maxAttempts: JSONP_RETRY_DELAYS.length
+        maxAttempts: JSONP_RETRY_DELAYS.length,
+        attemptTimeoutSeconds: JSONP_ATTEMPT_TIMEOUT_MS / 1000
       }, detail || {})
     }));
   }
@@ -58,7 +60,7 @@
     window[callbackName] = (response) => {
       if (settled) return;
       settled = true;
-      cleanup();
+      cleanup(attempt > 1);
       notifyProgress(method, 'success', { attempt });
       if (successHandler) successHandler(response);
     };
@@ -97,7 +99,7 @@
       attemptTimeout = window.setTimeout(() => {
         if (activeScript !== script) return;
         failAttempt('timeout');
-      }, 30000);
+      }, JSONP_ATTEMPT_TIMEOUT_MS);
     }
 
     loadAttempt();

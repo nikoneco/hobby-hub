@@ -1,5 +1,5 @@
-function getQuestions(filters) {
-  const spreadsheet = openStudySpreadsheet_();
+function getQuestions(filters, spreadsheet) {
+  spreadsheet = spreadsheet || openStudySpreadsheet_();
   const sheet = getSheet_(spreadsheet, 'question_bank');
   return readObjects_(sheet).filter(function (question) {
     if (filters.ata && normalizeAtaKey_(question.ata) !== normalizeAtaKey_(filters.ata)) {
@@ -13,8 +13,8 @@ function getQuestions(filters) {
 }
 
 function getQuestionsBundle(filters) {
-  const questions = getQuestions(filters || {});
   const spreadsheet = openStudySpreadsheet_();
+  const questions = getQuestions(filters || {}, spreadsheet);
   const termDictionary = getTermDictionaryForClient_(spreadsheet);
   if (!filters || !filters.ata) {
     return {
@@ -45,8 +45,7 @@ function getQuestionsBundle(filters) {
     details[questionId] = {
       question: question,
       candidates: groupCandidates_(candidatesByQuestionId[questionId] || []),
-      answer: selectCanonicalAnswerNote_(answerNotes),
-      answerNotes: answerNotes
+      answer: selectCanonicalAnswerNote_(answerNotes)
     };
     return details;
   }, {});

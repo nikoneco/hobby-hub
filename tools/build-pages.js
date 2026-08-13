@@ -283,19 +283,22 @@ function writeSharedPwaFiles() {
 }
 
 function buildGasRunShim(app) {
-  const jsonpRetryDelays = app.id === 'study737' ? [0, 1000, 3000] : [0];
+  const jsonpRetryDelays = app.id === 'study737' ? [0, 1500] : [0];
+  const jsonpAttemptTimeoutMs = app.id === 'study737' ? 50000 : 30000;
   return `(() => {
   const GAS_ENDPOINT = ${JSON.stringify(app.gasEndpoint)};
   const STATIC_RESPONSES = ${JSON.stringify(buildStaticResponses(app), null, 2)};
   const JSONP_RETRY_DELAYS = ${JSON.stringify(jsonpRetryDelays)};
-  let requestSeq = 0;
+${app.id === 'study737' ? `  const JSONP_ATTEMPT_TIMEOUT_MS = ${jsonpAttemptTimeoutMs};
+` : ''}  let requestSeq = 0;
 ${app.id === 'study737' ? `
   function notifyProgress(method, phase, detail) {
     window.dispatchEvent(new CustomEvent('gas-api-progress', {
       detail: Object.assign({
         method,
         phase,
-        maxAttempts: JSONP_RETRY_DELAYS.length
+        maxAttempts: JSONP_RETRY_DELAYS.length,
+        attemptTimeoutSeconds: JSONP_ATTEMPT_TIMEOUT_MS / 1000
       }, detail || {})
     }));
   }
@@ -344,7 +347,7 @@ ${app.id === 'study737' ? `
     window[callbackName] = (response) => {
       if (settled) return;
       settled = true;
-      cleanup();
+${app.id === 'study737' ? '      cleanup(attempt > 1);' : '      cleanup();'}
 ${app.id === 'study737' ? "      notifyProgress(method, 'success', { attempt });\n" : ''}      if (successHandler) successHandler(response);
     };
 
@@ -380,7 +383,7 @@ ${app.id === 'study737' ? "      notifyProgress(method, 'attempt', { attempt: at
       attemptTimeout = window.setTimeout(() => {
         if (activeScript !== script) return;
         failAttempt('timeout');
-      }, 30000);
+      }, ${app.id === 'study737' ? 'JSONP_ATTEMPT_TIMEOUT_MS' : '30000'});
     }
 
     loadAttempt();
