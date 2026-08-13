@@ -268,6 +268,21 @@
       questionLoadRetryAttempt = Number(detail.nextAttempt || 0);
       questionLoadRetryMax = Number(detail.maxAttempts || 0);
       questionLoadRetryStartedAt = Date.now();
+      questionLoadRetryTimeoutSeconds = Number(detail.attemptTimeoutSeconds || 50);
+      questionLoadAttemptStartedAt = questionLoadRetryStartedAt;
+      questionLoadProgress = 0;
+      questionLoadStageIndex = 0;
+      setQuestionLoadState(
+        'loading',
+        getSelectedAtaLabel() + ' を再接続中',
+        '0%',
+        {
+          progress: 0,
+          stage: '再接続を準備しています',
+          eta: questionLoadRetryAttempt + '/' + questionLoadRetryMax + '回目へ切り替え中'
+        }
+      );
+      return;
     } else if (detail.phase === 'attempt' && Number(detail.attempt || 0) > 1) {
       questionLoadRetryAttempt = Number(detail.attempt);
       questionLoadRetryMax = Number(detail.maxAttempts || 0);
