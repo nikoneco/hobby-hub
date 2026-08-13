@@ -29,6 +29,14 @@ const CAUSALITY_EXPECTATIONS = {
   q_34_ed317e422748: ['OVERSPEED WARNING', 'OVERSPEED WARNING'],
   q_34_8fee352f5bf2: ['WEATHER RADAR', 'WXR'],
   q_34_96ec25fb4c1a: ['ADF MODE SELECTOR', 'ADF MODE SELECTOR'],
+  q_34_94bc7bede788: ['MSU', 'ALIGN'],
+  q_34_6c1d7e90a2b4: ['FAULT', 'FAULT'],
+  q_34_e21066425fda: ['RADAR ECHO', 'WXR'],
+  q_34_1f8a6d43c2e7: ['MOUNT FAN', 'FAN'],
+  q_34_9215eeb6b503: ['TA ONLY', 'TA ONLY'],
+  q_34_7b2e9c51d4a8: ['TCAS', 'TCAS'],
+  q_34_e5e1332b37ce: ['BITE', 'BITE'],
+  q_34_4d7a2c96e1f3: ['NAVIGATION', 'NAVIGATION'],
   q_7X_fefc40bbc708: ['ENGINE FUEL & CONTROL', 'FUEL NOZZLE'],
   q_7X_b4cf96f37399: ['ENGINE LUBRICATION', 'OIL TANK']
 };
@@ -116,9 +124,9 @@ function main() {
     pages.push(...readCsv(`textbook_pages_ata${ata}.csv`));
   });
 
-  assert(questions.length === 718, `Expected 718 questions, got ${questions.length}`);
-  assert(preparedQuestions.length === 718, `Expected 718 prepared questions, got ${preparedQuestions.length}`);
-  assert(answers.length === 718, `Expected 718 answers, got ${answers.length}`);
+  assert(questions.length === 722, `Expected 722 questions, got ${questions.length}`);
+  assert(preparedQuestions.length === 722, `Expected 722 prepared questions, got ${preparedQuestions.length}`);
+  assert(answers.length === 722, `Expected 722 answers, got ${answers.length}`);
   assertUnique(questions, 'question_id', 'question bank');
   assertUnique(answers, 'note_id', 'answer notes');
   assertUnique(candidates, 'candidate_id', 'candidate links');

@@ -311,7 +311,60 @@ def expand_target_specific_questions(question: str, target_ata: str) -> list[str
         return expand_ata26_questions(question)
     if target_ata == "27":
         return [normalize_ata27_question(question)]
+    if target_ata == "34":
+        return expand_ata34_questions(question)
     return [question]
+
+
+ATA34_REPAIRED_QUESTION_IDS = {
+    "ADIRUの機能について説明しなさい。": "q_34_bf722f01b039",
+    "ADIRUおよび関連ComponentのLocationを記入しなさい。": "q_34_e579f9a28714",
+    "MSUの「ALIGN」、「NAV」、「ATT」の各Positionの意味を説明しなさい。": "q_34_94bc7bede788",
+    "MSUの「FAULT」Lightが示す内容を説明しなさい。": "q_34_6c1d7e90a2b4",
+    "WXRのRadar EchoとGPWCのTerrain Dataを同じNDに同時表示できるか説明しなさい。": "q_34_e21066425fda",
+    "WXR R/T Mount Fanの作動を説明しなさい。": "q_34_1f8a6d43c2e7",
+    "TCAS Control Panelの「TA ONLY」はどのような時に使用するか説明しなさい。": "q_34_9215eeb6b503",
+    "TCASの不具合はどこに表示されるか答えなさい。": "q_34_7b2e9c51d4a8",
+    "FMCSの機能の1つである「BITE」ができるSystemを7つ答えなさい。": "q_34_e5e1332b37ce",
+    "FMCSの主要構成ComponentおよびLocationを記入しなさい。": "q_34_5981bc9572b5",
+    "FMCSの機能の中で、「Navigation」について説明しなさい。": "q_34_4d7a2c96e1f3",
+}
+
+
+def expand_ata34_questions(question: str) -> list[str]:
+    text = clean_layout_text(question)
+    upper = text.upper()
+    if "ADIRUの機能" in text and "LOCATION" in upper:
+        return [
+            "ADIRUの機能について説明しなさい。",
+            "ADIRUおよび関連ComponentのLocationを記入しなさい。",
+        ]
+    if 'MSUの「ALIGN」' in text and '「FAULT」' in text:
+        return [
+            "MSUの「ALIGN」、「NAV」、「ATT」の各Positionの意味を説明しなさい。",
+            "MSUの「FAULT」Lightが示す内容を説明しなさい。",
+        ]
+    if "RADAR ECHO" in upper and "FAN" in upper:
+        return [
+            "WXRのRadar EchoとGPWCのTerrain Dataを同じNDに同時表示できるか説明しなさい。",
+            "WXR R/T Mount Fanの作動を説明しなさい。",
+        ]
+    if "TA ONLY" in upper and "TCASの不具合" in text:
+        return [
+            "TCAS Control Panelの「TA ONLY」はどのような時に使用するか説明しなさい。",
+            "TCASの不具合はどこに表示されるか答えなさい。",
+        ]
+    if "BITE" in upper and "NAVIGATION" in upper:
+        return [
+            "FMCSの機能の1つである「BITE」ができるSystemを7つ答えなさい。",
+            "FMCSの機能の中で、「Navigation」について説明しなさい。",
+        ]
+    if "BITE" in upper and "FMCSの主要構成COMPONENT" in upper:
+        return [
+            "FMCSの機能の1つである「BITE」ができるSystemを7つ答えなさい。",
+            "FMCSの主要構成ComponentおよびLocationを記入しなさい。",
+        ]
+    return [text]
 
 
 def expand_ata30_questions(question: str) -> list[str]:
@@ -461,6 +514,35 @@ def preserve_existing_question_identity(
     existing_rows: list[dict[str, str]],
 ) -> list[dict[str, str]]:
     if not existing_rows:
+        return rows
+
+    target_ata = normalize_ata_key(rows[0].get("ata", "")) if rows else ""
+    if target_ata == "34":
+        old_by_normalized: dict[str, list[dict[str, str]]] = defaultdict(list)
+        old_by_id = {row.get("question_id", ""): row for row in existing_rows}
+        for old_row in existing_rows:
+            old_by_normalized[normalize_text(old_row.get("question_text", ""))].append(old_row)
+
+        overrides = {
+            normalize_text(question): question_id
+            for question, question_id in ATA34_REPAIRED_QUESTION_IDS.items()
+        }
+        assigned_ids: set[str] = set()
+        for row in rows:
+            normalized = normalize_text(row.get("question_text", ""))
+            override_id = overrides.get(normalized)
+            matches = old_by_normalized.get(normalized, [])
+            if override_id:
+                row["question_id"] = override_id
+                old_row = old_by_id.get(override_id)
+                if old_row:
+                    row["created_at"] = old_row.get("created_at") or row["created_at"]
+            elif len(matches) == 1:
+                row["question_id"] = matches[0]["question_id"]
+                row["created_at"] = matches[0].get("created_at") or row["created_at"]
+            if row["question_id"] in assigned_ids:
+                raise ValueError(f"Duplicate question identity after ATA34 repair: {row['question_id']}")
+            assigned_ids.add(row["question_id"])
         return rows
 
     new_by_page: dict[str, list[dict[str, str]]] = defaultdict(list)

@@ -59,10 +59,12 @@ const reviewedByQuestion = [
     'TK/GS は Track と Ground Speed、PPOS は Present Position、WIND は Wind Data を表示する。',
     'HDG/STS は Heading と Status を表示し、Alignment 中は残り時間や Maintenance/Status Code の確認にも使用する。'
   ]],
-  ['q_34_94bc7bede788', ['D1-14'], ['MSU', 'ALIGN', 'NAV', 'ATT', 'FAULT'], [
+  ['q_34_94bc7bede788', ['D1-14'], ['MSU', 'ALIGN', 'NAV', 'ATT'], [
     'ALIGN は ADIRU Alignment を開始する Position。',
     'NAV は Alignment 完了後、ADIRU を Navigation Mode に入れる Position。',
-    'ATT は Attitude Mode として使用する Position。',
+    'ATT は Attitude Mode として使用する Position。'
+  ]],
+  ['q_34_6c1d7e90a2b4', ['D1-14'], ['MSU', 'FAULT', 'IR FUNCTION'], [
     'MSU の FAULT Light は ADIRU の IR Function Fail を示す Amber Light。'
   ]],
   ['q_34_cc21bf6c985d', ['D1-27'], ['STD', 'BAROMETRIC', '29.92', '1013'], [
@@ -127,9 +129,11 @@ const reviewedByQuestion = [
     'EFIS Control Panel の TERR Switch を選ぶと、表示系は Terrain Data 側に切り替わり WXR Data 表示は外れる。',
     'PWS は Takeoff 後 2,300 ft AGL 以上、または Approach 後の Landing/Climb 条件などで自動的に Deactive になる。'
   ]],
-  ['q_34_e21066425fda', ['D4-02', 'D4-04', 'D4-05', 'D13-06'], ['TERR/WXR RELAY', 'FAN'], [
+  ['q_34_e21066425fda', ['D4-02', 'D13-06'], ['TERR/WXR RELAY', 'TERRAIN DATA'], [
     'WXR Radar Echo と GPWC Terrain Data は同じND上で同時重ね表示する方式ではなく、Terrain/Weather Relay によりどちらのDataをDEUへ送るか切り替える。',
-    'TERR が選択された時、または Terrain Caution/Warning の Pop Up 時は Terrain Data が表示され、通常位置では WXR Data が表示される。',
+    'TERR が選択された時、または Terrain Caution/Warning の Pop Up 時は Terrain Data が表示され、通常位置では WXR Data が表示される。'
+  ]],
+  ['q_34_1f8a6d43c2e7', ['D4-04'], ['WXR R/T', 'MOUNT FAN', 'TEST SWITCH'], [
     'WXR R/T Mount Fan は WXR R/T のCooling用で、R/Tが作動すると115V ACでFanが作動する。Mount の Test Switch でFan Testもできる。'
   ]],
   ['q_34_df6829c89450', ['D4-13', 'D4-14', 'D4-15'], ['PWS', 'PREDICTIVE WINDSHEAR'], [
@@ -332,9 +336,11 @@ const reviewedByQuestion = [
     'Antenna Cableを取り付ける時は、各Coaxial Cableを同じColor BandのArray Element Connectorに接続する。',
     'Antenna CableへのDamageを防ぐため、Cableを引っ張らない。誤接続や抵抗値異常はAntenna Faultになる。'
   ]],
-  ['q_34_9215eeb6b503', ['D12-06', 'D12-07', 'D12-10', 'D12-12'], ['TA ONLY', 'TCAS FAIL'], [
+  ['q_34_9215eeb6b503', ['D12-07', 'D12-10', 'D12-12'], ['TA ONLY', 'RA'], [
     'TA ONLY は Traffic Advisory のみを使用したい時のModeで、RA Traffic Symbol、RA Advisory、RA Aural Messageを出さない。',
-    'ATC/TCAS Control PanelのFunction Selectorを TA ONLY にすると、NDにはCyanのTA ONLY Messageが表示される。',
+    'ATC/TCAS Control PanelのFunction Selectorを TA ONLY にすると、NDにはCyanのTA ONLY Messageが表示される。'
+  ]],
+  ['q_34_7b2e9c51d4a8', ['D12-06', 'D12-12'], ['TCAS FAIL', 'TCAS TEST FAIL', 'FAULT LED'], [
     'TCAS不具合は NDの Amber TCAS FAIL Message、Test時の TCAS TEST FAIL、また TCAS Computer Front Panel LEDの FAIL/XPNDR/ANT/RAD ALT/HDNG等で確認できる。'
   ]],
   ['q_34_639e8499b1a9', ['D13-01'], ['EGPWS', 'GROUND PROXIMITY', 'TERRAIN'], [
@@ -465,8 +471,10 @@ const reviewedByQuestion = [
     'PerformanceはSpeed/Thrust/Optimum Profileを計算し、GuidanceはDFCS/A/TへLNAV/VNAV Commandを送る。',
     'BITE/Other Functionsとして、CDUから他SystemのBITE Access、ACARS、Display、Alert Functionも扱う。'
   ]],
-  ['q_34_e5e1332b37ce', ['D17-01', 'D17-23', 'D17-24'], ['BITE', 'NAVIGATION', 'DFCS', 'ADIRU'], [
-    'FMCS CDUからBITEをControlできるSystemは、DFCS、Autothrottle(A/T)、ADIRU、CDS、EEC、APU ECU、FQIS の7つ。',
+  ['q_34_e5e1332b37ce', ['D17-01'], ['BITE', 'DFCS', 'ADIRU', 'FQIS'], [
+    'FMCS CDUからBITEをControlできるSystemは、DFCS、Autothrottle(A/T)、ADIRU、CDS、EEC、APU ECU、FQIS の7つ。'
+  ]],
+  ['q_34_4d7a2c96e1f3', ['D17-23', 'D17-24'], ['FMCS NAVIGATION', 'FMC POSITION', 'ANP'], [
     'FMCSのNavigation Functionは、FMC Position、Lateral/Vertical Position、Actual Navigation Performance(ANP)を計算し、DME AutotuneとNAV STATUS表示用Radio Tuning Dataも提供する。',
     'Position Updateは優先順に ADIRU/GPS、ADIRU/DME/DME、ADIRU/DME/VOR、ADIRU/DME/LOC、ADIRU ONLY を使う。'
   ]],
