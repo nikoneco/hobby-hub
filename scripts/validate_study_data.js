@@ -31,6 +31,23 @@ const CAUSALITY_EXPECTATIONS = {
   q_24_97d3f71cc615: ['GENERATOR DRIVE', 'IDG'],
   q_24_780205016b20: ['AC GENERATION', 'GCU'],
   q_24_22f6e9cfbbd0: ['DC GENERATION', 'SPCU'],
+  q_31_b1ac7a4725c4: ["OFF L'T", 'OFF LIGHT'],
+  q_31_6d2a91f4c8e3: ['FDAU', 'FDAU'],
+  q_31_4c484c182d44: ['AWM', 'AWM'],
+  q_31_8e4b17c2d6a9: ['AWM', 'P9 FORWARD ELECTRONIC PANEL'],
+  q_32_1248004fb6d7: ['MAIN L/G MANUAL EXT', 'MAIN L/G MANUAL EXT'],
+  q_32_6a1f24c8d3e7: ['NOSE L/G MANUAL EXT', 'NOSE L/G MANUAL EXT'],
+  q_32_9c4e17b2a6d8: ['ACCESS PANEL', 'ACCESS DOOR POSITION SWITCH'],
+  q_32_c7846db4e5ee: ['NOSE WHL STRG', 'NOSE WHEEL STEERING'],
+  q_32_3e8a61d7c2b5: ['RUD PDL', 'RUDDER PEDAL'],
+  q_32_8b2d57a4e1c9: ['ALT NOSE WHL STRG', 'SYSTEM B'],
+  q_32_95afd7c716bf: ['AIR/GND SYS', 'COMPRESSED SENSOR'],
+  q_32_5d9a23e7b4c1: ['PSEU', 'BITE MENU'],
+  q_32_5e32c40a6a31: ['L/G POSI IND', 'UP AND LOCKED SENSOR'],
+  q_32_7f1c46a9d2e8: ['L/G POSITION INDICATION', 'PRIMARY POSITION LIGHT'],
+  q_32_204a2cdafd09: ['MANUAL BRAKING', 'BRAKE PEDAL'],
+  q_32_204db17de426: ['BRAKE PRESS IND', 'BRAKE PRESSURE TRANSDUCER'],
+  q_32_4a7d19c6e3b2: ['RETRACTION BRK', 'GEAR RETRACT BRAKING ACTUATOR'],
   q_27_8692f2d3a1ae: ['FLIGHT SPOILER', 'FLIGHT SPOILER'],
   q_27_c512035ae123: ['SPEEDBRAKE', 'SPEEDBRAKE'],
   q_27_10f46d677d3a: ['RUDDER', 'RUDDER'],
@@ -143,9 +160,9 @@ function main() {
     pages.push(...readCsv(`textbook_pages_ata${ata}.csv`));
   });
 
-  assert(questions.length === 758, `Expected 758 questions, got ${questions.length}`);
-  assert(preparedQuestions.length === 758, `Expected 758 prepared questions, got ${preparedQuestions.length}`);
-  assert(answers.length === 758, `Expected 758 answers, got ${answers.length}`);
+  assert(questions.length === 767, `Expected 767 questions, got ${questions.length}`);
+  assert(preparedQuestions.length === 767, `Expected 767 prepared questions, got ${preparedQuestions.length}`);
+  assert(answers.length === 767, `Expected 767 answers, got ${answers.length}`);
   assertUnique(questions, 'question_id', 'question bank');
   assertUnique(answers, 'note_id', 'answer notes');
   assertUnique(candidates, 'candidate_id', 'candidate links');

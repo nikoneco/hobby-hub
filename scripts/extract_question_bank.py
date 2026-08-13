@@ -311,11 +311,80 @@ def expand_target_specific_questions(question: str, target_ata: str) -> list[str
         return expand_ata26_questions(question)
     if target_ata == "27":
         return [normalize_ata27_question(question)]
+    if target_ata == "31":
+        return expand_ata31_questions(question)
+    if target_ata == "32":
+        return expand_ata32_questions(question)
     if target_ata == "23":
         return expand_ata23_questions(question)
     if target_ata == "34":
         return expand_ata34_questions(question)
     return [question]
+
+
+ATA31_REPAIRED_QUESTION_IDS = {
+    "P5のFLT REC/Mach Air SPD WARN Test MODのOFF L'Tの点灯条件を記入しなさい。": "q_31_b1ac7a4725c4",
+    "FDAUの機能を大別して2つ記入しなさい。": "q_31_6d2a91f4c8e3",
+    "AWMが関係しているSYS、それに対応した発する音の種類、および優先順位を記入しなさい。": "q_31_4c484c182d44",
+    "AWMのLocationを記入しなさい。": "q_31_8e4b17c2d6a9",
+    "T C'Kにおいて必ずACMSを用いて実施する作業を記入しなさい。（具体的に）": "q_31_dc669a9d45ad",
+    "ACMSに関するSYSの不具合を知る方法を記入しなさい。": "q_31_bbb42ceb5f56",
+    "PFDに表示される情報を記入しなさい。（大別して）": "q_31_ce74a15a0ab9",
+    "NDに表示される情報を記入しなさい。（大別して（Modeなども含む））": "q_31_8c941c7ee08e",
+    "UPR/LWR DUに表示される情報を記入しなさい。": "q_31_056eeaf9bbe9",
+}
+
+
+def expand_ata31_questions(question: str) -> list[str]:
+    text = clean_layout_text(question)
+    upper = text.upper()
+    if "OFF L'Tの点灯条件" in text and "FDAUの機能" in text:
+        return ["P5のFLT REC/Mach Air SPD WARN Test MODのOFF L'Tの点灯条件を記入しなさい。", "FDAUの機能を大別して2つ記入しなさい。"]
+    if "AWMが関係" in text and "AWMのLOCATION" in upper:
+        return ["AWMが関係しているSYS、それに対応した発する音の種類、および優先順位を記入しなさい。", "AWMのLocationを記入しなさい。"]
+    if "NDに表示される情報" in text and "UPR/LWR DU" in text:
+        return ["NDに表示される情報を記入しなさい。（大別して（Modeなども含む））", "UPR/LWR DUに表示される情報を記入しなさい。"]
+    replacements = {
+        "PFDに表示される情報を記入しなさい。(大別して)": "PFDに表示される情報を記入しなさい。（大別して）",
+        "(具体的に) ACMSに関するSYSの不具合を知る方法を記入しなさい。": "ACMSに関するSYSの不具合を知る方法を記入しなさい。",
+    }
+    return [replacements.get(text, text)]
+
+
+ATA32_REPAIRED_QUESTION_IDS = {
+    "Main L/G Manual EXT SYSの主要構成Componentを挙げなさい。": "q_32_1248004fb6d7",
+    "Nose L/G Manual EXT SYSの主要構成Componentを挙げなさい。": "q_32_6a1f24c8d3e7",
+    "Manual EXT用Access PanelをOpenした時の作動について説明しなさい。": "q_32_9c4e17b2a6d8",
+    "Nose WHL STRG SYSの主要構成Componentを挙げなさい。（機械的な流れ、油圧的な流れを含めて）": "q_32_c7846db4e5ee",
+    "Nose WHL STRG SYSの角度についてRUD PDLおよびSTRG WHLの角度を記入しなさい。": "q_32_3e8a61d7c2b5",
+    "ALT Nose WHL STRG SWが装備されている目的について記入しなさい。": "q_32_8b2d57a4e1c9",
+    "T C'KにおいてTail SkidのINSPをする際に、何かIndicationのようなものはありますか？ どのようなINDがあるのか説明しなさい。": "q_32_2c9dfc84f99d",
+    "Air/GND SYSに用いられているSNSRをMainおよびNoseに分類して挙げなさい。": "q_32_95afd7c716bf",
+    "PSEUの前面に記載されている6項目を記入しなさい。": "q_32_5d9a23e7b4c1",
+    "L/G POSI IND SYSに用いられているSNSRをMainおよびNoseに分類して挙げなさい。": "q_32_5e32c40a6a31",
+    "FLT CompartでのL/G Position Indicationを説明しなさい。": "q_32_7f1c46a9d2e8",
+    "Manual Braking SYSの主要Componentを挙げ、BRK PDLを踏んでBRKが掛かるまでの過程を説明しなさい。（NML/ALT/ACC各々かつ機械的と油圧的な流れも踏まえて）": "q_32_204a2cdafd09",
+    "Brake Press IND（P3）は、どこのPressureをMonitorしていますか？": "q_32_204db17de426",
+    "Retraction BRKの作動を説明しなさい。": "q_32_4a7d19c6e3b2",
+}
+
+
+def expand_ata32_questions(question: str) -> list[str]:
+    text = clean_layout_text(question)
+    upper = text.upper()
+    if "MAIN L/G MANUAL EXT SYS" in upper and "NOSE L/G MANUAL EXT SYS" in upper:
+        return ["Main L/G Manual EXT SYSの主要構成Componentを挙げなさい。", "Nose L/G Manual EXT SYSの主要構成Componentを挙げなさい。", "Manual EXT用Access PanelをOpenした時の作動について説明しなさい。"]
+    if "NOSE WHL STRG SYSの主要構成" in upper and "ALT NOSE WHL STRG SW" in upper:
+        return ["Nose WHL STRG SYSの主要構成Componentを挙げなさい。（機械的な流れ、油圧的な流れを含めて）", "Nose WHL STRG SYSの角度についてRUD PDLおよびSTRG WHLの角度を記入しなさい。", "ALT Nose WHL STRG SWが装備されている目的について記入しなさい。"]
+    if "AIR/GND SYSに用いられているSNSR" in upper and "PSEUの前面" in text:
+        return ["Air/GND SYSに用いられているSNSRをMainおよびNoseに分類して挙げなさい。", "PSEUの前面に記載されている6項目を記入しなさい。"]
+    if "L/G POSI IND SYSに用いられているSNSR" in upper and "FLT COMPART" in upper:
+        return ["L/G POSI IND SYSに用いられているSNSRをMainおよびNoseに分類して挙げなさい。", "FLT CompartでのL/G Position Indicationを説明しなさい。"]
+    if "BRAKE PRESS IND" in upper and "RETRACTION BRK" in upper:
+        return ["Brake Press IND（P3）は、どこのPressureをMonitorしていますか？", "Retraction BRKの作動を説明しなさい。"]
+    if "MANUAL BRAKING SYSの主要COMPONENT" in upper:
+        return ["Manual Braking SYSの主要Componentを挙げ、BRK PDLを踏んでBRKが掛かるまでの過程を説明しなさい。（NML/ALT/ACC各々かつ機械的と油圧的な流れも踏まえて）"]
+    return [text]
 
 
 ATA23_REPAIRED_QUESTION_IDS = {
@@ -621,6 +690,30 @@ def extract_rows(pdf_path: Path, target_ata: str, source_id: str) -> list[dict[s
                     "updated_at": now,
                 }
             )
+    if target_ata == "32":
+        repaired_rows: list[dict[str, str]] = []
+        index = 0
+        while index < len(rows):
+            row = rows[index]
+            question = row["question_text"]
+            if (
+                "Tail SkidのINSPをする際に、何かIndication" in question
+                and index + 1 < len(rows)
+                and rows[index + 1]["question_text"].startswith("どのようなINDがあるのか")
+            ):
+                merged = clean_layout_text(question.rstrip("?？") + "？ " + rows[index + 1]["question_text"])
+                row["question_id"] = stable_question_id(target_ata, merged, len(repaired_rows) + 1)
+                row["question_text"] = merged
+                row["normalized_question"] = normalize_text(merged)
+                row["question_type"] = classify_question(merged)
+                row["expected_answer_style"] = expected_answer_style(row["question_type"], merged)
+                repaired_rows.append(row)
+                index += 2
+                continue
+            row["question_id"] = stable_question_id(target_ata, question, len(repaired_rows) + 1)
+            repaired_rows.append(row)
+            index += 1
+        rows = repaired_rows
     return rows
 
 
@@ -639,13 +732,18 @@ def preserve_existing_question_identity(
         return rows
 
     target_ata = normalize_ata_key(rows[0].get("ata", "")) if rows else ""
-    if target_ata in {"23", "34"}:
+    if target_ata in {"23", "31", "32", "34"}:
         old_by_normalized: dict[str, list[dict[str, str]]] = defaultdict(list)
         old_by_id = {row.get("question_id", ""): row for row in existing_rows}
         for old_row in existing_rows:
             old_by_normalized[normalize_text(old_row.get("question_text", ""))].append(old_row)
 
-        repaired_ids = ATA23_REPAIRED_QUESTION_IDS if target_ata == "23" else ATA34_REPAIRED_QUESTION_IDS
+        repaired_ids = {
+            "23": ATA23_REPAIRED_QUESTION_IDS,
+            "31": ATA31_REPAIRED_QUESTION_IDS,
+            "32": ATA32_REPAIRED_QUESTION_IDS,
+            "34": ATA34_REPAIRED_QUESTION_IDS,
+        }[target_ata]
         overrides = {
             normalize_text(question): question_id
             for question, question_id in repaired_ids.items()

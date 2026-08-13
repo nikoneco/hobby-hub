@@ -38,7 +38,12 @@ module.exports = {
       'FLT REC/Mach Air SPD WARN Test Module の amber OFF Light は、次の条件で点灯する。',
       '- Airplane が Ground にあり、両 Engine が Off。',
       '- Fault により FDAU Status Relay が Energize されない。',
-      '- FDR Status Flag Signal が Fault を示す。',
+      '- FDR Status Flag Signal が Fault を示す。'
+    ]
+  },
+  q_31_6d2a91f4c8e3: {
+    evidence_page_codes: ['D1-02', 'D1-05'],
+    answer_lines: [
       'FDAU の機能は大別して、Mandatory FDR Flight Data を収集・Format して FDR へ送る機能と、ACMS 用 Airline Data を処理・保存・出力する機能の 2 つ。'
     ]
   },
@@ -75,7 +80,12 @@ module.exports = {
       '- Overspeed（Left/Right ADIRU）: Clacker。',
       '- Crew Call: Hi Chime。',
       '- SELCAL / ACARS / SATCOM: Hi/Lo Chime。',
-      'Priority は高い順に Intermittent Horn、Steady Horn、Wailer。Bell、Clacker、Chime は Priority を持たず、他の Sound と同時発生できる。',
+      'Priority は高い順に Intermittent Horn、Steady Horn、Wailer。Bell、Clacker、Chime は Priority を持たず、他の Sound と同時発生できる。'
+    ]
+  },
+  q_31_8e4b17c2d6a9: {
+    evidence_page_codes: ['D3-03', 'D3-04', 'D3-05'],
+    answer_lines: [
       'AWM の Location は Flight Compartment、P9 Forward Electronic Panel の aft right face。'
     ]
   },

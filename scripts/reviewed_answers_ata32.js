@@ -155,21 +155,41 @@ module.exports = {
     ]
   },
   q_32_1248004fb6d7: {
-    evidence_page_codes: ['D6-01', 'D6-02', 'D6-03', 'D6-04', 'D7-01', 'D7-02'],
+    evidence_page_codes: ['D6-01', 'D6-02', 'D6-03', 'D6-04'],
     answer_lines: [
-      'Main L/G Manual EXT SYS の主要 Component は、Control Mechanism、Extension Linkage、Control Cable。Extension Linkage は Quadrant、Return Spring、Control Rod、Lever、Upper/Lower Lock Link で構成される。',
+      'Main L/G Manual EXT SYS の主要 Component は、Control Mechanism、Extension Linkage、Control Cable。Extension Linkage は Quadrant、Return Spring、Control Rod、Lever、Upper/Lower Lock Link で構成される。'
+    ]
+  },
+  q_32_6a1f24c8d3e7: {
+    evidence_page_codes: ['D7-01', 'D7-02'],
+    answer_lines: [
       'Nose L/G Manual EXT SYS の主要 Component は、Release Mechanism と Control Cable。Release Mechanism は Quadrant、Cam、Cam Roller、Release Roller で構成される。',
+    ]
+  },
+  q_32_9c4e17b2a6d8: {
+    evidence_page_codes: ['D6-03', 'D6-04', 'D7-01', 'D7-02'],
+    answer_lines: [
       'Manual EXT 用 Access Door を開くと Access Door Position Switch が Close し、Battery Bus 28V DC が Selector Valve の Manual Extend Solenoid Valve に送られる。',
       'Manual Extend Solenoid Valve は Bypass Valve を Bypass Position に動かし、Landing Gear Hydraulic Component を Hydraulic System Return に接続して Hydraulic Lock を防ぐ。',
       'Handle を引くと MLG は Uplock Mechanism が Unlock、NLG は Lock Link が Release され、Airload と自重で Downlock Position まで Extend する。'
     ]
   },
   q_32_c7846db4e5ee: {
-    evidence_page_codes: ['D8-01', 'D8-02', 'D8-05', 'D8-06', 'D8-07', 'D8-08'],
+    evidence_page_codes: ['D8-01', 'D8-02', 'D8-05', 'D8-06'],
     answer_lines: [
       'Nose Wheel Steering の主要 Component は、Alternate Nose Wheel Steering Switch、Steering Wheel、Control Cable、Rudder Pedal Steering Mechanism、Rudder Pedal Steering Rotary Actuator、Summing Mechanism、Steering Metering Valve Module、Steering Actuator、Nose Wheel Steering Collar。',
-      '機械的には Steering Wheel/Rudder Pedal の Input が Cable Loop と Summing Mechanism を介して Metering Valve に入り、Hydraulic Flow が Steering Actuator へ送られる。Actuator Force は Steering Collar、Torsion Link、Inner Cylinder を介して Nose Wheel を旋回させる。',
+      '機械的には Steering Wheel/Rudder Pedal の Input が Cable Loop と Summing Mechanism を介して Metering Valve に入り、Hydraulic Flow が Steering Actuator へ送られる。Actuator Force は Steering Collar、Torsion Link、Inner Cylinder を介して Nose Wheel を旋回させる。'
+    ]
+  },
+  q_32_3e8a61d7c2b5: {
+    evidence_page_codes: ['D8-05', 'D8-06'],
+    answer_lines: [
       'Steering Wheel Full Travel では Nose Wheel は左右 78°、Rudder Pedal Full Travel では左右 7°まで動く。',
+    ]
+  },
+  q_32_8b2d57a4e1c9: {
+    evidence_page_codes: ['D8-07', 'D8-08'],
+    answer_lines: [
       'Alternate Nose Wheel Steering Switch は、地上で System B Reservoir Quantity が Normal、Nose Air/Ground が Ground Mode の時、Transfer Valve を Alternate Position にして Steering Pressure Source を System B に切り替えるために装備されている。'
     ]
   },
@@ -262,7 +282,12 @@ module.exports = {
     answer_lines: [
       'Air/Ground System の Sensor は、各 MLG に 2 つ、NLG に 2 つの Landing Gear Compressed Sensor。',
       'MLG Compressed Sensor は Right Outboard S1010、Right Inboard S1011、Left Outboard S1012、Left Inboard S1013。',
-      'NLG Compressed Sensor は Left S1014、Right S1015。',
+      'NLG Compressed Sensor は Left S1014、Right S1015。'
+    ]
+  },
+  q_32_5d9a23e7b4c1: {
+    evidence_page_codes: ['D10-10'],
+    answer_lines: [
       'PSEU 前面 Placard の主な記載は、Sensor Rigging Aid、Instruction、BITE Menu Tree、Warning、Replacement Test Input Cycling Sequence。',
       'BITE Menu の主項目は Existing Faults、Fault History、Ground Tests、Air/Ground Override、Other Functions。'
     ]
@@ -279,7 +304,12 @@ module.exports = {
     evidence_page_codes: ['D11-01', 'D11-02', 'D11-04', 'D11-05', 'D11-06', 'D11-07'],
     answer_lines: [
       'MLG は Left/Right Main Gear Up and Locked Sensor 4 個、Left/Right Main Gear Downlock Sensor 4 個を使用する。',
-      'NLG は Nose Gear Up/Down Lock Sensor 2 個、Nose Gear Down Sensor 2 個を使用する。',
+      'NLG は Nose Gear Up/Down Lock Sensor 2 個、Nose Gear Down Sensor 2 個を使用する。'
+    ]
+  },
+  q_32_7f1c46a9d2e8: {
+    evidence_page_codes: ['D11-01', 'D11-02', 'D11-04', 'D11-05', 'D11-06', 'D11-07'],
+    answer_lines: [
       'Flight Compartment では P2 Landing Gear Panel の Primary Position Light が 3 Green/3 Red、P5 Aft Overhead Panel の Auxiliary Position Light が 3 Green で表示される。',
       'Green は Gear Down and Locked、Red は Lever/Gear Position Disagree または Gear Not Down Warning を示す。'
     ]
@@ -346,7 +376,8 @@ module.exports = {
       'Brake Pedal を踏むと、Pedal の動きは Vertical Control Rod、Lower Bellcrank、Fore-Aft Control Rod、Brake Pedal Bus Crank Assembly、Cable Quadrant、Brake Cable を介して Brake Metering Valve へ伝わる。',
       'Metering Valve Input Shaft が回転し、Metering Valve Spool が作動して Brake と Feedback Chamber に Pressure を送る。',
       'この Pressure により Brake が掛かり、Feedback Force が Cable を通じて Brake Pedal に戻るため Pedal Feeling が発生する。',
-      'Pedal を Release すると Spring が Spool を Closed Position に戻し、Brake Pressure は Return Line に戻って Brake が Release する。'
+      'Pedal を Release すると Spring が Spool を Closed Position に戻し、Brake Pressure は Return Line に戻って Brake が Release する。',
+      'Normal Brake は Hydraulic System B、Alternate Brake は System B Pressure がない時に Hydraulic System A、Accumulator Brake は System A/B Pressure がない時に Accumulator Pressure を使用する。'
     ]
   },
   q_32_204db17de426: {
@@ -355,7 +386,12 @@ module.exports = {
       'Brake Press Indicator (P3) は Brake Pressure Transducer からの Signal により Brake Pressure を Monitor する。',
       'Normal Brake System 用 Transducer は、Autobrake Shuttle Valve 下流、Antiskid Valve 手前の Normal Metered Brake Pressure を測定する。',
       'Alternate Brake System 用 Transducer は、Alternate Brake Selector Valve 下流、Alternate Antiskid Valve 手前の Alternate Metered Brake Pressure を測定する。',
-      'Accumulator Brake では、Accumulator Pressure が Normal Brake Metering Valve へ送られ、その Metered Pressure が Normal 側 Transducer/Indicator 系で確認される。',
+      'Accumulator Brake では、Accumulator Pressure が Normal Brake Metering Valve へ送られ、その Metered Pressure が Normal 側 Transducer/Indicator 系で確認される。'
+    ]
+  },
+  q_32_4a7d19c6e3b2: {
+    evidence_page_codes: ['D13-15'],
+    answer_lines: [
       'Retraction Brake は、Landing Gear Retraction 中に Landing Gear Retract Pressure が Gear Retract Braking Actuator を加圧し、Alternate Metering Valve Spool を動かして Main Wheel の回転を止める。'
     ]
   },
