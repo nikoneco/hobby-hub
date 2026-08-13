@@ -16,12 +16,16 @@
       <button id="loadQuestions">読み込み</button>
       <button id="randomQuestionButton" class="primary action-large">次のランダム問題</button>
     </div>
-    <div id="questionLoadPanel" class="load-panel is-idle" aria-live="polite">
+    <div id="questionLoadPanel" class="load-panel is-idle" aria-live="polite" aria-busy="false">
       <div class="load-panel-row">
         <span id="questionLoadStatus">ATAを選んで読み込みを押してください。</span>
         <span id="questionLoadCount">未読み込み</span>
       </div>
-      <div class="load-bar" aria-hidden="true">
+      <div class="load-progress-meta">
+        <span id="questionLoadStage">待機中</span>
+        <span id="questionLoadEta"></span>
+      </div>
+      <div id="questionLoadProgress" class="load-bar" role="progressbar" aria-label="問題の読み込み進捗" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
         <span id="questionLoadBar"></span>
       </div>
     </div>

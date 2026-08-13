@@ -10,6 +10,23 @@ const app = document.getElementById('app');
   let questionListExpanded = false;
   let loadedAtaKey = null;
   let questionLoadRequestId = 0;
+  let questionLoadTimer = 0;
+  let questionLoadStartedAt = 0;
+  let questionLoadProgress = 0;
+  let questionLoadStageIndex = 0;
+  let questionLoadRetryAttempt = 0;
+  let questionLoadRetryMax = 0;
+  let questionLoadRetryStartedAt = 0;
+  const QUESTION_LOAD_ESTIMATE_SECONDS = 55;
+  const QUESTION_LOAD_STAGES = [
+    { after: 0, progress: 8, label: '接続を準備しています' },
+    { after: 3, progress: 18, label: '問題データを取得しています' },
+    { after: 12, progress: 36, label: '回答と根拠を読み込んでいます' },
+    { after: 28, progress: 58, label: '用語辞書を照合しています' },
+    { after: 45, progress: 74, label: '応答を待っています' },
+    { after: 65, progress: 84, label: '処理の完了を待っています' },
+    { after: 95, progress: 91, label: '通常より時間がかかっています' }
+  ];
   const answerFigures = {
     q_00_6ee482ed421c: ['ata00-design-range.webp', 'Study Guide F0-02: Design Range'],
     q_00_5ad3e375ef3a: ['ata00-ship-dimensions.webp', 'Study Guide F0-03: Ship Dimensions'],
@@ -111,19 +128,123 @@ const app = document.getElementById('app');
     return ata ? 'ATA ' + ata : 'ATA All';
   }
 
-  function setQuestionLoadState(state, message, countText) {
+  function setQuestionLoadState(state, message, countText, options) {
     const panel = document.getElementById('questionLoadPanel');
     const status = document.getElementById('questionLoadStatus');
     const count = document.getElementById('questionLoadCount');
+    const stage = document.getElementById('questionLoadStage');
+    const eta = document.getElementById('questionLoadEta');
+    const progress = document.getElementById('questionLoadProgress');
+    const bar = document.getElementById('questionLoadBar');
     const loadButton = document.getElementById('loadQuestions');
     const randomButton = document.getElementById('randomQuestionButton');
     const toggleButton = document.getElementById('toggleQuestionListButton');
+    const settings = options || {};
+    const progressValue = Number.isFinite(settings.progress) ? Math.max(0, Math.min(100, settings.progress)) : 0;
     panel.className = 'load-panel is-' + state;
+    panel.setAttribute('aria-busy', state === 'loading' ? 'true' : 'false');
     status.textContent = message;
     count.textContent = countText || '';
+    stage.textContent = settings.stage || defaultQuestionLoadStage(state);
+    eta.textContent = settings.eta || '';
+    bar.style.width = progressValue + '%';
+    progress.setAttribute('aria-valuenow', String(Math.round(progressValue)));
     loadButton.disabled = state === 'loading';
     randomButton.disabled = state === 'loading';
     toggleButton.disabled = state === 'loading';
+  }
+
+  function defaultQuestionLoadStage(state) {
+    if (state === 'loaded') return '準備完了';
+    if (state === 'failed') return '読み込みを完了できませんでした';
+    if (state === 'pending') return '読み込み待ち';
+    return '待機中';
+  }
+
+  function startQuestionLoadProgress(requestId) {
+    stopQuestionLoadProgress();
+    questionLoadStartedAt = Date.now();
+    questionLoadProgress = 0;
+    questionLoadStageIndex = 0;
+    questionLoadRetryAttempt = 0;
+    questionLoadRetryMax = 0;
+    questionLoadRetryStartedAt = 0;
+    updateQuestionLoadProgress(requestId);
+    questionLoadTimer = window.setInterval(() => updateQuestionLoadProgress(requestId), 1000);
+  }
+
+  function stopQuestionLoadProgress() {
+    window.clearInterval(questionLoadTimer);
+    questionLoadTimer = 0;
+  }
+
+  function updateQuestionLoadProgress(requestId) {
+    if (requestId !== questionLoadRequestId) {
+      stopQuestionLoadProgress();
+      return;
+    }
+    const elapsedSeconds = Math.max(0, Math.floor((Date.now() - questionLoadStartedAt) / 1000));
+    while (
+      questionLoadStageIndex + 1 < QUESTION_LOAD_STAGES.length
+      && elapsedSeconds >= QUESTION_LOAD_STAGES[questionLoadStageIndex + 1].after
+    ) {
+      questionLoadStageIndex += 1;
+    }
+    const activeStage = QUESTION_LOAD_STAGES[questionLoadStageIndex];
+    const nextStage = QUESTION_LOAD_STAGES[questionLoadStageIndex + 1];
+    const stageSpan = nextStage ? Math.max(1, nextStage.after - activeStage.after) : 30;
+    const stageProgressSpan = nextStage ? nextStage.progress - activeStage.progress : 5;
+    const stageElapsed = Math.max(0, elapsedSeconds - activeStage.after);
+    const targetProgress = Math.min(96, activeStage.progress + stageProgressSpan * Math.min(1, stageElapsed / stageSpan));
+    questionLoadProgress = Math.max(questionLoadProgress, targetProgress);
+    const remainingSeconds = Math.max(0, QUESTION_LOAD_ESTIMATE_SECONDS - elapsedSeconds);
+    let etaText = remainingSeconds > 0
+      ? '目安 あと' + formatRemainingTime(remainingSeconds)
+      : '通常より時間がかかっています';
+    let stageLabel = activeStage.label;
+    if (questionLoadRetryAttempt > 1) {
+      stageLabel = '再接続して問題データを取得しています';
+      const retryElapsedSeconds = questionLoadRetryStartedAt
+        ? Math.max(0, Math.floor((Date.now() - questionLoadRetryStartedAt) / 1000))
+        : 0;
+      const retryRemainingSeconds = Math.max(1, 30 - retryElapsedSeconds);
+      etaText = questionLoadRetryAttempt + '/' + questionLoadRetryMax + '回目・目安 あと'
+        + formatRemainingTime(retryRemainingSeconds);
+    }
+    setQuestionLoadState(
+      'loading',
+      getSelectedAtaLabel() + ' を読み込み中',
+      Math.round(questionLoadProgress) + '%',
+      { progress: questionLoadProgress, stage: stageLabel, eta: etaText }
+    );
+  }
+
+  function formatRemainingTime(seconds) {
+    if (seconds < 10) return '10秒以内';
+    if (seconds < 60) return '約' + Math.ceil(seconds / 5) * 5 + '秒';
+    const minutes = Math.ceil(seconds / 30) / 2;
+    return '約' + minutes + '分';
+  }
+
+  function handleGasApiProgress(event) {
+    const detail = event && event.detail ? event.detail : {};
+    const panel = document.getElementById('questionLoadPanel');
+    if (
+      detail.method !== 'apiGetQuestionsBundle'
+      || !panel
+      || !panel.classList.contains('is-loading')
+    ) return;
+
+    if (detail.phase === 'retry') {
+      questionLoadRetryAttempt = Number(detail.nextAttempt || 0);
+      questionLoadRetryMax = Number(detail.maxAttempts || 0);
+      questionLoadRetryStartedAt = Date.now();
+    } else if (detail.phase === 'attempt' && Number(detail.attempt || 0) > 1) {
+      questionLoadRetryAttempt = Number(detail.attempt);
+      questionLoadRetryMax = Number(detail.maxAttempts || 0);
+      questionLoadRetryStartedAt = Date.now();
+    }
+    updateQuestionLoadProgress(questionLoadRequestId);
   }
 
   function resetStudySurface(message) {
@@ -170,35 +291,47 @@ const app = document.getElementById('app');
 
   function markQuestionsPending() {
     questionLoadRequestId += 1;
+    stopQuestionLoadProgress();
     const label = getSelectedAtaLabel();
     if (loadedAtaKey === getSelectedAtaKey()) {
-      setQuestionLoadState('loaded', label + ' 読み込み済み', currentQuestions.length + '問');
+      setQuestionLoadState('loaded', label + ' 読み込み済み', currentQuestions.length + '問', { progress: 100 });
       return;
     }
     currentDetailsByQuestionId = {};
     currentTermDictionary = [];
     resetStudySurface(label + ' の問題はまだ読み込んでいません。');
     const countText = currentQuestions.length ? '表示中: ' + currentQuestions.length + '問' : '未読み込み';
-    setQuestionLoadState('pending', label + ' を選択中。読み込みを押すと問題一覧を更新します。', countText);
+    setQuestionLoadState('pending', label + ' を選択中。読み込みを押すと問題一覧を更新します。', countText, { progress: 0 });
   }
 
   function loadQuestions() {
     const ata = document.getElementById('ataFilter').value;
     const requestId = ++questionLoadRequestId;
     const label = getSelectedAtaLabel();
-    setQuestionLoadState('loading', label + ' を読み込み中...', '読み込み中');
+    startQuestionLoadProgress(requestId);
     resetStudySurface(label + ' の問題を読み込み中...');
     document.getElementById('questionList').textContent = '問題を読み込み中...';
     google.script.run
       .withSuccessHandler((response) => {
         if (requestId !== questionLoadRequestId) return;
-        const data = unwrap(response);
+        stopQuestionLoadProgress();
+        let data;
+        try {
+          data = unwrap(response);
+        } catch (error) {
+          finishQuestionLoadFailure(label, error);
+          return;
+        }
         const questions = Array.isArray(data) ? data : (data.questions || []);
         currentDetailsByQuestionId = Array.isArray(data) ? {} : (data.detailsById || {});
         currentTermDictionary = Array.isArray(data) ? [] : (data.termDictionary || []);
         renderQuestions(questions);
         loadedAtaKey = normalizeAtaKey(ata);
-        setQuestionLoadState('loaded', label + ' 読み込み完了', questions.length + '問');
+        setQuestionLoadState('loaded', label + ' 読み込み完了', questions.length + '問', {
+          progress: 100,
+          stage: '問題・回答・用語辞書の準備ができました',
+          eta: formatElapsedLoadTime()
+        });
         if (questions.length) {
           const questionDetail = document.getElementById('questionDetail');
           questionDetail.className = 'empty-state';
@@ -207,11 +340,25 @@ const app = document.getElementById('app');
       })
       .withFailureHandler((error) => {
         if (requestId !== questionLoadRequestId) return;
-        document.getElementById('questionList').textContent = '読み込みに失敗しました。';
-        setQuestionLoadState('failed', label + ' の読み込みに失敗しました。', '要確認');
-        showError(error);
+        stopQuestionLoadProgress();
+        finishQuestionLoadFailure(label, error);
       })
       .apiGetQuestionsBundle({ ata });
+  }
+
+  function finishQuestionLoadFailure(label, error) {
+    document.getElementById('questionList').textContent = '読み込みに失敗しました。';
+    setQuestionLoadState('failed', label + ' の読み込みに失敗しました。', '要確認', {
+      progress: questionLoadProgress,
+      stage: '通信状態を確認して、もう一度読み込みを押してください'
+    });
+    showError(error);
+  }
+
+  function formatElapsedLoadTime() {
+    if (!questionLoadStartedAt) return '';
+    const elapsedSeconds = Math.max(1, Math.round((Date.now() - questionLoadStartedAt) / 1000));
+    return elapsedSeconds < 60 ? elapsedSeconds + '秒' : (Math.round(elapsedSeconds / 6) / 10) + '分';
   }
 
   function renderQuestions(questions) {
@@ -221,7 +368,7 @@ const app = document.getElementById('app');
     if (!questions.length) {
       root.textContent = '問題がまだありません。';
       syncQuestionListVisibility();
-      setQuestionLoadState('loaded', getSelectedAtaLabel() + ' 読み込み完了', '0問');
+      setQuestionLoadState('loaded', getSelectedAtaLabel() + ' 読み込み完了', '0問', { progress: 100 });
       return;
     }
     questions.forEach((question) => {
@@ -549,6 +696,7 @@ const app = document.getElementById('app');
   }
 
   document.getElementById('ataFilter').addEventListener('change', markQuestionsPending);
+  window.addEventListener('gas-api-progress', handleGasApiProgress);
   document.getElementById('loadQuestions').addEventListener('click', loadQuestions);
   document.getElementById('randomQuestionButton').addEventListener('click', loadRandomQuestion);
   document.getElementById('toggleQuestionListButton').addEventListener('click', toggleQuestionList);

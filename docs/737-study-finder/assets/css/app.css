@@ -257,6 +257,21 @@
     font-size: 12px;
   }
 
+  .load-progress-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  #questionLoadEta {
+    flex: 0 0 auto;
+    text-align: right;
+  }
+
   .load-bar {
     height: 6px;
     margin-top: 8px;
@@ -271,37 +286,28 @@
     height: 100%;
     border-radius: inherit;
     background: var(--accent);
-    transition: width 180ms ease;
+    transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1), background-color 180ms ease;
   }
 
   .load-panel.is-pending .load-bar span {
-    width: 34%;
     background: var(--accent-2);
   }
 
   .load-panel.is-loading .load-bar span {
-    width: 72%;
-    animation: loadingPulse 900ms ease-in-out infinite alternate;
+    background: var(--accent);
   }
 
   .load-panel.is-loaded .load-bar span {
-    width: 100%;
     background: var(--good);
   }
 
   .load-panel.is-failed .load-bar span {
-    width: 100%;
     background: var(--danger);
   }
 
-  @keyframes loadingPulse {
-    from {
-      opacity: 0.55;
-      transform: translateX(-8%);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(8%);
+  @media (prefers-reduced-motion: reduce) {
+    .load-bar span {
+      transition: none;
     }
   }
 
@@ -626,6 +632,10 @@
     .load-panel-row {
       align-items: flex-start;
       flex-direction: column;
+    }
+
+    .load-progress-meta {
+      align-items: flex-start;
     }
 
     .term-dialog-card {

@@ -4,10 +4,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>737 Study Finder</title>
-    <link rel="stylesheet" href="./assets/css/app.css?v=content-31d8cdf30565">
-    <link rel="stylesheet" href="./assets/css/pwa.css?v=content-31d8cdf30565">
+    <link rel="stylesheet" href="./assets/css/app.css?v=content-66ac7531ff0d">
+    <link rel="stylesheet" href="./assets/css/pwa.css?v=content-66ac7531ff0d">
       <link rel="manifest" href="../manifest.webmanifest">
-    <link rel="apple-touch-icon" href="../assets/icons/icon-192.png?v=content-31d8cdf30565">
+    <link rel="apple-touch-icon" href="../assets/icons/icon-192.png?v=content-66ac7531ff0d">
     <meta name="theme-color" content="#15110e">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="737 Study Finder">
@@ -40,12 +40,16 @@
       <button id="loadQuestions">読み込み</button>
       <button id="randomQuestionButton" class="primary action-large">次のランダム問題</button>
     </div>
-    <div id="questionLoadPanel" class="load-panel is-idle" aria-live="polite">
+    <div id="questionLoadPanel" class="load-panel is-idle" aria-live="polite" aria-busy="false">
       <div class="load-panel-row">
         <span id="questionLoadStatus">ATAを選んで読み込みを押してください。</span>
         <span id="questionLoadCount">未読み込み</span>
       </div>
-      <div class="load-bar" aria-hidden="true">
+      <div class="load-progress-meta">
+        <span id="questionLoadStage">待機中</span>
+        <span id="questionLoadEta"></span>
+      </div>
+      <div id="questionLoadProgress" class="load-bar" role="progressbar" aria-label="問題の読み込み進捗" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
         <span id="questionLoadBar"></span>
       </div>
     </div>
@@ -121,8 +125,8 @@
 </dialog>
       </main>
     </div>
-    <script src="./assets/js/gas-run-shim.js?v=content-31d8cdf30565"></script>
-    <script src="./assets/js/app.js?v=content-31d8cdf30565"></script>
-    <script src="./assets/js/pwa-client.js?v=content-31d8cdf30565"></script>
+    <script src="./assets/js/gas-run-shim.js?v=content-66ac7531ff0d"></script>
+    <script src="./assets/js/app.js?v=content-66ac7531ff0d"></script>
+    <script src="./assets/js/pwa-client.js?v=content-66ac7531ff0d"></script>
   </body>
 </html>

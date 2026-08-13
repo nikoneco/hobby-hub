@@ -289,8 +289,18 @@ function buildGasRunShim(app) {
   const STATIC_RESPONSES = ${JSON.stringify(buildStaticResponses(app), null, 2)};
   const JSONP_RETRY_DELAYS = ${JSON.stringify(jsonpRetryDelays)};
   let requestSeq = 0;
+${app.id === 'study737' ? `
+  function notifyProgress(method, phase, detail) {
+    window.dispatchEvent(new CustomEvent('gas-api-progress', {
+      detail: Object.assign({
+        method,
+        phase,
+        maxAttempts: JSONP_RETRY_DELAYS.length
+      }, detail || {})
+    }));
+  }
 
-  function encodeArgs(args) {
+` : '\n'}  function encodeArgs(args) {
     const json = JSON.stringify(args || []);
     const bytes = new TextEncoder().encode(json);
     let binary = '';
@@ -335,14 +345,14 @@ function buildGasRunShim(app) {
       if (settled) return;
       settled = true;
       cleanup();
-      if (successHandler) successHandler(response);
+${app.id === 'study737' ? "      notifyProgress(method, 'success', { attempt });\n" : ''}      if (successHandler) successHandler(response);
     };
 
     function failAttempt(errorType) {
       if (settled) return;
       clearAttempt();
       if (attempt < JSONP_RETRY_DELAYS.length) {
-        retryTimer = window.setTimeout(loadAttempt, JSONP_RETRY_DELAYS[attempt]);
+${app.id === 'study737' ? "        notifyProgress(method, 'retry', { attempt, nextAttempt: attempt + 1, errorType });\n" : ''}        retryTimer = window.setTimeout(loadAttempt, JSONP_RETRY_DELAYS[attempt]);
         return;
       }
       settled = true;
@@ -353,7 +363,7 @@ function buildGasRunShim(app) {
     function loadAttempt() {
       if (settled) return;
       const attemptNumber = ++attempt;
-      const script = document.createElement('script');
+${app.id === 'study737' ? "      notifyProgress(method, 'attempt', { attempt: attemptNumber });\n" : ''}      const script = document.createElement('script');
       activeScript = script;
       const url = new URL(GAS_ENDPOINT);
       url.searchParams.set('api', method);

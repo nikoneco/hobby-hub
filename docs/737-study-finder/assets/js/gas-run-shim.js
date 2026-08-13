@@ -4,6 +4,16 @@
   const JSONP_RETRY_DELAYS = [0,1000,3000];
   let requestSeq = 0;
 
+  function notifyProgress(method, phase, detail) {
+    window.dispatchEvent(new CustomEvent('gas-api-progress', {
+      detail: Object.assign({
+        method,
+        phase,
+        maxAttempts: JSONP_RETRY_DELAYS.length
+      }, detail || {})
+    }));
+  }
+
   function encodeArgs(args) {
     const json = JSON.stringify(args || []);
     const bytes = new TextEncoder().encode(json);
@@ -49,6 +59,7 @@
       if (settled) return;
       settled = true;
       cleanup();
+      notifyProgress(method, 'success', { attempt });
       if (successHandler) successHandler(response);
     };
 
@@ -56,6 +67,7 @@
       if (settled) return;
       clearAttempt();
       if (attempt < JSONP_RETRY_DELAYS.length) {
+        notifyProgress(method, 'retry', { attempt, nextAttempt: attempt + 1, errorType });
         retryTimer = window.setTimeout(loadAttempt, JSONP_RETRY_DELAYS[attempt]);
         return;
       }
@@ -67,6 +79,7 @@
     function loadAttempt() {
       if (settled) return;
       const attemptNumber = ++attempt;
+      notifyProgress(method, 'attempt', { attempt: attemptNumber });
       const script = document.createElement('script');
       activeScript = script;
       const url = new URL(GAS_ENDPOINT);
