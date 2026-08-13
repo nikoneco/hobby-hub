@@ -35,7 +35,7 @@ ATA_PAGE_RE = re.compile(
 )
 CONTINUATION_PAGE_RE = re.compile(r"737-800\s*標準問題\s+JHZ/T\s+737\s+Team\s+(?P<body>.*)")
 LAYOUT_ATA_HEADER_RE = re.compile(
-    r"^(?P<ata>(?:\d{2}|[5７7][XxＸｘ]))\s+(?P<title>.+?)(?:\s+Check)?$",
+    r"^(?P<ata>(?:\d{2}|[5７7][XxＸｘ]))\s+(?P<title>.+?)\s+Check$",
     re.IGNORECASE,
 )
 QUESTION_END_RE = re.compile(
@@ -199,6 +199,11 @@ def contextualize_question(question: str, subsection_name: str) -> str:
         return question
 
     normalized = normalize_text(question)
+    normalized_subsection = normalize_text(subsection)
+    if normalized.startswith("各COMPONENTの作動の概要") and "ENG FUEL" in normalized_subsection:
+        return "Engine Fuel & Control Systemで、Fuel Spar ValveからFuel Nozzleまでにある各Componentの作動概要とLocationを記入しなさい。"
+    if "主要COMPONENT" in normalized and normalized_subsection == "79 ENGINE OIL":
+        return "Engine Lubrication Systemの主要Component、Locationおよび機能を説明しなさい。"
     if re.match(r"^主要\s*COMPONENT", normalized):
         suffix = re.sub(r"^主要\s*Component\s*", "", question, flags=re.IGNORECASE)
         return f"{subsection}の主要Component {suffix}".replace("  ", " ")
@@ -319,6 +324,8 @@ def expand_target_specific_questions(question: str, target_ata: str) -> list[str
         return expand_ata23_questions(question)
     if target_ata == "34":
         return expand_ata34_questions(question)
+    if target_ata == "38":
+        return expand_ata38_questions(question)
     return [question]
 
 
@@ -332,6 +339,29 @@ ATA31_REPAIRED_QUESTION_IDS = {
     "PFDに表示される情報を記入しなさい。（大別して）": "q_31_ce74a15a0ab9",
     "NDに表示される情報を記入しなさい。（大別して（Modeなども含む））": "q_31_8c941c7ee08e",
     "UPR/LWR DUに表示される情報を記入しなさい。": "q_31_056eeaf9bbe9",
+}
+
+
+ATA26_REPAIRED_QUESTION_IDS = {
+    "P8 PNLのENG Fire HNDLを引く事による Systemの作動を ATA別に整理して説明しなさい。": "q_26_0622a375459c",
+    "CGO COMP'T Fire Extinguishing SYSの主要構成ComponentおよびLocation を記入しなさい。(FWD/AFTで個数が違う場合にはその個数も記入すること)": "q_26_02b05956d429",
+    "LavatoryのSmoke Detectorの作動原理について説明しなさい。 (イオン化式とPhotoelectric式分別して)": "q_26_c379903baaf1",
+    "LavatoryのFire Extinguishing Bottleの作動及びLocationついて記入しなさい。": "q_26_e5dc4ada18bb",
+    "W/WELL DET SYSの主要構成ComponentおよびLocationを記入しなさい。": "q_26_94117fc1a69d",
+    "737-800型機に機内に装備されている消火器のType(種類)について記入しなさい。": "q_26_6ea304fdfab7",
+}
+
+
+ATA38_REPAIRED_QUESTION_IDS = {
+    "Potable Water Systemの構成及び作動概要を記入しなさい。": "q_38_d1cbf6e5aa80",
+    "POTABLE WATER SYSTEMの主要Component (Service Panelを含む)のLocation及び概要を説明しなさい。": "q_38_9d1fcc63d100",
+    "FWD Gray Water Drain Valveの目的及びLocationと作動を記入しなさい。": "q_38_508730e5e139",
+}
+
+
+ATA7X_REPAIRED_QUESTION_IDS = {
+    "各Componentの作動の概要とLocationについて記入しなさい。": "q_7X_fefc40bbc708",
+    "79 ENGINE OILの主要Component のLocationと機能を説明しなさい。": "q_7X_b4cf96f37399",
 }
 
 
@@ -629,9 +659,15 @@ def expand_ata26_questions(question: str) -> list[str]:
             "P8 PNLのENG Fire HNDLを引く事によるSystemの作動を説明しなさい。",
             "ENG Fire Extinguishing BTLの取扱い注意事項を記入しなさい。",
         ]
+    if "APU Fire Extinguishing SYSの主要構成Component" in question and "APU Fire Extinguishing BTLから" in question:
+        return [
+            "APU Fire Extinguishing SYSの主要構成ComponentおよびLocationを記入しなさい。",
+            "APU Fire Extinguishing BTLから噴射されたハロンがAPUのどこに噴射されるか記入しなさい。",
+        ]
     if "APU Fire Extinguishing SYSの主要構成Component" in question:
         return ["APU Fire Extinguishing SYSの主要構成ComponentおよびLocationを記入しなさい。"]
-    if "CARGO COMPARTMENT SMOKE DETECTION SYSTEM" in question and "CGO Electronic Unit" in question:
+    upper = normalize_text(question)
+    if "CGO COMP'T SMOKE DET SYS" in upper and "CGO ELECTRONIC UNIT" in upper:
         return [
             "CGO COMP'T Smoke DET SYSの主要構成ComponentおよびLocationを記入しなさい。（FWD/AFTで個数が違う場合にはその個数も記入すること）",
             "CGO Electronic Unitの機能を記入しなさい。",
@@ -653,11 +689,57 @@ def expand_ata26_questions(question: str) -> list[str]:
             "Wing & Body Duct OVHT DET SensorのTypeおよび検知する原理を記入しなさい。",
         ]
     if "Wing & Body Duct OVHT DET SNSRに不具合" in question:
-        return [
-            "Wing & Body Duct OVHT DET SNSRに不具合が発生した場合には、どこで分かりますか。",
-            "737-800型機の機内に装備されている消火器のType（種類）について記入しなさい。（FWD/AFTで個数が違う場合にはその個数も記入すること）",
-        ]
+        return ["Wing & Body Duct OVHT DET SNSRに不具合が発生した場合には、どこで分かりますか。"]
     return [question]
+
+
+def expand_ata38_questions(question: str) -> list[str]:
+    text = clean_layout_text(question)
+    upper = normalize_text(text)
+    if "POTABLE WATER SYSTEMの構成及び作動概要" in upper and "F0-02" in upper:
+        return [
+            "Potable Water Systemの構成及び作動概要を記入しなさい。",
+            "（F0-02）図面の空欄10箇所に名称を記入しなさい。",
+        ]
+    return [text]
+
+
+def repair_ata26_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    repaired: list[dict[str, str]] = []
+    seen: set[tuple[str, str, str]] = set()
+    index = 0
+
+    while index < len(rows):
+        row = rows[index]
+        question = row["question_text"]
+        if (
+            "P8 PNLのAPU Fire HNDLを引くと機体としてどのような状態になるか" in question
+            and index + 1 < len(rows)
+            and rows[index + 1]["question_text"].startswith("ATA別に整理して説明しなさい")
+        ):
+            question = "P8 PNLのAPU Fire HNDLを引くと機体としてどのような状態になるか、ATA別に整理して説明しなさい。"
+            index += 2
+        else:
+            index += 1
+
+        duplicate_key = (
+            row["pdf_page"],
+            normalize_text(row["subsection_name"]),
+            normalize_text(question),
+        )
+        if duplicate_key in seen:
+            continue
+        seen.add(duplicate_key)
+
+        order = len(repaired) + 1
+        row["question_id"] = stable_question_id("26", question, order)
+        row["question_text"] = question
+        row["normalized_question"] = normalize_text(question)
+        row["question_type"] = classify_question(question)
+        row["expected_answer_style"] = expected_answer_style(row["question_type"], question)
+        repaired.append(row)
+
+    return repaired
 
 
 def extract_rows(pdf_path: Path, target_ata: str, source_id: str) -> list[dict[str, str]]:
@@ -714,6 +796,8 @@ def extract_rows(pdf_path: Path, target_ata: str, source_id: str) -> list[dict[s
             repaired_rows.append(row)
             index += 1
         rows = repaired_rows
+    if target_ata == "26":
+        rows = repair_ata26_rows(rows)
     return rows
 
 
@@ -732,7 +816,7 @@ def preserve_existing_question_identity(
         return rows
 
     target_ata = normalize_ata_key(rows[0].get("ata", "")) if rows else ""
-    if target_ata in {"23", "31", "32", "34"}:
+    if target_ata in {"23", "26", "31", "32", "34", "38", "7X"}:
         old_by_normalized: dict[str, list[dict[str, str]]] = defaultdict(list)
         old_by_id = {row.get("question_id", ""): row for row in existing_rows}
         for old_row in existing_rows:
@@ -740,30 +824,74 @@ def preserve_existing_question_identity(
 
         repaired_ids = {
             "23": ATA23_REPAIRED_QUESTION_IDS,
+            "26": ATA26_REPAIRED_QUESTION_IDS,
             "31": ATA31_REPAIRED_QUESTION_IDS,
             "32": ATA32_REPAIRED_QUESTION_IDS,
             "34": ATA34_REPAIRED_QUESTION_IDS,
+            "38": ATA38_REPAIRED_QUESTION_IDS,
+            "7X": ATA7X_REPAIRED_QUESTION_IDS,
         }[target_ata]
         overrides = {
             normalize_text(question): question_id
             for question, question_id in repaired_ids.items()
         }
         assigned_ids: set[str] = set()
-        for row in rows:
+        matched_row_indexes: set[int] = set()
+        for row_index, row in enumerate(rows):
             normalized = normalize_text(row.get("question_text", ""))
             override_id = overrides.get(normalized)
             matches = old_by_normalized.get(normalized, [])
             if override_id:
                 row["question_id"] = override_id
+                matched_row_indexes.add(row_index)
                 old_row = old_by_id.get(override_id)
                 if old_row:
                     row["created_at"] = old_row.get("created_at") or row["created_at"]
             elif len(matches) == 1:
                 row["question_id"] = matches[0]["question_id"]
                 row["created_at"] = matches[0].get("created_at") or row["created_at"]
-            if row["question_id"] in assigned_ids:
-                raise ValueError(f"Duplicate question identity after ATA{target_ata} repair: {row['question_id']}")
-            assigned_ids.add(row["question_id"])
+                matched_row_indexes.add(row_index)
+            if row_index in matched_row_indexes:
+                if row["question_id"] in assigned_ids:
+                    raise ValueError(f"Duplicate question identity after ATA{target_ata} repair: {row['question_id']}")
+                assigned_ids.add(row["question_id"])
+
+        unmatched_new_by_page: dict[str, list[tuple[int, dict[str, str]]]] = defaultdict(list)
+        unmatched_old_by_page: dict[str, list[dict[str, str]]] = defaultdict(list)
+        for row_index, row in enumerate(rows):
+            if row_index not in matched_row_indexes:
+                unmatched_new_by_page[str(row["pdf_page"])].append((row_index, row))
+        for old_row in existing_rows:
+            if old_row.get("question_id", "") not in assigned_ids:
+                unmatched_old_by_page[str(old_row["pdf_page"])].append(old_row)
+
+        pages = sorted(
+            set(unmatched_new_by_page) | set(unmatched_old_by_page),
+            key=lambda value: int(value or 0),
+        )
+        mismatches = [
+            f"page {page}: existing={len(unmatched_old_by_page[page])}, extracted={len(unmatched_new_by_page[page])}"
+            for page in pages
+            if len(unmatched_old_by_page[page]) != len(unmatched_new_by_page[page])
+        ]
+        if mismatches:
+            raise ValueError(
+                f"Question identity preservation failed after ATA{target_ata} exact matching; "
+                + "; ".join(mismatches)
+            )
+
+        for page in pages:
+            for (row_index, new_row), old_row in zip(
+                unmatched_new_by_page[page],
+                unmatched_old_by_page[page],
+                strict=True,
+            ):
+                new_row["question_id"] = old_row["question_id"]
+                new_row["created_at"] = old_row.get("created_at") or new_row["created_at"]
+                matched_row_indexes.add(row_index)
+                if new_row["question_id"] in assigned_ids:
+                    raise ValueError(f"Duplicate question identity after ATA{target_ata} fallback: {new_row['question_id']}")
+                assigned_ids.add(new_row["question_id"])
         return rows
 
     new_by_page: dict[str, list[dict[str, str]]] = defaultdict(list)

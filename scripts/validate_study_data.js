@@ -160,9 +160,9 @@ function main() {
     pages.push(...readCsv(`textbook_pages_ata${ata}.csv`));
   });
 
-  assert(questions.length === 767, `Expected 767 questions, got ${questions.length}`);
-  assert(preparedQuestions.length === 767, `Expected 767 prepared questions, got ${preparedQuestions.length}`);
-  assert(answers.length === 767, `Expected 767 answers, got ${answers.length}`);
+  assert(questions.length === 804, `Expected 804 questions, got ${questions.length}`);
+  assert(preparedQuestions.length === 804, `Expected 804 prepared questions, got ${preparedQuestions.length}`);
+  assert(answers.length === 804, `Expected 804 answers, got ${answers.length}`);
   assertUnique(questions, 'question_id', 'question bank');
   assertUnique(answers, 'note_id', 'answer notes');
   assertUnique(candidates, 'candidate_id', 'candidate links');
