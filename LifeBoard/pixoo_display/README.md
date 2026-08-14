@@ -190,7 +190,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   NAVITIME predicted-time change does not replace the timetable time.
 - The Windows server fetches NAVITIME every minute from 06:00 through 06:59,
   every 3 minutes from 07:00 through 22:59, and stops bus acquisition from
-  23:00 through 05:59. Pixoo rendering itself continues every minute.
+  23:00 through 05:59. Pixoo rendering runs every minute from 06:00 through
+  22:59 and only at `:00`, `:15`, `:30`, and `:45` overnight. The Pixoo-managed
+  clock continues to advance between those overnight sends.
 - When the home-to-station route has no remaining bus items for the day, the
   bus panel shows `本日のバスは` / `終わりました！`.
 - Weather shows the current temperature and the next-24-hour high temperature,

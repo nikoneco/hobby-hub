@@ -274,6 +274,20 @@ function Test-WeatherFetchDue {
   return $false
 }
 
+function Test-PixooRenderDue {
+  param([datetime]$Now = (Get-Date))
+  $now = $Now
+  $overnight = $now.Hour -ge 23 -or $now.Hour -lt 6
+  if (-not $overnight) {
+    return $true
+  }
+  if (($now.Minute % 15) -eq 0) {
+    return $true
+  }
+  Add-Log ('pixoo-render skip overnight-quarter-hour now={0:HH:mm}' -f $now)
+  return $false
+}
+
 function Invoke-Bus {
   if (-not (Test-BusFetchDue)) {
     return
@@ -305,6 +319,9 @@ function Invoke-Pixoo {
   param([switch]$SkipWeatherRefresh)
   if (-not $SkipWeatherRefresh) {
     Invoke-Weather
+  }
+  if (-not (Test-PixooRenderDue)) {
+    return
   }
   $script = Join-Path $lifeBoardDir 'pixoo_display\pixoo_lifeboard.js'
   $args = @()

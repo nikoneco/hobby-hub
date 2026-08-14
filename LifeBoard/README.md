@@ -10,14 +10,18 @@ the browser PWA and to a Pixoo64 display.
 2. GAS stores imported snapshots in Google Sheets and combines them with rail,
    garbage, calendar, and fallback weather data.
 3. The PWA reads the public JSONP allowlist endpoint once per minute.
-4. The Windows runner renders and pushes Pixoo frames once per minute.
+4. The Windows runner renders and pushes Pixoo every minute from 06:00 through
+   22:59, and at fixed 15-minute boundaries from 23:00 through 05:59.
 
 Current fetch cadence:
 
 - Bus: every minute from 06:00 through 06:59, every three minutes from 07:00
   through 22:59, and stopped from 23:00 through 05:59.
 - Weathernews: every 15 minutes.
-- PWA refresh and Pixoo render: every minute.
+- PWA refresh: every minute while the PWA tab is visible.
+- Pixoo render: every minute from 06:00 through 22:59. Overnight it runs at
+  `:00`, `:15`, `:30`, and `:45`; the device-managed clock continues locally
+  between sends.
 - TimeTree: optional hourly import. It requires Python, a server-local TimeTree
   configuration, and task registration without `-SkipTimeTree`.
 
