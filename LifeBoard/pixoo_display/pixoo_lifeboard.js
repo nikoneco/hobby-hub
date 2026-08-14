@@ -4,6 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
+const crypto = require('crypto');
 
 const SIZE = 64;
 const PIXELS = SIZE * SIZE;
@@ -14,6 +15,9 @@ const DEFAULT_PREVIEW = path.resolve(__dirname, '..', 'data', 'pixoo_preview.svg
 const DEFAULT_PNG_PREVIEW = path.resolve(__dirname, '..', 'data', 'pixoo_preview_64.png');
 const DEFAULT_RUNTIME_STATE = path.resolve(__dirname, '..', 'data', 'pixoo_runtime_state.json');
 const DEFAULT_MISAKI_GOTHIC = path.resolve(__dirname, '..', 'misaki_png_2021-05-05a', 'misaki_gothic.png');
+const PIXOO_MINIMUM_PIXEL_FONT_ID = 18;
+const PIXOO_CLOCK_ITEM_ID = 18;
+const PIXOO_REMAINING_ITEM_ID = 19;
 
 const MISAKI_KUTEN = {
   'バ': [5, 48],
@@ -178,14 +182,17 @@ async function main() {
   const runtimeState = readRuntimeState(options.stateFile);
   options.busTransition = resolveBusTransition(snapshot, runtimeState, options);
   const frames = renderLifeBoardFrames(snapshot, lifeData, options);
-  const previewFrame = frames[0];
+  const previewFrames = options.itemOverlay
+    ? frames.map((frame) => renderDynamicItemsPreview(frame, snapshot))
+    : frames;
+  const previewFrame = previewFrames[0];
 
   if (options.preview) {
     writeSvgPreview(previewFrame, options.preview);
   }
   if (options.pngPreview) {
     writePngPreview(previewFrame, options.pngPreview);
-    frames.slice(1).forEach((frame, index) => {
+    previewFrames.slice(1).forEach((frame, index) => {
       writePngPreview(frame, numberedPreviewPath(options.pngPreview, index + 1));
     });
   }
@@ -194,8 +201,32 @@ async function main() {
     if (!options.pixooIp) {
       throw new Error('PIXOO_IP or --pixoo-ip is required when using --push');
     }
-    await pushFrameToPixoo(options.pixooIp, frames, options);
-    writeRuntimeState(options.stateFile, buildNextRuntimeState(snapshot, runtimeState, options.busTransition));
+    const itemOverlayEnabled = options.itemOverlay;
+    const overlayBaseHash = itemOverlayEnabled ? hashFrameSet(frames) : '';
+    const canReuseOverlayBase = Boolean(
+      itemOverlayEnabled &&
+      runtimeState &&
+      runtimeState.overlayBaseHash &&
+      runtimeState.overlayBaseHash === overlayBaseHash
+    );
+    if (!canReuseOverlayBase) {
+      await pushFrameToPixoo(options.pixooIp, frames, options);
+    }
+    if (itemOverlayEnabled) {
+      await pushDynamicItemsToPixoo(options.pixooIp, snapshot, staleClockColor(snapshot), {
+        clearExisting: !canReuseOverlayBase
+      });
+    } else if (runtimeState && runtimeState.overlayBaseHash) {
+      await clearDynamicItemsOnPixoo(options.pixooIp);
+    }
+    options.baseFrameUploaded = !canReuseOverlayBase;
+    const nextRuntimeState = buildNextRuntimeState(snapshot, runtimeState, options.busTransition);
+    if (itemOverlayEnabled) {
+      nextRuntimeState.overlayBaseHash = overlayBaseHash;
+    } else {
+      delete nextRuntimeState.overlayBaseHash;
+    }
+    writeRuntimeState(options.stateFile, nextRuntimeState);
   }
 
   printSummary(snapshot, lifeData, options);
@@ -219,6 +250,7 @@ function parseArgs(args) {
     animationSpeedMs: process.env.LIFEBOARD_PIXOO_ANIMATION_SPEED_MS
       ? Number(process.env.LIFEBOARD_PIXOO_ANIMATION_SPEED_MS)
       : 650,
+    itemOverlay: false,
     push: false,
     noPreview: false,
     help: false
@@ -244,6 +276,7 @@ function parseArgs(args) {
     else if (arg === '--animate-bus-bar') options.animateBusBar = true;
     else if (arg === '--no-animate-bus-bar') options.animateBusBar = false;
     else if (arg === '--animation-speed-ms') options.animationSpeedMs = Number(args[++i]);
+    else if (arg === '--item-overlay' || arg === '--clock-item-overlay') options.itemOverlay = true;
     else throw new Error('Unknown argument: ' + arg);
   }
 
@@ -438,7 +471,7 @@ function renderLifeBoardFrame(snapshot, lifeData, options) {
   const weatherStatus = buildWeatherStatus(lifeData);
   const workStatus = buildWorkStatus(lifeData);
 
-  drawText(frame, nowText(), 0, 0, stale ? COLORS.amber : COLORS.white);
+  drawText(frame, options && options.itemOverlay ? dateText() : nowText(), 0, 0, stale ? COLORS.amber : COLORS.white);
 
   drawRoutePanel(frame, {
     y: 8,
@@ -522,7 +555,9 @@ function drawRoutePanel(frame, config, options) {
 
   drawText(frame, scheduledTime, 4, config.y + 9, COLORS.white, 2);
   drawText(frame, delay, 45, config.y + 9, delayColor);
-  drawText(frame, remaining, 48, config.y + 16, remainingColor(item.adjustedRemainingMinutes));
+  if (!(options && options.itemOverlay)) {
+    drawText(frame, remaining, 48, config.y + 16, remainingColor(item.adjustedRemainingMinutes));
+  }
   if (!drawMixedText(frame, location, 4, config.y + 22, COLORS.cyan, options)) {
     drawText(frame, location, 4, config.y + 22, COLORS.cyan);
   }
@@ -1553,10 +1588,23 @@ function ageMinutes(isoText) {
   return Math.max(0, Math.floor(ms / 60000));
 }
 
-function nowText() {
+function dateText() {
   const date = new Date();
-  return date.getFullYear() + '/' + pad2(date.getMonth() + 1) + '/' + pad2(date.getDate()) + ' '
-    + pad2(date.getHours()) + ':' + pad2(date.getMinutes());
+  return date.getFullYear() + '/' + pad2(date.getMonth() + 1) + '/' + pad2(date.getDate());
+}
+
+function clockText() {
+  const date = new Date();
+  return pad2(date.getHours()) + ':' + pad2(date.getMinutes());
+}
+
+function nowText() {
+  return dateText() + ' ' + clockText();
+}
+
+function staleClockColor(snapshot) {
+  const age = snapshot && snapshot.generatedAt ? ageMinutes(snapshot.generatedAt) : '';
+  return age !== '' && age >= 15 ? COLORS.amber : COLORS.white;
 }
 
 function pad2(value) {
@@ -1572,6 +1620,13 @@ function createFrame(rgb) {
     frame[offset + 2] = rgb[2];
   }
   return frame;
+}
+
+function hashFrameSet(frames) {
+  const hash = crypto.createHash('sha256');
+  const frameList = Array.isArray(frames) ? frames : [frames];
+  frameList.forEach((frame) => hash.update(frame));
+  return hash.digest('hex');
 }
 
 function drawText(frame, text, x, y, rgb, scale) {
@@ -1701,6 +1756,87 @@ async function pushFrameToPixoo(ipAddress, frames, options) {
       PicData: frameList[0].toString('base64')
     }));
   }
+}
+
+async function clearDynamicItemsOnPixoo(ipAddress) {
+  const baseUrl = 'http://' + ipAddress.replace(/^https?:\/\//, '').replace(/\/.*$/, '') + '/post';
+  await postPixoo(baseUrl, { Command: 'Draw/ClearHttpText' });
+}
+
+async function pushDynamicItemsToPixoo(ipAddress, snapshot, clockRgb, options) {
+  const baseUrl = 'http://' + ipAddress.replace(/^https?:\/\//, '').replace(/\/.*$/, '') + '/post';
+  if (options && options.clearExisting) {
+    await postPixoo(baseUrl, { Command: 'Draw/ClearHttpText' });
+  }
+  const items = [buildClockItem(clockRgb)];
+  const remainingItem = buildRemainingItem(snapshot);
+  if (remainingItem) {
+    items.push(remainingItem);
+  }
+  await postPixoo(baseUrl, {
+    Command: 'Draw/SendHttpItemList',
+    ItemList: items
+  });
+}
+
+function buildClockItem(rgb) {
+  return {
+    TextId: PIXOO_CLOCK_ITEM_ID,
+    type: 5,
+    x: 39,
+    y: 0,
+    dir: 0,
+    font: PIXOO_MINIMUM_PIXEL_FONT_ID,
+    TextWidth: 25,
+    Textheight: 5,
+    speed: 100,
+    color: rgbToHex(rgb || COLORS.white),
+    align: 3
+  };
+}
+
+function buildRemainingItem(snapshot) {
+  const item = getPrimaryBusItem(snapshot);
+  if (!item) {
+    return null;
+  }
+  return {
+    TextId: PIXOO_REMAINING_ITEM_ID,
+    type: 22,
+    x: 48,
+    y: 24,
+    dir: 0,
+    font: PIXOO_MINIMUM_PIXEL_FONT_ID,
+    TextWidth: 16,
+    Textheight: 5,
+    speed: 100,
+    TextString: normalizeRemaining(item.adjustedRemainingMinutes),
+    color: rgbToHex(remainingColor(item.adjustedRemainingMinutes)),
+    align: 1
+  };
+}
+
+function renderDynamicItemsPreview(frame, snapshot) {
+  const preview = Buffer.from(frame);
+  drawText(preview, clockText(), 40, 0, staleClockColor(snapshot));
+  const item = getPrimaryBusItem(snapshot);
+  if (item) {
+    drawText(
+      preview,
+      normalizeRemaining(item.adjustedRemainingMinutes),
+      48,
+      24,
+      remainingColor(item.adjustedRemainingMinutes)
+    );
+  }
+  return preview;
+}
+
+function rgbToHex(rgb) {
+  return '#' + [0, 1, 2]
+    .map((index) => clamp(Array.isArray(rgb) ? rgb[index] : 0).toString(16).padStart(2, '0'))
+    .join('')
+    .toUpperCase();
 }
 
 async function postPixoo(url, payload) {
@@ -1981,6 +2117,8 @@ function printSummary(snapshot, lifeData, options) {
     pngPreview: options.pngPreview || null,
     pixooIp: options.push ? options.pixooIp : null,
     animationFrames: options.animateBusBar && hasMotion ? ANIMATION_FRAME_COUNT : 1,
+    itemOverlay: Boolean(options.itemOverlay),
+    baseFrameUploaded: options.push ? Boolean(options.baseFrameUploaded) : null,
     busTransition: options.busTransition || 'none',
     busScene,
     generatedAt: snapshot.generatedAt || '',
@@ -2031,6 +2169,8 @@ function printHelp() {
     '  --animate-bus-bar    Enable native six-frame status animation (default).',
     '  --no-animate-bus-bar Disable Pixoo status animation.',
     '  --animation-speed-ms Native animation frame duration (default: 650).',
+    '  --item-overlay      Keep clock and bus remaining minutes in lightweight Pixoo items.',
+    '  --clock-item-overlay Alias for --item-overlay.',
     '',
     'Environment:',
     '  PIXOO_IP, PIXOO_BRIGHTNESS, LIFEBOARD_IMPORT_URL, LIFEBOARD_PIXOO_INPUT, LIFEBOARD_PIXOO_LIFE_INPUT, LIFEBOARD_PIXOO_LIFE_URL, LIFEBOARD_PIXOO_PAGE_SECONDS, LIFEBOARD_PIXOO_ANIMATE_BUS_BAR, LIFEBOARD_PIXOO_ANIMATION_SPEED_MS, LIFEBOARD_PIXOO_PREVIEW, LIFEBOARD_PIXOO_PNG_PREVIEW, LIFEBOARD_PIXOO_STATE_FILE, LIFEBOARD_PIXOO_BUS_TRANSITION, LIFEBOARD_PIXOO_BUS_SCENE'
@@ -2045,6 +2185,8 @@ if (require.main === module) {
 }
 
 module.exports = {
+  buildClockItem,
+  buildRemainingItem,
   buildRailStatus,
   buildWeatherStatus,
   compareRailIssues,

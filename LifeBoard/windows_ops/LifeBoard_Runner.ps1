@@ -314,6 +314,7 @@ function Invoke-Pixoo {
   if ($NoPreview -or -not $DryRun) {
     $args += '--no-preview'
   }
+  $args += '--item-overlay'
   Invoke-NodeScript -ScriptPath $script -Arguments $args -StepName 'pixoo-render'
 }
 

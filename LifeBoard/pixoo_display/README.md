@@ -155,6 +155,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   `PicOffset` values. Each frame is sent as its own `Draw/SendHttpGif` request;
   `Draw/CommandList` is not used for animation frames. Pixoo assembles the
   completed set and plays it natively on the device.
+- The Windows runner enables the lightweight Pixoo item overlay. The 6-frame
+  base animation is uploaded only when its structural pixels change. The clock
+  and bus remaining minutes are updated through `Draw/SendHttpItemList`, so a
+  normal minute tick does not reload the animation or show the Pixoo hourglass.
+- The clock uses Pixoo time item type `5` with official time-dial font `18`
+  (`3*5; minimum pixel characters`). Pixoo advances the clock locally. Bus
+  remaining time uses plain-text item type `22` with the same font and is
+  refreshed by the Windows runner.
+- A structural change such as a new bus, location/delay change, rail alert,
+  weather/garbage/work change, or a night/transition scene still requires one
+  complete base-animation upload. The hourglass may appear for that upload.
 - Set `LIFEBOARD_PIXOO_ANIMATE_BUS_BAR=0` to force static-frame operation.
 - This script intentionally uses only Node.js built-in APIs.
 - If `LifeBoard\misaki_png_2021-05-05a\misaki_gothic.png` exists, the garbage
@@ -166,7 +177,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   would need a separate resident loop runner, not the standard task interval.
 - When JR has an issue, the bus panel stays visible and the lower 3 rows are
   used as a fixed `JR ALERT` page instead of the normal `JR/WX/GB` rows.
-- The top clock line shows `YYYY/MM/DD HH:MM`.
+- The top clock line shows `YYYY/MM/DD HH:MM`. The date is part of the base
+  image; `HH:MM` is the device-managed Pixoo item.
 - The bus panel header is rendered as `バス` when Misaki Gothic is available.
   If LifeBoard calendar data contains a TimeTree work symbol for today, a short
   work marker is shown beside it, such as `D勤`, `D勤中`, `明け`, `休日`,
@@ -187,9 +199,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   `sometimes` modes; Pixoo renders later as two icons with an arrow and
   sometimes as alternating icons.
 - If Weathernews wind data reports strong wind in the active lookahead window,
-  the garbage row reserves the bottom-right 8x8 area for an animated wind-gust
-  icon. The icon appears at 8 m/s, turns yellow at 12 m/s, and blinks red at
-  15 m/s.
+  the garbage row reserves the bottom-right 8x8 area for a `風` marker. The
+  marker appears at 8 m/s, turns yellow at 12 m/s, and blinks red at 15 m/s.
 - Garbage (`GB`) shows today (`TDY`) before 10:00. From 10:00 onward, it shows
   tomorrow (`TMR`) so the display helps with the next preparation cycle.
 - Garbage labels are shortened for Pixoo64: burnable garbage is `BURN`,
