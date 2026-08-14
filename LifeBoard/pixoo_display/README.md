@@ -152,8 +152,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   version of the same color. Multiple rail issues rotate through the same
   six-frame sequence and show their current position, such as `1/2`.
 - Animation frames are registered under one Pixoo `PicID` with sequential
-  `PicOffset` values, then played natively by the device. This avoids the old,
-  invalid method of concatenating multiple raw frames into one `PicData` value.
+  `PicOffset` values. Each frame is sent as its own `Draw/SendHttpGif` request;
+  `Draw/CommandList` is not used for animation frames. Pixoo assembles the
+  completed set and plays it natively on the device.
 - Set `LIFEBOARD_PIXOO_ANIMATE_BUS_BAR=0` to force static-frame operation.
 - This script intentionally uses only Node.js built-in APIs.
 - If `LifeBoard\misaki_png_2021-05-05a\misaki_gothic.png` exists, the garbage

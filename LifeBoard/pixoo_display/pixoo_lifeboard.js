@@ -1675,11 +1675,20 @@ async function pushFrameToPixoo(ipAddress, frames, options) {
     PicSpeed: frameList.length > 1 ? options.animationSpeedMs : 1000,
     PicData: frame.toString('base64')
   }));
-  const payload = frameCommands.length > 1
-    ? { Command: 'Draw/CommandList', CommandList: frameCommands }
-    : frameCommands[0];
   try {
-    await postPixoo(baseUrl, payload);
+    for (let index = 0; index < frameCommands.length; index += 1) {
+      try {
+        await postPixoo(baseUrl, frameCommands[index]);
+      } catch (error) {
+        throw new Error(
+          'Pixoo animation frame ' + (index + 1) + '/' + frameCommands.length + ' failed: ' +
+          (error && error.message ? error.message : String(error))
+        );
+      }
+      if (index + 1 < frameCommands.length) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    }
   } catch (error) {
     if (frameList.length <= 1) {
       throw error;
@@ -1698,7 +1707,8 @@ async function postPixoo(url, payload) {
   const response = await fetch(url, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'Connection': 'close'
     },
     body: JSON.stringify(payload)
   });
