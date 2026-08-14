@@ -199,3 +199,22 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
 - At 64x64, status labels are kept short for legibility. Japanese labels are
   used only where the Misaki Gothic bitmap font is available; otherwise the
   script falls back to compact ASCII labels.
+
+## Troubleshooting animation uploads
+
+- A failed animation update can appear as `Loading`, a brief corrupted/noise
+  screen, and then a return to the previously displayed LifeBoard frame. The
+  Pixoo local API may still return `error_code: 0`, so an API success response
+  alone does not prove that the device committed the complete animation.
+- First confirm that animation frames are sent as separate
+  `Draw/SendHttpGif` requests with one shared `PicID`, matching `PicNum`, and
+  sequential `PicOffset` values. Do not put animation frames in
+  `Draw/CommandList`.
+- If sequential upload repeatedly stops partway, or the device keeps returning
+  to an old frame, restart the Pixoo64 once. Restarting can clear an incomplete
+  animation-receive state left in the device. This was effective after a failed
+  upload stopped at frame 5 of 6.
+- After restart, wait for the Pixoo network API to respond, then verify at least
+  two consecutive scheduled six-frame pushes in `lifeboard_ops_runner.log` and
+  confirm the new animation on the physical display. The Windows scheduled task
+  does not need to be re-registered for a Pixoo-only restart.
