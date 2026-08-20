@@ -14,6 +14,11 @@ This reads `C:\Users\aqua_\my_calendar.ics`, extracts upcoming events, and write
 LifeBoard\data\timetree_events.json
 ```
 
+The default export window also retains the previous local calendar day. This is
+used only as context for cross-midnight `S` / `N` shift handling and for deciding
+whether a `/` day is an actual night-shift completion or a rest day after an
+`AL`, `SV`, or `10H` override.
+
 ## Refresh ICS and build JSON
 
 Double-click helper:

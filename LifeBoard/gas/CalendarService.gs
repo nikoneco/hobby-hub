@@ -146,27 +146,37 @@ function getCalendarSnapshot_() {
     const sheet = getSheetByName_(spreadsheet, CONFIG.SHEETS.CALENDAR_EVENTS);
     const rows = readObjects_(sheet);
     const today = dateAtLocalMidnight_(new Date());
+    const previousDay = new Date(today.getTime() - 24 * 60 * 60 * 1000);
     const headerThrough = new Date(today.getTime() + CONFIG.CALENDAR.HEADER_LOOKAHEAD_DAYS * 24 * 60 * 60 * 1000);
     const detailThrough = new Date(today.getTime() + CONFIG.CALENDAR.DETAIL_LOOKAHEAD_DAYS * 24 * 60 * 60 * 1000);
     const allEvents = rows
       .map(normalizeCalendarRow_)
       .filter(function (event) {
-        return event.dateObject && event.dateObject >= today && event.dateObject <= detailThrough;
+        return event.dateObject && event.dateObject >= previousDay && event.dateObject <= detailThrough;
       })
       .sort(function (a, b) {
         return a.sortKey.localeCompare(b.sortKey) || a.title.localeCompare(b.title);
       });
-    const headerEvents = allEvents
+    const previousDayEvents = allEvents
+      .filter(function (event) {
+        return event.dateObject < today;
+      });
+    const currentEvents = allEvents
+      .filter(function (event) {
+        return event.dateObject >= today;
+      });
+    const headerEvents = currentEvents
       .filter(function (event) {
         return event.dateObject <= headerThrough;
       })
       .slice(0, CONFIG.CALENDAR.HEADER_MAX_EVENTS);
-    const detailEvents = allEvents.slice(0, CONFIG.CALENDAR.DETAIL_MAX_EVENTS);
+    const detailEvents = currentEvents.slice(0, CONFIG.CALENDAR.DETAIL_MAX_EVENTS);
 
     return {
       fetchedAt: nowIso_(),
       sourceNote: CONFIG.CALENDAR.SOURCE_NOTE,
       importedAt: rows.length ? String(rows[0].imported_at || '') : '',
+      previousDayEvents: previousDayEvents.map(stripCalendarDateObject_),
       headerEvents: headerEvents.map(stripCalendarDateObject_),
       events: detailEvents.map(stripCalendarDateObject_)
     };
@@ -176,6 +186,7 @@ function getCalendarSnapshot_() {
       fetchedAt: nowIso_(),
       sourceNote: CONFIG.CALENDAR.SOURCE_NOTE,
       importedAt: '',
+      previousDayEvents: [],
       headerEvents: [],
       events: [],
       errorText: error && error.message ? error.message : String(error)

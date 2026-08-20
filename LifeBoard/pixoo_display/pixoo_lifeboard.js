@@ -469,7 +469,7 @@ function renderLifeBoardFrame(snapshot, lifeData, options) {
   const stale = age !== '' && age >= 15;
   const railStatus = buildRailStatus(lifeData, options && options.animationPhase);
   const weatherStatus = buildWeatherStatus(lifeData);
-  const workStatus = buildWorkStatus(lifeData);
+  const workStatus = buildWorkStatus(lifeData, options && options.now);
 
   drawText(frame, options && options.itemOverlay ? dateText() : nowText(), 0, 0, stale ? COLORS.amber : COLORS.white);
 
@@ -912,14 +912,15 @@ function dimRgb(rgb, factor) {
   return rgb.map((value) => Math.max(0, Math.round(Number(value || 0) * amount)));
 }
 
-function buildWorkStatus(lifeData) {
+function buildWorkStatus(lifeData, nowValue) {
   const calendar = lifeData && lifeData.calendar ? lifeData.calendar : null;
   const events = collectCalendarEvents(calendar);
   if (!events.length) {
     return null;
   }
 
-  const now = new Date();
+  const parsedNow = nowValue instanceof Date ? new Date(nowValue.getTime()) : new Date(nowValue || Date.now());
+  const now = Number.isNaN(parsedNow.getTime()) ? new Date() : parsedNow;
   const today = localDateKey(now);
   const yesterday = localDateKey(addDays(now, -1));
   const todayShift = findShiftForDate(events, today);
@@ -933,6 +934,9 @@ function buildWorkStatus(lifeData) {
     return null;
   }
   if (todayShift === '/') {
+    if (['AL', 'SV', '10H'].includes(yesterdayShift)) {
+      return { mixedText: '休日', color: COLORS.blue };
+    }
     return { mixedText: '明け', color: COLORS.blue };
   }
   if (todayShift === 'H') {
@@ -949,6 +953,9 @@ function buildWorkStatus(lifeData) {
 
 function collectCalendarEvents(calendar) {
   const sources = [];
+  if (calendar && Array.isArray(calendar.previousDayEvents)) {
+    sources.push(calendar.previousDayEvents);
+  }
   if (calendar && Array.isArray(calendar.headerEvents)) {
     sources.push(calendar.headerEvents);
   }
@@ -1007,13 +1014,13 @@ function activeShiftCode(now, todayShift, yesterdayShift) {
   if (todayShift === 'S' && minutes >= toMinutes(15, 0)) {
     return 'S';
   }
-  if ((yesterdayShift === 'S' || (!yesterdayShift && todayShift === 'N')) && minutes < toMinutes(1, 0)) {
+  if (yesterdayShift === 'S' && minutes < toMinutes(1, 0)) {
     return 'S';
   }
   if (todayShift === 'N' && minutes >= toMinutes(21, 30)) {
     return 'N';
   }
-  if ((yesterdayShift === 'N' || (!yesterdayShift && todayShift === '/')) && minutes < toMinutes(8, 9)) {
+  if (yesterdayShift === 'N' && minutes < toMinutes(8, 9)) {
     return 'N';
   }
   return '';
@@ -2188,6 +2195,7 @@ module.exports = {
   buildClockItem,
   buildRemainingItem,
   buildRailStatus,
+  buildWorkStatus,
   buildWeatherStatus,
   compareRailIssues,
   isRailIssue,

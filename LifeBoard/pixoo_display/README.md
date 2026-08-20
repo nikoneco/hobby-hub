@@ -184,6 +184,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   work marker is shown beside it, such as `D勤`, `D勤中`, `明け`, `休日`,
   `有給`, or `10H`. The marker is right-aligned; regular work is green,
   active work is pink, and leave/off/10H states are blue.
+- The calendar snapshot also carries the previous day's events for overnight
+  shift context. A `/` day following an actual `N` remains `N勤中` until 08:09.
+  If that preceding `N` was overridden by `AL`, `SV`, or `10H`, the `/` day is
+  shown as `休日` instead.
 - The main bus time shows the scheduled departure time. Delay and remaining
   time are shown separately, such as `19:42 +2 / 3M`.
 - The `次` bus time also uses the scheduled departure time. A temporary

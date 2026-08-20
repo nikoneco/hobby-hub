@@ -64,7 +64,7 @@ function parseArgs(args) {
     webAppUrl: process.env.LIFEBOARD_IMPORT_URL || DEFAULT_WEB_APP_URL,
     token: process.env.LIFEBOARD_IMPORT_TOKEN || '',
     days: numberEnv('TIMETREE_SYNC_DAYS', 30),
-    pastDays: numberEnv('TIMETREE_SYNC_PAST_DAYS', 0),
+    pastDays: numberEnv('TIMETREE_SYNC_PAST_DAYS', 1),
     maxEvents: numberEnv('TIMETREE_SYNC_MAX_EVENTS', 300),
     exportIcs: false,
     post: false,
