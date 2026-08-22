@@ -163,6 +163,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   (`3*5; minimum pixel characters`). Pixoo advances the clock locally. Bus
   remaining time uses plain-text item type `22` with the same font and is
   refreshed by the Windows runner.
+- Pixoo may reset its clock preference to 12-hour mode after a power loss or
+  device reboot. Every LifeBoard push reapplies `Device/SetTime24Flag` with
+  `Mode: 1`, so the next scheduled send restores the 24-hour clock automatically.
 - A structural change such as a new bus, location/delay change, rail alert,
   weather/garbage/work change, or a night/transition scene still requires one
   complete base-animation upload. The hourglass may appear for that upload.

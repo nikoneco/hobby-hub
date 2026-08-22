@@ -201,6 +201,7 @@ async function main() {
     if (!options.pixooIp) {
       throw new Error('PIXOO_IP or --pixoo-ip is required when using --push');
     }
+    await ensurePixoo24HourClock(options.pixooIp);
     const itemOverlayEnabled = options.itemOverlay;
     const overlayBaseHash = itemOverlayEnabled ? hashFrameSet(frames) : '';
     const canReuseOverlayBase = Boolean(
@@ -1768,6 +1769,14 @@ async function pushFrameToPixoo(ipAddress, frames, options) {
 async function clearDynamicItemsOnPixoo(ipAddress) {
   const baseUrl = 'http://' + ipAddress.replace(/^https?:\/\//, '').replace(/\/.*$/, '') + '/post';
   await postPixoo(baseUrl, { Command: 'Draw/ClearHttpText' });
+}
+
+async function ensurePixoo24HourClock(ipAddress) {
+  const baseUrl = 'http://' + ipAddress.replace(/^https?:\/\//, '').replace(/\/.*$/, '') + '/post';
+  await postPixoo(baseUrl, {
+    Command: 'Device/SetTime24Flag',
+    Mode: 1
+  });
 }
 
 async function pushDynamicItemsToPixoo(ipAddress, snapshot, clockRgb, options) {
