@@ -193,8 +193,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   shown as `休日` instead.
 - A TimeTree event whose category is exactly `試験関係` takes priority over the
   work marker. Its event title is shown from 08:00 through 16:59 for an all-day
-  event; a timed event uses its own start/end time. Titles wider than the
-  right-top 40-pixel area move back and forth inside that area.
+  event; a timed event uses its own start/end time. The title uses a fixed
+  30-pixel area at the right edge and is shortened to fit without scrolling.
 - The main bus time shows the scheduled departure time. Delay and remaining
   time are shown separately, such as `19:42 +2 / 3M`.
 - The `次` bus time also uses the scheduled departure time. A temporary

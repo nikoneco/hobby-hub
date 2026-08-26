@@ -433,11 +433,10 @@ function renderLifeBoardFrames(snapshot, lifeData, options) {
   const busScene = resolveBusScene(snapshot, options);
   const railAlert = Boolean(buildRailStatus(lifeData).issue);
   const weatherStatus = buildWeatherStatus(lifeData);
-  const workStatus = buildWorkStatus(lifeData, options && options.now);
   const weatherMotion = weatherStatus.motion || Boolean(weatherStatus.wind && weatherStatus.wind.motion);
   const garbageMotion = buildGarbageStatus(lifeData).hasItems;
   const hasMotion = busUrgent || busTransition !== 'none' || busScene !== 'normal'
-    || railAlert || weatherMotion || garbageMotion || Boolean(workStatus && workStatus.scroll);
+    || railAlert || weatherMotion || garbageMotion;
   if (!options.animateBusBar || !hasMotion) {
     return [renderLifeBoardFrame(snapshot, lifeData, Object.assign({}, options, {
       busArrival,
@@ -576,20 +575,14 @@ function drawWorkStatus(frame, y, status, options) {
   if (!text) {
     return;
   }
-  const clipLeft = 24;
-  const clipRight = SIZE;
+  const clipLeft = 34;
+  const availableWidth = SIZE - clipLeft;
   const width = mixedTextWidth(text);
   const color = status.color || COLORS.blue;
-  if (!status.scroll || width <= clipRight - clipLeft) {
-    drawMixedText(frame, text, Math.max(clipLeft, clipRight - width), y, color, options);
-    return;
-  }
-
-  const maxOffset = Math.max(0, width - (clipRight - clipLeft));
-  const phase = Number(options && options.animationPhase || 0) % ANIMATION_FRAME_COUNT;
-  const progress = [0, 0.5, 1, 1, 0.5, 0][phase] || 0;
-  const x = clipLeft - Math.round(maxOffset * progress);
-  drawMixedTextClipped(frame, text, x, y, color, options, clipLeft, clipRight);
+  const visibleText = width > availableWidth ? fitMixedTextToWidth(text, availableWidth) : text;
+  const visibleWidth = mixedTextWidth(visibleText);
+  const x = width > availableWidth ? clipLeft : SIZE - visibleWidth;
+  drawMixedText(frame, visibleText, x, y, color, options);
 }
 
 function drawBusEndedMessage(frame, y, options) {
@@ -950,7 +943,6 @@ function buildWorkStatus(lifeData, nowValue) {
     return {
       mixedText: title,
       color: COLORS.yellow,
-      scroll: mixedTextWidth(title) > 40,
       source: 'calendar-category',
       category: '試験関係'
     };
@@ -1494,32 +1486,6 @@ function drawMixedText(frame, text, x, y, rgb, options) {
   return cursor > x;
 }
 
-function drawMixedTextClipped(frame, text, x, y, rgb, options, clipLeft, clipRight) {
-  const font = loadMisakiFont(options && options.fontPng);
-  if (!font) {
-    return false;
-  }
-  let cursor = x;
-  for (const character of String(text || '')) {
-    const kuten = resolveMisakiKuten(character);
-    if (kuten) {
-      drawMisakiGlyphClipped(frame, font, kuten[0], kuten[1], cursor, y, rgb, clipLeft, clipRight);
-      cursor += 8;
-      continue;
-    }
-    const glyph = FONT_3X5[String(character).toUpperCase()] || (character === ' ' ? null : FONT_3X5['?']);
-    if (glyph) {
-      drawGlyphClipped(frame, glyph, cursor, y + 1, rgb, 1, clipLeft, clipRight);
-      cursor += 4;
-      continue;
-    }
-    if (character === ' ') {
-      cursor += 2;
-    }
-  }
-  return cursor > x;
-}
-
 function mixedTextWidth(text) {
   let width = 0;
   for (const character of String(text || '')) {
@@ -1538,6 +1504,20 @@ function mixedTextWidth(text) {
     width += 4;
   }
   return width;
+}
+
+function fitMixedTextToWidth(text, maxWidth) {
+  let output = '';
+  let width = 0;
+  for (const character of String(text || '')) {
+    const characterWidth = mixedTextWidth(character);
+    if (width + characterWidth > maxWidth) {
+      break;
+    }
+    output += character;
+    width += characterWidth;
+  }
+  return output;
 }
 
 function resolveMisakiKuten(character) {
@@ -1592,23 +1572,6 @@ function drawMisakiGlyph(frame, font, ku, ten, x, y, rgb) {
       const pixel = getRgbaPixel(font, sourceX + xx, sourceY + yy);
       if (pixel && pixel[3] > 0 && ((pixel[0] + pixel[1] + pixel[2]) / 3) < 128) {
         setPixel(frame, x + xx, y + yy, rgb);
-      }
-    }
-  }
-}
-
-function drawMisakiGlyphClipped(frame, font, ku, ten, x, y, rgb, clipLeft, clipRight) {
-  const sourceX = (ten - 1) * 8;
-  const sourceY = (ku - 1) * 8;
-  for (let yy = 0; yy < 8; yy += 1) {
-    for (let xx = 0; xx < 8; xx += 1) {
-      const targetX = x + xx;
-      if (targetX < clipLeft || targetX >= clipRight) {
-        continue;
-      }
-      const pixel = getRgbaPixel(font, sourceX + xx, sourceY + yy);
-      if (pixel && pixel[3] > 0 && ((pixel[0] + pixel[1] + pixel[2]) / 3) < 128) {
-        setPixel(frame, targetX, y + yy, rgb);
       }
     }
   }
@@ -1818,24 +1781,6 @@ function drawGlyph(frame, glyph, x, y, rgb, scale) {
         continue;
       }
       drawRect(frame, x + (col * scale), y + (row * scale), scale, scale, rgb);
-    }
-  }
-}
-
-function drawGlyphClipped(frame, glyph, x, y, rgb, scale, clipLeft, clipRight) {
-  for (let row = 0; row < glyph.length; row += 1) {
-    for (let col = 0; col < glyph[row].length; col += 1) {
-      if (glyph[row][col] !== '1') {
-        continue;
-      }
-      for (let yy = 0; yy < scale; yy += 1) {
-        for (let xx = 0; xx < scale; xx += 1) {
-          const targetX = x + (col * scale) + xx;
-          if (targetX >= clipLeft && targetX < clipRight) {
-            setPixel(frame, targetX, y + (row * scale) + yy, rgb);
-          }
-        }
-      }
     }
   }
 }
@@ -2388,6 +2333,7 @@ module.exports = {
   buildWorkStatus,
   buildWeatherStatus,
   compareRailIssues,
+  fitMixedTextToWidth,
   isRailIssue,
   normalizeRailIssueCode,
   renderLifeBoardFrames

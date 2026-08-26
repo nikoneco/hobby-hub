@@ -99,7 +99,12 @@ const timedExam = pixoo.buildWorkStatus(calendarData([
   }
 ]), new Date('2026-08-26T11:00:00+09:00'));
 assert.strictEqual(timedExam.mixedText, '実技試験タイトル', 'timed exam must use its actual event interval');
-assert.strictEqual(timedExam.scroll, true, 'long exam titles must enable the right-top ticker');
+assert.strictEqual(timedExam.scroll, undefined, 'exam titles must not enable scrolling');
+assert.strictEqual(
+  pixoo.fitMixedTextToWidth('Hコース(オンライン)', 30),
+  'Hコース',
+  'the fixed 30-pixel work area must keep the readable title prefix'
+);
 
 function loadGasService(fileName, globals) {
   const context = vm.createContext(Object.assign({ console }, globals));
