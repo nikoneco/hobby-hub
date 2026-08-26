@@ -159,8 +159,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   base animation is uploaded only when its structural pixels change. The clock
   and bus remaining minutes are updated through `Draw/SendHttpItemList`, so a
   normal minute tick does not reload the animation or show the Pixoo hourglass.
-- The clock uses Pixoo time item type `5` with official time-dial font `18`
-  (`3*5; minimum pixel characters`). Pixoo advances the clock locally. Bus
+- The clock uses Pixoo time item type `6` with official time-dial font `18`
+  (`3*5; minimum pixel characters`). Pixoo advances `HH:MM:SS` locally. Bus
   remaining time uses plain-text item type `22` with the same font and is
   refreshed by the Windows runner.
 - Pixoo may reset its clock preference to 12-hour mode after a power loss or
@@ -180,8 +180,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   would need a separate resident loop runner, not the standard task interval.
 - When JR has an issue, the bus panel stays visible and the lower 3 rows are
   used as a fixed `JR ALERT` page instead of the normal `JR/WX/GB` rows.
-- The top clock line shows `YYYY/MM/DD HH:MM`. The date is part of the base
-  image; `HH:MM` is the device-managed Pixoo item.
+- The top clock line shows `YY/MM/DD HH:MM:SS`. The date is part of the base
+  image; `HH:MM:SS` is the device-managed Pixoo item.
 - The bus panel header is rendered as `バス` when Misaki Gothic is available.
   If LifeBoard calendar data contains a TimeTree work symbol for today, a short
   work marker is shown beside it, such as `D勤`, `D勤中`, `明け`, `休日`,

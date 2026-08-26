@@ -1724,12 +1724,13 @@ function ageMinutes(isoText) {
 
 function dateText() {
   const date = new Date();
-  return date.getFullYear() + '/' + pad2(date.getMonth() + 1) + '/' + pad2(date.getDate());
+  return pad2(date.getFullYear() % 100) + '/' + pad2(date.getMonth() + 1) + '/' + pad2(date.getDate());
 }
 
-function clockText() {
+function clockText(withSeconds) {
   const date = new Date();
-  return pad2(date.getHours()) + ':' + pad2(date.getMinutes());
+  const hoursAndMinutes = pad2(date.getHours()) + ':' + pad2(date.getMinutes());
+  return withSeconds ? hoursAndMinutes + ':' + pad2(date.getSeconds()) : hoursAndMinutes;
 }
 
 function nowText() {
@@ -1924,12 +1925,12 @@ async function pushDynamicItemsToPixoo(ipAddress, snapshot, clockRgb, options) {
 function buildClockItem(rgb) {
   return {
     TextId: PIXOO_CLOCK_ITEM_ID,
-    type: 5,
-    x: 39,
+    type: 6,
+    x: 32,
     y: 0,
     dir: 0,
     font: PIXOO_MINIMUM_PIXEL_FONT_ID,
-    TextWidth: 25,
+    TextWidth: 32,
     Textheight: 5,
     speed: 100,
     color: rgbToHex(rgb || COLORS.white),
@@ -1960,7 +1961,7 @@ function buildRemainingItem(snapshot) {
 
 function renderDynamicItemsPreview(frame, snapshot) {
   const preview = Buffer.from(frame);
-  drawText(preview, clockText(), 40, 0, staleClockColor(snapshot));
+  drawText(preview, clockText(true), 32, 0, staleClockColor(snapshot));
   const item = getPrimaryBusItem(snapshot);
   if (item) {
     drawText(
