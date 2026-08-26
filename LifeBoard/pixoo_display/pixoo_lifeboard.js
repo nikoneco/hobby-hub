@@ -107,6 +107,7 @@ const MISAKI_KUTEN = {
 };
 
 let misakiFontCache = null;
+let misakiKutenCache = null;
 
 const COLORS = {
   black: [0, 0, 0],
@@ -432,10 +433,11 @@ function renderLifeBoardFrames(snapshot, lifeData, options) {
   const busScene = resolveBusScene(snapshot, options);
   const railAlert = Boolean(buildRailStatus(lifeData).issue);
   const weatherStatus = buildWeatherStatus(lifeData);
+  const workStatus = buildWorkStatus(lifeData, options && options.now);
   const weatherMotion = weatherStatus.motion || Boolean(weatherStatus.wind && weatherStatus.wind.motion);
   const garbageMotion = buildGarbageStatus(lifeData).hasItems;
   const hasMotion = busUrgent || busTransition !== 'none' || busScene !== 'normal'
-    || railAlert || weatherMotion || garbageMotion;
+    || railAlert || weatherMotion || garbageMotion || Boolean(workStatus && workStatus.scroll);
   if (!options.animateBusBar || !hasMotion) {
     return [renderLifeBoardFrame(snapshot, lifeData, Object.assign({}, options, {
       busArrival,
@@ -533,8 +535,7 @@ function drawRoutePanel(frame, config, options) {
     drawBusStop(frame, 16, config.y);
   }
   if (config.workStatus && config.workStatus.mixedText) {
-    const workX = Math.max(24, SIZE - mixedTextWidth(config.workStatus.mixedText));
-    drawMixedText(frame, config.workStatus.mixedText, workX, config.y, config.workStatus.color || COLORS.blue, options);
+    drawWorkStatus(frame, config.y, config.workStatus, options);
   }
 
   if (!item && config.route && Array.isArray(config.route.items)) {
@@ -568,6 +569,27 @@ function drawRoutePanel(frame, config, options) {
       drawText(frame, 'NXT ' + shortTime(next.scheduledDepartureText || next.predictedDepartureText), 30, config.y + 22, COLORS.white);
     }
   }
+}
+
+function drawWorkStatus(frame, y, status, options) {
+  const text = String(status && status.mixedText || '');
+  if (!text) {
+    return;
+  }
+  const clipLeft = 24;
+  const clipRight = SIZE;
+  const width = mixedTextWidth(text);
+  const color = status.color || COLORS.blue;
+  if (!status.scroll || width <= clipRight - clipLeft) {
+    drawMixedText(frame, text, Math.max(clipLeft, clipRight - width), y, color, options);
+    return;
+  }
+
+  const maxOffset = Math.max(0, width - (clipRight - clipLeft));
+  const phase = Number(options && options.animationPhase || 0) % ANIMATION_FRAME_COUNT;
+  const progress = [0, 0.5, 1, 1, 0.5, 0][phase] || 0;
+  const x = clipLeft - Math.round(maxOffset * progress);
+  drawMixedTextClipped(frame, text, x, y, color, options, clipLeft, clipRight);
 }
 
 function drawBusEndedMessage(frame, y, options) {
@@ -922,6 +944,17 @@ function buildWorkStatus(lifeData, nowValue) {
 
   const parsedNow = nowValue instanceof Date ? new Date(nowValue.getTime()) : new Date(nowValue || Date.now());
   const now = Number.isNaN(parsedNow.getTime()) ? new Date() : parsedNow;
+  const priorityEvent = findActivePriorityCalendarEvent(events, now);
+  if (priorityEvent) {
+    const title = String(priorityEvent.title || '試験').trim() || '試験';
+    return {
+      mixedText: title,
+      color: COLORS.yellow,
+      scroll: mixedTextWidth(title) > 40,
+      source: 'calendar-category',
+      category: '試験関係'
+    };
+  }
   const today = localDateKey(now);
   const yesterday = localDateKey(addDays(now, -1));
   const todayShift = findShiftForDate(events, today);
@@ -971,14 +1004,52 @@ function collectCalendarEvents(calendar) {
     if (!date || !title) {
       return;
     }
-    const key = date + '\n' + title;
+    const startDateTime = String(event && event.startDateTime || '');
+    const key = date + '\n' + startDateTime + '\n' + title;
     if (seen.has(key)) {
       return;
     }
     seen.add(key);
-    events.push({ date, title });
+    events.push({
+      date,
+      title,
+      category: String(event && event.category || '').trim(),
+      startDateTime,
+      endDateTime: String(event && event.endDateTime || ''),
+      allDay: Boolean(event && event.allDay)
+    });
   });
   return events;
+}
+
+function findActivePriorityCalendarEvent(events, now) {
+  const today = localDateKey(now);
+  const nowMs = now.getTime();
+  const minutes = (now.getHours() * 60) + now.getMinutes();
+  return events.find((event) => {
+    if (!hasCalendarCategory(event && event.category, '試験関係')) {
+      return false;
+    }
+    const startMs = Date.parse(event && event.startDateTime || '');
+    const endMs = Date.parse(event && event.endDateTime || '');
+    if (Number.isFinite(startMs)) {
+      const effectiveEndMs = Number.isFinite(endMs) && endMs > startMs
+        ? endMs
+        : startMs + (60 * 60 * 1000);
+      return nowMs >= startMs && nowMs < effectiveEndMs;
+    }
+    return event && event.date === today
+      && minutes >= toMinutes(8, 0)
+      && minutes < toMinutes(17, 0);
+  }) || null;
+}
+
+function hasCalendarCategory(value, expected) {
+  return String(value || '')
+    .split(/[,;、]/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .includes(expected);
 }
 
 function findShiftForDate(events, dateKey) {
@@ -1377,7 +1448,7 @@ function drawJapaneseText(frame, text, x, y, rgb, options) {
     if (cursor + 8 > SIZE) {
       break;
     }
-    const kuten = MISAKI_KUTEN[character];
+    const kuten = resolveMisakiKuten(character);
     if (!kuten) {
       cursor += 8;
       continue;
@@ -1395,7 +1466,7 @@ function drawMixedText(frame, text, x, y, rgb, options) {
   }
   let cursor = x;
   for (const character of String(text || '')) {
-    const kuten = MISAKI_KUTEN[character];
+    const kuten = resolveMisakiKuten(character);
     if (kuten) {
       if (cursor + 8 > SIZE) {
         break;
@@ -1415,6 +1486,35 @@ function drawMixedText(frame, text, x, y, rgb, options) {
     }
     if (character === ' ') {
       cursor += 2;
+      continue;
+    }
+    drawText(frame, '?', cursor, y + 1, rgb);
+    cursor += 4;
+  }
+  return cursor > x;
+}
+
+function drawMixedTextClipped(frame, text, x, y, rgb, options, clipLeft, clipRight) {
+  const font = loadMisakiFont(options && options.fontPng);
+  if (!font) {
+    return false;
+  }
+  let cursor = x;
+  for (const character of String(text || '')) {
+    const kuten = resolveMisakiKuten(character);
+    if (kuten) {
+      drawMisakiGlyphClipped(frame, font, kuten[0], kuten[1], cursor, y, rgb, clipLeft, clipRight);
+      cursor += 8;
+      continue;
+    }
+    const glyph = FONT_3X5[String(character).toUpperCase()] || (character === ' ' ? null : FONT_3X5['?']);
+    if (glyph) {
+      drawGlyphClipped(frame, glyph, cursor, y + 1, rgb, 1, clipLeft, clipRight);
+      cursor += 4;
+      continue;
+    }
+    if (character === ' ') {
+      cursor += 2;
     }
   }
   return cursor > x;
@@ -1423,7 +1523,7 @@ function drawMixedText(frame, text, x, y, rgb, options) {
 function mixedTextWidth(text) {
   let width = 0;
   for (const character of String(text || '')) {
-    if (MISAKI_KUTEN[character]) {
+    if (resolveMisakiKuten(character)) {
       width += 8;
       continue;
     }
@@ -1433,9 +1533,55 @@ function mixedTextWidth(text) {
     }
     if (character === ' ') {
       width += 2;
+      continue;
     }
+    width += 4;
   }
   return width;
+}
+
+function resolveMisakiKuten(character) {
+  if (MISAKI_KUTEN[character]) {
+    return MISAKI_KUTEN[character];
+  }
+  if (!misakiKutenCache) {
+    misakiKutenCache = buildMisakiKutenMap();
+  }
+  return misakiKutenCache.get(character) || null;
+}
+
+function buildMisakiKutenMap() {
+  const result = new Map();
+  let decoder;
+  try {
+    decoder = new TextDecoder('shift_jis', { fatal: true });
+  } catch (error) {
+    return result;
+  }
+  for (let ku = 1; ku <= 94; ku += 1) {
+    for (let ten = 1; ten <= 94; ten += 1) {
+      const bytes = jisKutenToShiftJis(ku, ten);
+      try {
+        const character = decoder.decode(Uint8Array.from(bytes));
+        if (character && character !== '\uFFFD' && !result.has(character)) {
+          result.set(character, [ku, ten]);
+        }
+      } catch (error) {
+        // Undefined JIS cells are expected and remain unavailable.
+      }
+    }
+  }
+  return result;
+}
+
+function jisKutenToShiftJis(ku, ten) {
+  const row = ku + 0x20;
+  const cell = ten + 0x20;
+  const lead = ((row + 1) >> 1) + (row < 0x5f ? 0x70 : 0xb0);
+  const trail = row % 2 === 1
+    ? cell + (cell < 0x60 ? 0x1f : 0x20)
+    : cell + 0x7e;
+  return [lead, trail];
 }
 
 function drawMisakiGlyph(frame, font, ku, ten, x, y, rgb) {
@@ -1446,6 +1592,23 @@ function drawMisakiGlyph(frame, font, ku, ten, x, y, rgb) {
       const pixel = getRgbaPixel(font, sourceX + xx, sourceY + yy);
       if (pixel && pixel[3] > 0 && ((pixel[0] + pixel[1] + pixel[2]) / 3) < 128) {
         setPixel(frame, x + xx, y + yy, rgb);
+      }
+    }
+  }
+}
+
+function drawMisakiGlyphClipped(frame, font, ku, ten, x, y, rgb, clipLeft, clipRight) {
+  const sourceX = (ten - 1) * 8;
+  const sourceY = (ku - 1) * 8;
+  for (let yy = 0; yy < 8; yy += 1) {
+    for (let xx = 0; xx < 8; xx += 1) {
+      const targetX = x + xx;
+      if (targetX < clipLeft || targetX >= clipRight) {
+        continue;
+      }
+      const pixel = getRgbaPixel(font, sourceX + xx, sourceY + yy);
+      if (pixel && pixel[3] > 0 && ((pixel[0] + pixel[1] + pixel[2]) / 3) < 128) {
+        setPixel(frame, targetX, y + yy, rgb);
       }
     }
   }
@@ -1655,6 +1818,24 @@ function drawGlyph(frame, glyph, x, y, rgb, scale) {
         continue;
       }
       drawRect(frame, x + (col * scale), y + (row * scale), scale, scale, rgb);
+    }
+  }
+}
+
+function drawGlyphClipped(frame, glyph, x, y, rgb, scale, clipLeft, clipRight) {
+  for (let row = 0; row < glyph.length; row += 1) {
+    for (let col = 0; col < glyph[row].length; col += 1) {
+      if (glyph[row][col] !== '1') {
+        continue;
+      }
+      for (let yy = 0; yy < scale; yy += 1) {
+        for (let xx = 0; xx < scale; xx += 1) {
+          const targetX = x + (col * scale) + xx;
+          if (targetX >= clipLeft && targetX < clipRight) {
+            setPixel(frame, targetX, y + (row * scale) + yy, rgb);
+          }
+        }
+      }
     }
   }
 }

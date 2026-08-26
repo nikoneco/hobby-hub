@@ -65,6 +65,42 @@ const stopBeforeDelay = pixoo.buildRailStatus(railData([
 assert.strictEqual(stopBeforeDelay.text, 'JR STOP');
 assert.strictEqual(stopBeforeDelay.lineJp, '山手線');
 
+function calendarData(events) {
+  return { calendar: { events } };
+}
+
+const examOverShift = pixoo.buildWorkStatus(calendarData([
+  { date: '2026-08-26', title: 'N', category: 'たかおみ仕事', allDay: true },
+  { date: '2026-08-26', title: 'ひっき', category: '試験関係', allDay: true }
+]), new Date('2026-08-26T08:00:00+09:00'));
+assert.strictEqual(examOverShift.mixedText, 'ひっき', 'exam category must outrank the work shift');
+assert.strictEqual(examOverShift.source, 'calendar-category');
+
+const beforeAllDayExamWindow = pixoo.buildWorkStatus(calendarData([
+  { date: '2026-08-26', title: 'D', category: 'たかおみ仕事', allDay: true },
+  { date: '2026-08-26', title: '長い試験タイトル', category: '試験関係', allDay: true }
+]), new Date('2026-08-26T07:59:00+09:00'));
+assert.strictEqual(beforeAllDayExamWindow.mixedText, 'D勤中', 'all-day exam must start displaying at 08:00');
+
+const afterAllDayExamWindow = pixoo.buildWorkStatus(calendarData([
+  { date: '2026-08-26', title: 'H', category: 'たかおみ休み', allDay: true },
+  { date: '2026-08-26', title: '長い試験タイトル', category: '試験関係', allDay: true }
+]), new Date('2026-08-26T17:00:00+09:00'));
+assert.strictEqual(afterAllDayExamWindow.mixedText, '休日', 'all-day exam must stop displaying at 17:00');
+
+const timedExam = pixoo.buildWorkStatus(calendarData([
+  {
+    date: '2026-08-26',
+    title: '実技試験タイトル',
+    category: '試験関係',
+    startDateTime: '2026-08-26T01:00:00.000Z',
+    endDateTime: '2026-08-26T03:00:00.000Z',
+    allDay: false
+  }
+]), new Date('2026-08-26T11:00:00+09:00'));
+assert.strictEqual(timedExam.mixedText, '実技試験タイトル', 'timed exam must use its actual event interval');
+assert.strictEqual(timedExam.scroll, true, 'long exam titles must enable the right-top ticker');
+
 function loadGasService(fileName, globals) {
   const context = vm.createContext(Object.assign({ console }, globals));
   const source = fs.readFileSync(path.join(__dirname, '..', 'gas', fileName), 'utf8');
