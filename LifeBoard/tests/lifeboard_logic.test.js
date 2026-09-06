@@ -53,7 +53,7 @@ assert.strictEqual(pixoo.buildRailStatus(railData([])).issue, null);
 const planRoute = { displayName: '総武線(快速)', severity: 'notice', statusText: '情報あり', detailText: '総武線(快速) 運転計画 明日は本数を減らして運転します。' };
 const planRail = pixoo.buildRailStatus(railData([planRoute]));
 assert.strictEqual(planRail.text, 'JR PLAN');
-assert.strictEqual(planRail.messageJp, '運転計画あり');
+assert.strictEqual(planRail.issue, null, 'operating plans must stay on the JR row');
 assert.strictEqual(pixoo.normalizeRailIssueCode({ severity: 'notice', statusText: '運転計画' }), 'PLAN');
 const unavailableRoute = { displayName: '山手線', severity: 'unknown', statusText: '確認できず' };
 const liveDelayRoute = { displayName: '総武線(各駅停車)', severity: 'delay', statusText: '列車遅延' };
@@ -62,6 +62,9 @@ for (let phase = 0; phase < 6; phase += 1) {
   const mixedRail = pixoo.buildRailStatus(railData([unavailableRoute, liveDelayRoute]), phase);
   assert.strictEqual(mixedRail.text, 'JR DELAY');
   assert.strictEqual(mixedRail.issueCount, 1, 'unavailable routes must not enter the notice carousel');
+  const planAndDelay = pixoo.buildRailStatus(railData([planRoute, liveDelayRoute]), phase);
+  assert.strictEqual(planAndDelay.text, 'JR DELAY');
+  assert.strictEqual(planAndDelay.issueCount, 1, 'plans must not enter the detail carousel');
 }
 assert.strictEqual(pixoo.buildRailStatus(railData([unavailableRoute, planRoute])).text, 'JR PLAN');
 assert.strictEqual(pixoo.buildRailStatus(railData([planRoute, liveDelayRoute])).text, 'JR DELAY');
@@ -72,6 +75,9 @@ const normalFrame = pixoo.renderLifeBoardFrames({ routes: [] }, displayFixture, 
 displayFixture.rail = { routes: [unavailableRoute] };
 const errorFrame = pixoo.renderLifeBoardFrames({ routes: [] }, displayFixture, renderOptions)[0];
 assert.ok(normalFrame.subarray(48 * 64 * 3).equals(errorFrame.subarray(48 * 64 * 3)), 'weather and garbage pixels must remain identical for JR ERROR');
+displayFixture.rail = { routes: [planRoute, { ...planRoute, displayName: '山手線' }] };
+const planFrame = pixoo.renderLifeBoardFrames({ routes: [] }, displayFixture, renderOptions)[0];
+assert.ok(normalFrame.subarray(48 * 64 * 3).equals(planFrame.subarray(48 * 64 * 3)), 'weather and garbage pixels must remain identical for JR PLAN');
 
 const noticeRail = pixoo.buildRailStatus(railData([
   { displayName: '総武線(快速)', severity: 'notice', statusText: '一部運休' }

@@ -182,9 +182,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   used as a fixed `JR ALERT` page instead of the normal `JR/WX/GB` rows.
 - Fetch failures or unavailable rail data show only `JR ERROR` on the JR row;
   weather and garbage remain visible. Successfully fetched operating-plan notices
-  use `JR PLAN` with the route name and `運転計画あり` on the detail page.
-  Real service notices take priority over fetch failures on other routes, and
-  errors are excluded from the rotating notice count. Weather/detail alternation
+  likewise show only `JR PLAN` on the JR row, preserving weather and garbage.
+  Real service notices take priority over plans and fetch failures on other routes;
+  both plans and errors are excluded from the rotating detail count. Weather/detail alternation
   is not used; the normal animation remains six frames.
 - The top clock line shows `YY/MM/DD HH:MM:SS`. The date is part of the base
   image; `HH:MM:SS` is the device-managed Pixoo item.
