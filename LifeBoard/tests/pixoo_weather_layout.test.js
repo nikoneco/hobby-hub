@@ -12,17 +12,27 @@ const pixel = (frame, x, y) => Array.from(frame.subarray((y * 64 + x) * 3, (y * 
 const white = Array.from(context.testColors.white);
 const kinds = ['clear', 'superclear', 'cloud', 'drizzle', 'rain', 'heavy', 'thunder', 'snow'];
 let cases = 0;
+for (const mode of ['later', 'sometimes']) {
 for (const fromKind of kinds) {
   for (const toKind of kinds.filter((kind) => kind !== fromKind)) {
     for (let animationPhase = 0; animationPhase < 6; animationPhase += 1) {
       const frame = Buffer.alloc(64 * 64 * 3);
-      context.drawWeatherStatusIcon(frame, 48, { mode: 'later', fromKind, toKind }, { weatherIconMoves: true, animationPhase });
+      context.drawWeatherStatusIcon(frame, 48, { mode, fromKind, toKind }, { weatherIconMoves: true, animationPhase });
+      for (const [start, end] of [[43, 50], [56, 63]]) {
+        let visible = false;
+        for (let yy = 48; yy < 56; yy += 1) {
+          for (let xx = start; xx <= end; xx += 1) visible ||= pixel(frame, xx, yy).some(Boolean);
+        }
+        assert.ok(visible, `${mode} must keep both icons visible in every frame`);
+      }
       for (let y = 48; y < 56; y += 1) {
         for (const x of [51, 55]) assert.deepStrictEqual(pixel(frame, x, y), [0, 0, 0], `${fromKind}->${toKind} phase ${animationPhase}: gap`);
         for (let x = 52; x <= 54; x += 1) {
-          const chevron = ['#..', '.#.', '..#', '.#.', '#..'];
+          const chevron = mode === 'later'
+            ? ['#..', '.#.', '..#', '.#.', '#..']
+            : ['...', '.#.', '###', '.#.', '...'];
           const isArrow = y >= 49 && y <= 53 && chevron[y - 49][x - 52] === '#';
-          assert.deepStrictEqual(pixel(frame, x, y), isArrow ? white : [0, 0, 0], 'right arrow must stay visible and point right');
+          assert.deepStrictEqual(pixel(frame, x, y), isArrow ? white : [0, 0, 0], `${mode} separator must stay visible`);
         }
       }
       cases += 1;
@@ -30,6 +40,7 @@ for (const fromKind of kinds) {
   }
 }
 
+}
 const options = { fontPng: path.resolve(__dirname, '../misaki_png_2021-05-05a/misaki_gothic.png'), weatherIconMoves: true, animationPhase: 0 };
 for (const text of ['天気20/27C', '天気-1/10C', '天気-10/10C']) {
   const frame = Buffer.alloc(64 * 64 * 3);

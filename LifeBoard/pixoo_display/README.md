@@ -209,10 +209,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
 - Weather shows the current temperature and the next-24-hour high temperature,
   such as `天気27/35C`. The actual condition is expressed by the right-side
   icon. Weathernews snapshots can supply `later` (`clear -> rain`) and
-  `sometimes` modes; Pixoo renders later as two icons with an arrow and
-  sometimes as alternating icons. The later layout uses x=43..50 and x=56..63
-  for full-size icons, with a white 3x5 `>` chevron at x=52..54 and one blank column
-  on either side so the clouds cannot overwrite the arrow.
+  `sometimes` modes; both keep two icons visible, with `>` for later and `+`
+  for sometimes (no alternating replacement). Rain/sun animation remains active.
+  Both layouts use x=43..50 and x=56..63 for full-size icons, with a white
+  separator at x=52..54: a 3x5 `>` chevron or a 3x3 `+`. One blank column
+  on either side keeps clouds from overwriting the separator.
 - If Weathernews wind data reports strong wind in the active lookahead window,
   the garbage row reserves the bottom-right 8x8 area for a `風` marker. The
   marker appears at 8 m/s, turns yellow at 12 m/s, and blinks red at 15 m/s.
