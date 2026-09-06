@@ -211,7 +211,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   icon. Weathernews snapshots can supply `later` (`clear -> rain`) and
   `sometimes` modes; Pixoo renders later as two icons with an arrow and
   sometimes as alternating icons. The later layout uses x=43..50 and x=56..63
-  for full-size icons, with a white arrow at x=52..54 and one blank column
+  for full-size icons, with a white 3x5 `>` chevron at x=52..54 and one blank column
   on either side so the clouds cannot overwrite the arrow.
 - If Weathernews wind data reports strong wind in the active lookahead window,
   the garbage row reserves the bottom-right 8x8 area for a `風` marker. The

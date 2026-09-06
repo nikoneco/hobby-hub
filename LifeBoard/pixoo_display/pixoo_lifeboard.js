@@ -640,9 +640,12 @@ function drawWeatherStatusIcon(frame, y, status, options) {
 
 function drawTinyRightArrow(frame, x, y, color) {
   const arrowColor = color || COLORS.white;
-  drawLine(frame, x, y, x + 2, y, arrowColor);
+  // A 3x3 shafted arrow becomes a plus. Use a 3x5 chevron instead.
+  setPixel(frame, x, y - 2, arrowColor);
   setPixel(frame, x + 1, y - 1, arrowColor);
+  setPixel(frame, x + 2, y, arrowColor);
   setPixel(frame, x + 1, y + 1, arrowColor);
+  setPixel(frame, x, y + 2, arrowColor);
 }
 
 function drawGarbageStatusLine(frame, y, status, options) {

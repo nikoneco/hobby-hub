@@ -20,7 +20,8 @@ for (const fromKind of kinds) {
       for (let y = 48; y < 56; y += 1) {
         for (const x of [51, 55]) assert.deepStrictEqual(pixel(frame, x, y), [0, 0, 0], `${fromKind}->${toKind} phase ${animationPhase}: gap`);
         for (let x = 52; x <= 54; x += 1) {
-          const isArrow = y === 51 || (x === 53 && (y === 50 || y === 52));
+          const chevron = ['#..', '.#.', '..#', '.#.', '#..'];
+          const isArrow = y >= 49 && y <= 53 && chevron[y - 49][x - 52] === '#';
           assert.deepStrictEqual(pixel(frame, x, y), isArrow ? white : [0, 0, 0], 'right arrow must stay visible and point right');
         }
       }
