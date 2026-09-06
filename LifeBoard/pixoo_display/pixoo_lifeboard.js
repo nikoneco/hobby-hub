@@ -623,9 +623,11 @@ function drawWeatherStatusIcon(frame, y, status, options) {
   const fromKind = status && status.fromKind ? status.fromKind : status.kind;
   const toKind = status && status.toKind ? status.toKind : status.kind;
   if (mode === 'later' && fromKind && toKind && fromKind !== toKind) {
-    drawWeatherIcon(frame, 45, y, fromKind, phase, weatherIconColor(fromKind));
-    drawTinyRightArrow(frame, 54, y + 3, COLORS.white);
-    drawWeatherIcon(frame, 56, y, toKind, phase + 1, weatherIconColor(toKind));
+    // 8px icon, 1px gap, 3px arrow, 1px gap, 8px icon (x=43..63).
+    // Keep cloud-only horizontal drift inside its slot; rain/sun motion remains.
+    drawWeatherIcon(frame, 43, y, fromKind, fromKind === 'cloud' ? 0 : phase, weatherIconColor(fromKind));
+    drawTinyRightArrow(frame, 52, y + 3, COLORS.white);
+    drawWeatherIcon(frame, 56, y, toKind, toKind === 'cloud' ? 0 : phase + 1, weatherIconColor(toKind));
     return;
   }
   if (mode === 'sometimes' && fromKind && toKind && fromKind !== toKind) {
@@ -639,8 +641,8 @@ function drawWeatherStatusIcon(frame, y, status, options) {
 function drawTinyRightArrow(frame, x, y, color) {
   const arrowColor = color || COLORS.white;
   drawLine(frame, x, y, x + 2, y, arrowColor);
-  setPixel(frame, x + 2, y - 1, arrowColor);
-  setPixel(frame, x + 2, y + 1, arrowColor);
+  setPixel(frame, x + 1, y - 1, arrowColor);
+  setPixel(frame, x + 1, y + 1, arrowColor);
 }
 
 function drawGarbageStatusLine(frame, y, status, options) {
