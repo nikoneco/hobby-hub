@@ -45,8 +45,33 @@ assert.strictEqual(normalRail.text, 'JR OK');
 const unknownRail = pixoo.buildRailStatus(railData([
   { displayName: '総武線(快速)', severity: 'unknown', statusText: '取得不可' }
 ]));
-assert.strictEqual(unknownRail.text, 'JR CHECK');
-assert.strictEqual(unknownRail.messageJp, '確認してください');
+assert.strictEqual(unknownRail.text, 'JR ERROR');
+assert.strictEqual(unknownRail.issue, null, 'fetch failures must not take over the lower three rows');
+assert.strictEqual(pixoo.buildRailStatus({}).text, 'JR ERROR');
+assert.strictEqual(pixoo.buildRailStatus(railData([])).issue, null);
+
+const planRoute = { displayName: '総武線(快速)', severity: 'notice', statusText: '情報あり', detailText: '総武線(快速) 運転計画 明日は本数を減らして運転します。' };
+const planRail = pixoo.buildRailStatus(railData([planRoute]));
+assert.strictEqual(planRail.text, 'JR PLAN');
+assert.strictEqual(planRail.messageJp, '運転計画あり');
+assert.strictEqual(pixoo.normalizeRailIssueCode({ severity: 'notice', statusText: '運転計画' }), 'PLAN');
+const unavailableRoute = { displayName: '山手線', severity: 'unknown', statusText: '確認できず' };
+const liveDelayRoute = { displayName: '総武線(各駅停車)', severity: 'delay', statusText: '列車遅延' };
+assert.strictEqual(pixoo.buildRailStatus(railData([unavailableRoute, { severity: 'normal' }])).text, 'JR ERROR');
+for (let phase = 0; phase < 6; phase += 1) {
+  const mixedRail = pixoo.buildRailStatus(railData([unavailableRoute, liveDelayRoute]), phase);
+  assert.strictEqual(mixedRail.text, 'JR DELAY');
+  assert.strictEqual(mixedRail.issueCount, 1, 'unavailable routes must not enter the notice carousel');
+}
+assert.strictEqual(pixoo.buildRailStatus(railData([unavailableRoute, planRoute])).text, 'JR PLAN');
+assert.strictEqual(pixoo.buildRailStatus(railData([planRoute, liveDelayRoute])).text, 'JR DELAY');
+
+const displayFixture = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../pixoo_animation_test/fixture_life_data_heavy_rain.json'), 'utf8'));
+const renderOptions = { animateBusBar: false, fontPng: path.resolve(__dirname, '../misaki_png_2021-05-05a/misaki_gothic.png') };
+const normalFrame = pixoo.renderLifeBoardFrames({ routes: [] }, displayFixture, renderOptions)[0];
+displayFixture.rail = { routes: [unavailableRoute] };
+const errorFrame = pixoo.renderLifeBoardFrames({ routes: [] }, displayFixture, renderOptions)[0];
+assert.ok(normalFrame.subarray(48 * 64 * 3).equals(errorFrame.subarray(48 * 64 * 3)), 'weather and garbage pixels must remain identical for JR ERROR');
 
 const noticeRail = pixoo.buildRailStatus(railData([
   { displayName: '総武線(快速)', severity: 'notice', statusText: '一部運休' }

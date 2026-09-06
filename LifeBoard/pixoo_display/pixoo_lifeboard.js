@@ -1129,7 +1129,7 @@ function isSunriseMinute(date) {
 function buildRailStatus(lifeData, animationPhase) {
   const routes = lifeData && lifeData.rail && Array.isArray(lifeData.rail.routes) ? lifeData.rail.routes : [];
   if (!routes.length) {
-    return { text: 'JR ?', color: COLORS.muted };
+    return { text: 'JR ERROR', code: 'ERROR', issue: null, color: COLORS.yellow };
   }
   const issues = routes
     .filter((route) => isRailIssue(route))
@@ -1143,9 +1143,10 @@ function buildRailStatus(lifeData, animationPhase) {
     const code = normalizeRailIssueCode(issue);
     const suspended = code === 'STOP';
     const delayed = code === 'DELAY';
+    const planned = code === 'PLAN';
     return {
-      text: suspended ? 'JR STOP' : delayed ? 'JR DELAY' : 'JR CHECK',
-      title: suspended ? 'JR STOP!' : delayed ? 'JR Delay!' : 'JR CHECK!',
+      text: suspended ? 'JR STOP' : delayed ? 'JR DELAY' : planned ? 'JR PLAN' : 'JR CHECK',
+      title: suspended ? 'JR STOP!' : delayed ? 'JR Delay!' : planned ? 'JR PLAN' : 'JR CHECK!',
       line: normalizeRailLineName(issue),
       lineJp: normalizeRailLineJapanese(issue),
       code,
@@ -1153,16 +1154,20 @@ function buildRailStatus(lifeData, animationPhase) {
       issueCount: issues.length,
       issueIndex,
       positionText: issues.length > 1 ? String(issueIndex + 1) + '/' + String(issues.length) : '',
-      message: suspended ? 'STOP' : delayed ? 'DELAY' : 'CHECK',
-      messageJp: suspended ? '運転見合わせ' : delayed ? '遅延注意' : '確認してください',
+      message: suspended ? 'STOP' : delayed ? 'DELAY' : planned ? 'PLAN' : 'CHECK',
+      messageJp: suspended ? '運転見合わせ' : delayed ? '遅延注意' : planned ? '運転計画あり' : '確認してください',
       color: suspended ? COLORS.red : delayed ? COLORS.amber : COLORS.yellow
     };
+  }
+  if (routes.some((route) => normalizeRailIssueCode(route) === 'ERROR')) {
+    return { text: 'JR ERROR', code: 'ERROR', issue: null, color: COLORS.yellow };
   }
   return { text: 'JR OK', line: 'JR', code: 'OK', issue: null, color: COLORS.green };
 }
 
 function isRailIssue(route) {
-  return normalizeRailIssueCode(route) !== 'OK';
+  const code = normalizeRailIssueCode(route);
+  return code !== 'OK' && code !== 'ERROR';
 }
 
 function normalizeRailLineName(route) {
@@ -1200,7 +1205,8 @@ function railSeverityRank(route) {
   if (code === 'STOP') return 0;
   if (code === 'DELAY') return 1;
   if (code === 'CHECK') return 2;
-  return 3;
+  if (code === 'PLAN') return 3;
+  return 4;
 }
 
 function compareRailIssues(a, b) {
@@ -1212,9 +1218,12 @@ function compareRailIssues(a, b) {
 function normalizeRailIssueCode(route) {
   const severity = String(route && route.severity || '').toLowerCase();
   const status = String(route && route.statusText || '');
+  if (severity === 'unknown' || /取得不可|確認できず|取得失敗|取得できず/.test(status) || (!severity && !status)) return 'ERROR';
   if (severity === 'suspended' || status.indexOf('見合わせ') >= 0) return 'STOP';
   if (severity === 'delay' || status.indexOf('遅') >= 0) return 'DELAY';
   if (severity === 'normal' || status === '平常運転' || status === '通常運転') return 'OK';
+  // Older GAS snapshots expose an unclassified status with the source heading in detailText.
+  if (status === '運転計画' || (status === '情報あり' && /運転計画/.test(String(route && route.detailText || '')))) return 'PLAN';
   return 'CHECK';
 }
 
