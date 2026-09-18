@@ -1,0 +1,1 @@
+widgyData({"ok":true,"data":{"calendar":{"importedAt":"2026-09-18T13:13:16Z","events":[{"date":"2099-01-01","dateText":"通信テスト","timeText":"固定","title":"診断I 固定データ取得成功","allDay":true,"sortKey":"2099-01-01"}],"previousDayEvents":[]},"bus":{"routes":[]}}});
