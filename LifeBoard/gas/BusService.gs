@@ -137,6 +137,8 @@ function importBusSnapshots_(payload) {
   autoResizeSafe_(sheet, BUS_SNAPSHOT_HEADERS.length);
   CacheService.getScriptCache().remove(BUS_STORED_ROWS_CACHE_KEY);
 
+  saveWidgetBusImport_(payload, importedAt);
+
   return {
     importedAt: importedAt,
     source: String(payload.source || ''),

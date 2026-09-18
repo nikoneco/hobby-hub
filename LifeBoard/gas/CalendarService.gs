@@ -108,6 +108,8 @@ function importCalendarEvents_(payload) {
   sheet.setFrozenRows(1);
   autoResizeSafe_(sheet, CALENDAR_EVENT_HEADERS.length);
 
+  saveWidgetCalendarImport_(payload, importedAt);
+
   return {
     importedAt: importedAt,
     source: String(payload.source || ''),

@@ -98,6 +98,8 @@ function handleWebAppJsonpRequest_(apiName, params) {
 function dispatchWebAppJsonpApi_(apiName, args) {
   const name = String(apiName || '').trim();
   switch (name) {
+    case 'widgetData':
+      return apiGetWidgetData_();
     case 'bootstrap':
       return getClientBootstrap_();
     case 'lifeBoardData':
