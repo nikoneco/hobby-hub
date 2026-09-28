@@ -68,6 +68,9 @@ const app = document.getElementById('app');
     if (id === 'jack_load') {
       return 'JCK';
     }
+    if (id === 'sudoku') {
+      return '数独';
+    }
     return String(module.icon || 'APP').slice(0, 3).toUpperCase();
   }
 

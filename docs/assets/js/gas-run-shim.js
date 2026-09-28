@@ -57,6 +57,15 @@
         "display_order": 6,
         "icon": "jack",
         "target_url": "https://script.google.com/macros/s/AKfycbzO_TsuxIRSqSn5a-YOGyOPDRgaJNHZRDr_8GZpGCOMhYkzLg5QIa3kcli8ETOx1fmEKQ/exec"
+      },
+      {
+        "module_id": "sudoku",
+        "module_name": "数独",
+        "description": "数字を埋めて楽しむ数独パズル",
+        "enabled": true,
+        "display_order": 7,
+        "icon": "grid",
+        "target_url": "./sudoku/"
       }
     ]
   },
@@ -116,6 +125,15 @@
         "display_order": 6,
         "icon": "jack",
         "target_url": "https://script.google.com/macros/s/AKfycbzO_TsuxIRSqSn5a-YOGyOPDRgaJNHZRDr_8GZpGCOMhYkzLg5QIa3kcli8ETOx1fmEKQ/exec"
+      },
+      {
+        "module_id": "sudoku",
+        "module_name": "数独",
+        "description": "数字を埋めて楽しむ数独パズル",
+        "enabled": true,
+        "display_order": 7,
+        "icon": "grid",
+        "target_url": "./sudoku/"
       }
     ]
   }

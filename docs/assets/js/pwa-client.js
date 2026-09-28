@@ -54,12 +54,22 @@
     "display_order": 6,
     "icon": "jack",
     "target_url": "https://script.google.com/macros/s/AKfycbzO_TsuxIRSqSn5a-YOGyOPDRgaJNHZRDr_8GZpGCOMhYkzLg5QIa3kcli8ETOx1fmEKQ/exec"
+  },
+  {
+    "module_id": "sudoku",
+    "module_name": "数独",
+    "description": "数字を埋めて楽しむ数独パズル",
+    "enabled": true,
+    "display_order": 7,
+    "icon": "grid",
+    "target_url": "./sudoku/"
   }
 ];
   window.hobbyHubOpenModuleUrl = (url) => {
     window.location.assign(url);
   };
   const pageTargets = {
+    sudoku: './sudoku/',
     study737: './737-study-finder/',
     room_library: './room-library/',
     celestiframe: './celestiframe/',

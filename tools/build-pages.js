@@ -74,6 +74,15 @@ const APPS = [
             display_order: 6,
             icon: 'jack',
             target_url: 'https://script.google.com/macros/s/AKfycbzO_TsuxIRSqSn5a-YOGyOPDRgaJNHZRDr_8GZpGCOMhYkzLg5QIa3kcli8ETOx1fmEKQ/exec'
+          },
+          {
+            module_id: 'sudoku',
+            module_name: '数独',
+            description: '数字を埋めて楽しむ数独パズル',
+            enabled: true,
+            display_order: 7,
+            icon: 'grid',
+            target_url: './sudoku/'
           }
         ]
       }
@@ -245,6 +254,12 @@ function inlineIncludes(app, html) {
 }
 
 function writeSharedPwaFiles() {
+  ensureDir(path.join(DOCS, 'sudoku'));
+  fs.writeFileSync(path.join(DOCS, 'sudoku', 'index.html'), buildExternalAppShell({
+    title: '数独',
+    src: 'https://nikoneco.github.io/Sudoku/',
+    themeColor: '#f7f5ef'
+  }), 'utf8');
   ensureDir(path.join(DOCS, 'room-library'));
   fs.writeFileSync(path.join(DOCS, 'room-library', 'index.html'), buildExternalAppShell({
     title: '趣味部屋図書館',
@@ -446,6 +461,7 @@ function buildModeScript(app) {
     window.location.assign(url);
   };
   const pageTargets = {
+    sudoku: './sudoku/',
     study737: './737-study-finder/',
     room_library: './room-library/',
     celestiframe: './celestiframe/',
@@ -627,6 +643,7 @@ function buildServiceWorker() {
     PAGES_BASE + 'room-library/index.html',
     PAGES_BASE + 'celestiframe/index.html',
     PAGES_BASE + 'jack-load/index.html',
+    PAGES_BASE + 'sudoku/index.html',
     PAGES_BASE + '737-study-finder/index.html',
     PAGES_BASE + '737-study-finder/assets/css/app.css',
     PAGES_BASE + '737-study-finder/assets/css/pwa.css',

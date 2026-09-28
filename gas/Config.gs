@@ -58,6 +58,14 @@ const CONFIG = {
       WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbzO_TsuxIRSqSn5a-YOGyOPDRgaJNHZRDr_8GZpGCOMhYkzLg5QIa3kcli8ETOx1fmEKQ/exec',
       ICON: 'jack',
       DISPLAY_ORDER: 6
+    },
+    SUDOKU: {
+      MODULE_ID: 'sudoku',
+      NAME: '数独',
+      DESCRIPTION: '数字を埋めて楽しむ数独パズル',
+      WEB_APP_URL: 'https://nikoneco.github.io/hobby-hub/sudoku/',
+      ICON: 'grid',
+      DISPLAY_ORDER: 7
     }
   }
 };

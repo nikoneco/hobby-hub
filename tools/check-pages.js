@@ -22,6 +22,7 @@ const REQUIRED_FILES = [
   '737-study-finder/assets/answer-figures/ata47-ngs-diagram.webp',
   'celestiframe/index.html',
   'jack-load/index.html',
+  'sudoku/index.html',
   'izakaya-scout/index.html',
   'izakaya-scout/assets/js/gas-run-shim.js',
   'lifeboard/index.html',

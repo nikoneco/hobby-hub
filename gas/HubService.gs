@@ -61,7 +61,8 @@ function buildDefaultModules_() {
     buildLifeBoardModule_(),
     buildIzakayaScoutModule_(),
     buildCelestiFrameModule_(),
-    buildJackLoadModule_()
+    buildJackLoadModule_(),
+    buildSudokuModule_()
   ];
 }
 
@@ -147,6 +148,22 @@ function buildCelestiFrameModule_() {
 
 function buildJackLoadModule_() {
   const app = CONFIG.APPS.JACK_LOAD;
+  return {
+    module_id: app.MODULE_ID,
+    module_name: app.NAME,
+    description: app.DESCRIPTION,
+    enabled: true,
+    display_order: app.DISPLAY_ORDER,
+    icon: app.ICON,
+    target_url: app.WEB_APP_URL,
+    app_folder_id: '',
+    script_id: '',
+    db_spreadsheet_id: ''
+  };
+}
+
+function buildSudokuModule_() {
+  const app = CONFIG.APPS.SUDOKU;
   return {
     module_id: app.MODULE_ID,
     module_name: app.NAME,
