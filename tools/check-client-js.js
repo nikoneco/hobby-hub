@@ -7,6 +7,7 @@ const DOCS = path.join(ROOT, 'docs');
 const JS_FILES = [
   'assets/js/gas-run-shim.js',
   'assets/js/app.js',
+  'assets/js/flavor-messages.js',
   'assets/js/pwa-client.js',
   '737-study-finder/assets/js/gas-run-shim.js',
   '737-study-finder/assets/js/app.js',

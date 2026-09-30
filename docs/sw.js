@@ -1,4 +1,4 @@
-const CACHE_NAME = "hobby-hub-pwa-content-025a4745f9e8";
+const CACHE_NAME = "hobby-hub-pwa-content-e8d90ce77569";
 const APP_SHELL = [
   "/hobby-hub/",
   "/hobby-hub/index.html",
@@ -11,6 +11,7 @@ const APP_SHELL = [
   "/hobby-hub/assets/css/pwa.css",
   "/hobby-hub/assets/js/gas-run-shim.js",
   "/hobby-hub/assets/js/app.js",
+  "/hobby-hub/assets/js/flavor-messages.js",
   "/hobby-hub/assets/js/pwa-client.js",
   "/hobby-hub/room-library/index.html",
   "/hobby-hub/celestiframe/index.html",

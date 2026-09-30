@@ -163,6 +163,7 @@ function createBuildVersion() {
   // The HUB image is a standalone Pages asset and a GAS include. Include its
   // contents in the cache version so replacement artwork always invalidates it.
   files.push(path.join(ROOT, 'assets', 'hobby-hub-night-librarian.webp'));
+  files.push(path.join(ROOT, 'gas', 'flavor_messages.html'));
   APPS.forEach((app) => {
     ['index.html', 'style.html', 'script.html'].forEach((name) => {
       files.push(path.join(app.sourceDir, name));
@@ -215,6 +216,10 @@ function buildApp(app) {
   fs.writeFileSync(path.join(jsDir, 'gas-run-shim.js'), buildGasRunShim(app), 'utf8');
   fs.writeFileSync(path.join(jsDir, 'pwa-client.js'), buildPwaClient(app), 'utf8');
   fs.writeFileSync(path.join(jsDir, 'app.js'), js, 'utf8');
+  if (app.id === 'hub') {
+    fs.writeFileSync(path.join(jsDir, 'flavor-messages.js'),
+      stripWrapper(readSource(app, 'flavor_messages.html'), 'script'), 'utf8');
+  }
 
   let html = readSource(app, 'index.html');
   html = inlineIncludes(app, html);
@@ -262,6 +267,9 @@ function inlineIncludes(app, html) {
   return html.replace(/<\?!=\s*include\('([^']+)'\);\s*\?>/g, (match, name) => {
     if (name === 'style' || name === 'script') {
       return match;
+    }
+    if (app.id === 'hub' && name === 'flavor_messages') {
+      return '<script src="./assets/js/flavor-messages.js?v=' + BUILD_VERSION + '"></script>';
     }
     if (app.id === 'hub' && name === 'hero_mascot') {
       return './assets/hobby-hub-night-librarian.webp?v=' + BUILD_VERSION;
@@ -657,6 +665,7 @@ function buildServiceWorker() {
     PAGES_BASE + 'assets/css/pwa.css',
     PAGES_BASE + 'assets/js/gas-run-shim.js',
     PAGES_BASE + 'assets/js/app.js',
+    PAGES_BASE + 'assets/js/flavor-messages.js',
     PAGES_BASE + 'assets/js/pwa-client.js',
     PAGES_BASE + 'room-library/index.html',
     PAGES_BASE + 'celestiframe/index.html',

@@ -177,16 +177,43 @@
     modules.forEach((module) => root.appendChild(createModuleButton(module, true)));
   }
 
+  const FLAVOR_STORAGE_KEY = 'hobbyHub.flavorHistory.v1';
+  const FLAVOR_HISTORY_LIMIT = 5;
+  let flavorHistory = readFlavorHistory();
+
+  function normalizeFlavorHistory(value) {
+    if (!Array.isArray(value)) return [];
+    const knownIds = new Set((window.HOBBY_HUB_FLAVOR_PERIODS || [])
+      .flatMap((period) => period.messages.map((message) => message.id)));
+    return value.filter((id, index) => typeof id === 'string' &&
+      knownIds.has(id) && value.indexOf(id) === index).slice(0, FLAVOR_HISTORY_LIMIT);
+  }
+
+  function readFlavorHistory() {
+    try {
+      return normalizeFlavorHistory(JSON.parse(window.localStorage.getItem(FLAVOR_STORAGE_KEY) || '[]'));
+    } catch (_error) {
+      return [];
+    }
+  }
+
   function setFlavorText() {
     const hour = new Date().getHours();
-    const messages = hour >= 5 && hour < 11
-      ? ['おはよう。今日は何から始める？', '朝のうちに、ちょっと覗いていく？', 'LifeBoard、見ておく？']
-      : hour >= 11 && hour < 17
-        ? ['今日はどこに行く？', '何か面白いこと、探してみる？', '好きなものから選んでね。']
-        : hour >= 17
-          ? ['夜の書斎へようこそ。', '今夜は何して遊ぶ？', '星でも見に行く？', '本棚、覗いていく？']
-          : ['まだ起きてるの？', '夜更かしもほどほどにね。', '静かな時間だね。'];
-    document.getElementById('flavorText').textContent = messages[Math.floor(Math.random() * messages.length)];
+    const period = (window.HOBBY_HUB_FLAVOR_PERIODS || [])
+      .find((item) => hour >= item.startHour && hour < item.endHour);
+    if (!period || !period.messages.length) return;
+    const available = period.messages.filter((message) => !flavorHistory.includes(message.id));
+    // A future smaller set must still speak even if every line was recent.
+    const candidates = available.length ? available : period.messages;
+    const message = candidates[Math.floor(Math.random() * candidates.length)];
+    document.getElementById('flavorText').textContent = message.text;
+    flavorHistory = [message.id, ...flavorHistory.filter((id) => id !== message.id)]
+      .slice(0, FLAVOR_HISTORY_LIMIT);
+    try {
+      window.localStorage.setItem(FLAVOR_STORAGE_KEY, JSON.stringify(flavorHistory));
+    } catch (_error) {
+      // Storage denial/full capacity must not prevent the launcher from loading.
+    }
   }
 
   function openModuleUrl(url) {

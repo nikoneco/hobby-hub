@@ -44,6 +44,9 @@ jobs:
       - name: Check Pages output
         run: node tools/check-pages.js
 
+      - name: Check librarian flavor messages
+        run: node tools/check-flavor-messages.js
+
       - name: Check GAS JSONP API surface
         run: node tools/check-server-api.js
 
