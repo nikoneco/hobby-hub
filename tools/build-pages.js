@@ -24,6 +24,7 @@ const APPS = [
           {
             module_id: 'study737',
             module_name: '737 Study Finder',
+            category: 'aviation',
             description: '737-800の学習ノートと問題検索',
             enabled: true,
             display_order: 1,
@@ -33,6 +34,7 @@ const APPS = [
           {
             module_id: 'room_library',
             module_name: '趣味部屋図書館',
+            category: 'hobby',
             description: '本と資料を眺める趣味部屋の図書館',
             enabled: true,
             display_order: 2,
@@ -42,6 +44,7 @@ const APPS = [
           {
             module_id: 'lifeboard',
             module_name: 'LifeBoard',
+            category: 'daily',
             description: '朝のバス、天気、電車状況をまとめて確認',
             enabled: true,
             display_order: 3,
@@ -51,6 +54,7 @@ const APPS = [
           {
             module_id: 'izakaya_scout',
             module_name: '居酒屋Scout',
+            category: 'daily',
             description: '場所と気分から、今夜の居酒屋候補を3つに絞る',
             enabled: true,
             display_order: 4,
@@ -60,6 +64,7 @@ const APPS = [
           {
             module_id: 'celestiframe',
             module_name: 'CelestiFrame',
+            category: 'hobby',
             description: '月と星の位置を地図で確認する撮影支援アプリ',
             enabled: true,
             display_order: 5,
@@ -69,6 +74,7 @@ const APPS = [
           {
             module_id: 'jack_load',
             module_name: 'JACK LOAD',
+            category: 'aviation',
             description: '航空機JACK UP時の各JACK荷重とLimit判定を計算',
             enabled: true,
             display_order: 6,
@@ -78,6 +84,7 @@ const APPS = [
           {
             module_id: 'sudoku',
             module_name: '数独',
+            category: 'game',
             description: '数字を埋めて楽しむ数独パズル',
             enabled: true,
             display_order: 7,
@@ -153,6 +160,9 @@ const BUILD_VERSION = process.env.PWA_BUILD_VERSION || createBuildVersion();
 function createBuildVersion() {
   const hash = crypto.createHash('sha256');
   const files = [__filename];
+  // The HUB image is a standalone Pages asset and a GAS include. Include its
+  // contents in the cache version so replacement artwork always invalidates it.
+  files.push(path.join(ROOT, 'assets', 'hobby-hub-night-librarian.webp'));
   APPS.forEach((app) => {
     ['index.html', 'style.html', 'script.html'].forEach((name) => {
       files.push(path.join(app.sourceDir, name));
@@ -192,6 +202,10 @@ function buildApp(app) {
   ensureDir(jsDir);
   if (app.staticAssetsDir && fs.existsSync(app.staticAssetsDir)) {
     fs.cpSync(app.staticAssetsDir, assetDir, { recursive: true });
+  }
+  if (app.id === 'hub') {
+    fs.copyFileSync(path.join(ROOT, 'assets', 'hobby-hub-night-librarian.webp'),
+      path.join(assetDir, 'hobby-hub-night-librarian.webp'));
   }
 
   const css = stripWrapper(readSource(app, 'style.html'), 'style');
@@ -248,6 +262,9 @@ function inlineIncludes(app, html) {
   return html.replace(/<\?!=\s*include\('([^']+)'\);\s*\?>/g, (match, name) => {
     if (name === 'style' || name === 'script') {
       return match;
+    }
+    if (app.id === 'hub' && name === 'hero_mascot') {
+      return './assets/hobby-hub-night-librarian.webp?v=' + BUILD_VERSION;
     }
     return readSource(app, name + '.html').trim();
   });
@@ -635,6 +652,7 @@ function buildServiceWorker() {
     PAGES_BASE + 'manifest.webmanifest',
     PAGES_BASE + 'assets/icons/icon-192.png',
     PAGES_BASE + 'assets/icons/icon-512.png',
+    PAGES_BASE + 'assets/hobby-hub-night-librarian.webp',
     PAGES_BASE + 'assets/css/app.css',
     PAGES_BASE + 'assets/css/pwa.css',
     PAGES_BASE + 'assets/js/gas-run-shim.js',

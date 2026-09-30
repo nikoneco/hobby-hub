@@ -1,5 +1,27 @@
 const app = document.getElementById('app');
   const bootstrap = JSON.parse(app.dataset.bootstrap || '{}');
+  const CATEGORIES = [
+    { id: 'all', label: 'すべて' },
+    { id: 'hobby', label: '趣味' },
+    { id: 'daily', label: '日常' },
+    { id: 'aviation', label: '航空' },
+    { id: 'game', label: 'ゲーム' }
+  ];
+  // Existing GAS module rows need no schema migration. New rows can provide
+  // category and short_description directly; this metadata fills older rows.
+  const MODULE_METADATA = {
+    study737: { category: 'aviation', shortDescription: '737-800の学習ノート' },
+    room_library: { category: 'hobby', shortDescription: '本と資料のコレクション' },
+    lifeboard: { category: 'daily', shortDescription: '今日の暮らしをひと目で' },
+    izakaya_scout: { category: 'daily', shortDescription: '今夜のお店を探す' },
+    celestiframe: { category: 'hobby', shortDescription: '月と星を見に行く' },
+    jack_load: { category: 'aviation', shortDescription: 'JACK荷重とLimit判定' },
+    sudoku: { category: 'game', shortDescription: '数字で遊ぶひと休み' }
+  };
+  const RECENT_STORAGE_KEY = 'hobbyHub.recentApps.v1';
+  let currentModules = [];
+  let selectedCategory = 'all';
+  let recentHistory = readRecentHistory();
 
   function unwrap(response) {
     if (!response || !response.ok) {
@@ -10,34 +32,160 @@ const app = document.getElementById('app');
   }
 
   function renderModules(modules) {
+    currentModules = (Array.isArray(modules) ? modules : [])
+      .filter((module) => module && typeof module === 'object' &&
+        (module.enabled == null || module.enabled === true ||
+         module.enabled === 'TRUE' || module.enabled === 'true'))
+      .slice()
+      .sort((a, b) => moduleOrder(a) - moduleOrder(b));
+    renderFilteredModules();
+    renderRecentModules();
+  }
+
+  function moduleOrder(module) {
+    const order = Number(module.display_order || 0);
+    return Number.isFinite(order) ? order : 0;
+  }
+
+  function getModuleCategory(module) {
+    const metadata = MODULE_METADATA[String(module.module_id || '')] || {};
+    return String(module.category || metadata.category || '');
+  }
+
+  function categoryLabel(category) {
+    const definition = CATEGORIES.find((item) => item.id === category);
+    return definition ? definition.label : '';
+  }
+
+  function renderCategoryFilters() {
+    const root = document.getElementById('categoryFilters');
+    CATEGORIES.forEach((category) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'category-button';
+      button.dataset.category = category.id;
+      button.textContent = category.label;
+      button.setAttribute('aria-pressed', String(category.id === selectedCategory));
+      button.setAttribute('aria-controls', 'modules');
+      button.addEventListener('click', () => {
+        selectedCategory = category.id;
+        root.querySelectorAll('button').forEach((item) => {
+          item.setAttribute('aria-pressed', String(item.dataset.category === selectedCategory));
+        });
+        renderFilteredModules();
+      });
+      root.appendChild(button);
+    });
+  }
+
+  function renderFilteredModules() {
     const root = document.getElementById('modules');
     root.innerHTML = '';
     root.className = 'module-grid';
+    const modules = currentModules.filter((module) =>
+      selectedCategory === 'all' || getModuleCategory(module) === selectedCategory);
+    document.getElementById('moduleCount').textContent = modules.length + '件';
     if (!modules.length) {
-      root.textContent = '登録済みのアプリがありません。初期設定を実行してね。';
+      root.textContent = currentModules.length
+        ? 'このカテゴリには、まだアプリがありません。'
+        : '登録済みのアプリがありません。初期設定を実行してね。';
       root.className = 'muted';
       return;
     }
-    modules.forEach((module) => {
-      const button = document.createElement('button');
-      const hasUrl = Boolean(module.target_url);
-      button.className = hasUrl ? 'module-card' : 'module-card disabled';
-      button.disabled = !hasUrl;
-      button.type = 'button';
-      button.setAttribute('aria-label', (module.module_name || 'アプリ') + 'を開く');
-      button.innerHTML = [
-        '<span class="module-icon">' + escapeHtml(getIconLabel(module)) + '</span>',
-        '<span class="module-body">',
-        '<strong>' + escapeHtml(module.module_name) + '</strong>',
-        '<span>' + escapeHtml(module.description || '') + '</span>',
-        hasUrl ? '<em>開く</em>' : '<em>WebアプリURL未設定</em>',
+    modules.forEach((module) => root.appendChild(createModuleButton(module, false)));
+  }
+
+  function createModuleButton(module, recent) {
+    const button = document.createElement('button');
+    const hasUrl = Boolean(module.target_url);
+    const name = String(module.module_name || 'アプリ');
+    const description = String(module.description || '');
+    const metadata = MODULE_METADATA[String(module.module_id || '')] || {};
+    const shortDescription = module.short_description || metadata.shortDescription || description;
+    button.className = recent ? 'recent-card' : 'module-card';
+    button.disabled = !hasUrl;
+    button.type = 'button';
+    button.dataset.moduleId = String(module.module_id || '');
+    button.setAttribute('aria-label', name + (hasUrl ? 'を開く' : '（WebアプリURL未設定）') + (description ? '。' + description : ''));
+    button.title = name + (description ? '\n' + description : '');
+    const icon = '<span class="module-icon" aria-hidden="true">' + escapeHtml(getIconLabel(module)) + '</span>';
+    button.innerHTML = recent
+      ? icon + '<span class="recent-name">' + escapeHtml(name) + '</span>'
+      : [
+        '<span class="card-topline">', icon,
+        '<span class="card-category" aria-hidden="true">' + escapeHtml(categoryLabel(getModuleCategory(module))) + '</span></span>',
+        '<span class="module-body"><strong>' + escapeHtml(name) + '</strong>',
+        '<span class="module-description">' + escapeHtml(shortDescription) + '</span>',
+        hasUrl ? '' : '<em>WebアプリURL未設定</em>',
         '</span>'
       ].join('');
-      if (hasUrl) {
-        button.addEventListener('click', () => openModuleUrl(module.target_url));
+    if (hasUrl) {
+      button.addEventListener('click', () => {
+        rememberModule(module);
+        openModuleUrl(module.target_url);
+      });
+    }
+    return button;
+  }
+
+  function normalizeRecentHistory(value) {
+    if (!Array.isArray(value)) return [];
+    const entries = new Map();
+    value.forEach((item) => {
+      if (!item || typeof item.moduleId !== 'string' || !item.moduleId ||
+          !Number.isFinite(item.lastOpened) || item.lastOpened <= 0) return;
+      const existing = entries.get(item.moduleId);
+      if (!existing || item.lastOpened > existing.lastOpened) {
+        entries.set(item.moduleId, { moduleId: item.moduleId, lastOpened: item.lastOpened });
       }
-      root.appendChild(button);
     });
+    return Array.from(entries.values()).sort((a, b) => b.lastOpened - a.lastOpened).slice(0, 3);
+  }
+
+  function readRecentHistory() {
+    try {
+      return normalizeRecentHistory(JSON.parse(window.localStorage.getItem(RECENT_STORAGE_KEY) || '[]'));
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  function rememberModule(module) {
+    const moduleId = String(module.module_id || '');
+    if (!moduleId) return;
+    recentHistory = normalizeRecentHistory([
+      { moduleId, lastOpened: Date.now() },
+      ...recentHistory.filter((item) => item.moduleId !== moduleId)
+    ]);
+    try {
+      window.localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(recentHistory));
+    } catch (_error) {
+      // Browser storage may be denied or full; launching still works.
+    }
+    renderRecentModules();
+  }
+
+  function renderRecentModules() {
+    const root = document.getElementById('recentModules');
+    root.innerHTML = '';
+    const byId = new Map(currentModules.filter((module) => module.target_url)
+      .map((module) => [String(module.module_id || ''), module]));
+    recentHistory = recentHistory.filter((item) => byId.has(item.moduleId));
+    const modules = recentHistory.map((item) => byId.get(item.moduleId)).slice(0, 3);
+    document.getElementById('recentSection').hidden = modules.length === 0;
+    modules.forEach((module) => root.appendChild(createModuleButton(module, true)));
+  }
+
+  function setFlavorText() {
+    const hour = new Date().getHours();
+    const messages = hour >= 5 && hour < 11
+      ? ['おはよう。今日は何から始める？', '朝のうちに、ちょっと覗いていく？', 'LifeBoard、見ておく？']
+      : hour >= 11 && hour < 17
+        ? ['今日はどこに行く？', '何か面白いこと、探してみる？', '好きなものから選んでね。']
+        : hour >= 17
+          ? ['夜の書斎へようこそ。', '今夜は何して遊ぶ？', '星でも見に行く？', '本棚、覗いていく？']
+          : ['まだ起きてるの？', '夜更かしもほどほどにね。', '静かな時間だね。'];
+    document.getElementById('flavorText').textContent = messages[Math.floor(Math.random() * messages.length)];
   }
 
   function openModuleUrl(url) {
@@ -105,6 +253,8 @@ const app = document.getElementById('app');
       .replace(/'/g, '&#039;');
   }
 
+  renderCategoryFilters();
+  setFlavorText();
   renderModules((bootstrap.data && bootstrap.data.modules) || []);
   document.getElementById('setupButton').addEventListener('click', runSetup);
   document.getElementById('refreshButton').addEventListener('click', loadModules);

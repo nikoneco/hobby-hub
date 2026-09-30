@@ -1,39 +1,50 @@
 <!doctype html>
-<html>
+<html lang="ja">
   <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>趣味HUB</title>
     <base target="_top">
     <?!= include('style'); ?>
   </head>
   <body>
     <div id="app" data-bootstrap='<?= bootstrapJson ?>'>
-      <header class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">Private Hobby Archive</p>
+      <header class="hub-header">
+        <div class="brand">
           <h1>趣味HUB</h1>
-          <p class="lead">本棚、学習ノート、好きなものへの入口をひとつの夜の書斎に。</p>
-          <div class="hero-actions">
-            <button id="refreshButton" type="button">更新</button>
-            <button id="setupButton" class="primary" type="button">初期設定</button>
-          </div>
+          <p class="eyebrow">Private Hobby Archive</p>
         </div>
-        <div class="shelf-visual" aria-hidden="true">
-          <div class="mascot-frame">
-            <img class="mascot-image" src="<?!= include('hero_mascot'); ?>" alt="">
-          </div>
+        <div class="header-actions">
+          <button id="refreshButton" class="utility-button" type="button" title="アプリ一覧を更新" aria-label="アプリ一覧を更新"><span aria-hidden="true">↻</span><span class="utility-label">更新</span></button>
+          <button id="setupButton" class="utility-button" type="button" title="初期設定" aria-label="初期設定"><span aria-hidden="true">⚙</span><span class="utility-label">初期設定</span></button>
         </div>
       </header>
 
       <main class="layout">
-        <section class="module-list" aria-labelledby="appsTitle">
-          <div class="section-heading">
-            <div>
-              <p class="section-kicker">Collection</p>
+        <div class="launcher">
+          <section id="recentSection" class="recent-section" aria-labelledby="recentTitle" hidden>
+            <h2 id="recentTitle">最近使ったアプリ</h2>
+            <div id="recentModules" class="recent-grid"></div>
+          </section>
+          <section class="module-list" aria-labelledby="appsTitle">
+            <div class="section-heading">
               <h2 id="appsTitle">アプリ一覧</h2>
-              <p class="section-note">使いたい棚を選んでね。</p>
+              <span id="moduleCount" class="module-count" role="status" aria-live="polite"></span>
+            </div>
+            <div id="categoryFilters" class="category-filters" role="group" aria-label="アプリカテゴリ"></div>
+            <div id="modules" class="module-grid"></div>
+          </section>
+          <p class="study-note">本棚、学習ノート、好きなものへの入口をひとつの夜の書斎に。</p>
+        </div>
+        <aside class="librarian" aria-label="夜の司書さん">
+          <div class="mascot-frame">
+            <img class="mascot-image" src="<?!= include('hero_mascot'); ?>" width="720" height="1279" alt="本を手に、書斎で案内する夜の司書さん" fetchpriority="high">
+            <div class="librarian-message">
+              <p class="librarian-label">夜の司書さん</p>
+              <p id="flavorText" class="speech-bubble">今日はどこに行く？</p>
             </div>
           </div>
-          <div id="modules" class="module-grid"></div>
-        </section>
+        </aside>
       </main>
     </div>
     <?!= include('script'); ?>

@@ -4,6 +4,7 @@
   {
     "module_id": "study737",
     "module_name": "737 Study Finder",
+    "category": "aviation",
     "description": "737-800の学習ノートと問題検索",
     "enabled": true,
     "display_order": 1,
@@ -13,6 +14,7 @@
   {
     "module_id": "room_library",
     "module_name": "趣味部屋図書館",
+    "category": "hobby",
     "description": "本と資料を眺める趣味部屋の図書館",
     "enabled": true,
     "display_order": 2,
@@ -22,6 +24,7 @@
   {
     "module_id": "lifeboard",
     "module_name": "LifeBoard",
+    "category": "daily",
     "description": "朝のバス、天気、電車状況をまとめて確認",
     "enabled": true,
     "display_order": 3,
@@ -31,6 +34,7 @@
   {
     "module_id": "izakaya_scout",
     "module_name": "居酒屋Scout",
+    "category": "daily",
     "description": "場所と気分から、今夜の居酒屋候補を3つに絞る",
     "enabled": true,
     "display_order": 4,
@@ -40,6 +44,7 @@
   {
     "module_id": "celestiframe",
     "module_name": "CelestiFrame",
+    "category": "hobby",
     "description": "月と星の位置を地図で確認する撮影支援アプリ",
     "enabled": true,
     "display_order": 5,
@@ -49,6 +54,7 @@
   {
     "module_id": "jack_load",
     "module_name": "JACK LOAD",
+    "category": "aviation",
     "description": "航空機JACK UP時の各JACK荷重とLimit判定を計算",
     "enabled": true,
     "display_order": 6,
@@ -58,6 +64,7 @@
   {
     "module_id": "sudoku",
     "module_name": "数独",
+    "category": "game",
     "description": "数字を埋めて楽しむ数独パズル",
     "enabled": true,
     "display_order": 7,
