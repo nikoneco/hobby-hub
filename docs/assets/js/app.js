@@ -284,4 +284,4 @@ const app = document.getElementById('app');
   setFlavorText();
   renderModules((bootstrap.data && bootstrap.data.modules) || []);
   document.getElementById('setupButton').addEventListener('click', runSetup);
-  document.getElementById('refreshButton').addEventListener('click', loadModules);
+  document.getElementById('librarianButton').addEventListener('click', setFlavorText);

@@ -1,4 +1,4 @@
-const CACHE_NAME = "hobby-hub-pwa-content-e8d90ce77569";
+const CACHE_NAME = "hobby-hub-pwa-content-de523a0bbda7";
 const APP_SHELL = [
   "/hobby-hub/",
   "/hobby-hub/index.html",

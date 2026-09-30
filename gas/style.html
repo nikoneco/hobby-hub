@@ -167,6 +167,9 @@
 
   .librarian { min-width: 0; }
   .mascot-frame {
+    display: block;
+    padding: 0;
+    text-align: left;
     position: relative;
     width: 100%;
     height: 580px;
@@ -179,7 +182,7 @@
   .mascot-frame::after { content: ""; position: absolute; inset: 0; pointer-events: none; border: 5px solid rgba(20, 14, 10, 0.22); border-radius: inherit; background: linear-gradient(180deg, transparent 55%, rgba(16, 12, 9, 0.1) 68%, rgba(16, 12, 9, 0.8)); }
   .mascot-image { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 42%; }
   .librarian-message { position: absolute; z-index: 1; bottom: 28px; left: 23px; right: 23px; }
-  .speech-bubble { position: relative; padding: 14px 16px; border: 1px solid rgba(203, 166, 98, 0.7); border-radius: 8px; background: rgba(30, 23, 17, 0.94); color: var(--paper); font-family: "Yu Mincho", "Hiragino Mincho ProN", Georgia, serif; font-size: 16px; line-height: 1.7; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25); }
+  .speech-bubble { display: block; position: relative; padding: 14px 16px; border: 1px solid rgba(203, 166, 98, 0.7); border-radius: 8px; background: rgba(30, 23, 17, 0.94); color: var(--paper); font-family: "Yu Mincho", "Hiragino Mincho ProN", Georgia, serif; font-size: 16px; line-height: 1.7; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25); }
   .speech-bubble::before { content: ""; position: absolute; top: -6px; right: 35px; width: 10px; height: 10px; border-left: 1px solid rgba(203, 166, 98, 0.7); border-top: 1px solid rgba(203, 166, 98, 0.7); transform: rotate(45deg); background: #1e1711; }
 
   @media (min-width: 1500px) {
