@@ -317,10 +317,25 @@ function Invoke-Weather {
 
 function Invoke-Pixoo {
   param([switch]$SkipWeatherRefresh)
+  $renderDue = Test-PixooRenderDue
+  if ($renderDue -and -not $DryRun) {
+    $wifiConfig = Join-Path $lifeBoardDir 'pixoo_display\wifi_recovery.local.ps1'
+    $wifiHelper = Join-Path $scriptDir 'Pixoo_WifiRecovery.ps1'
+    if ((Test-Path -LiteralPath $wifiConfig) -and (Test-Path -LiteralPath $wifiHelper)) {
+      try {
+        . $wifiHelper -LibraryOnly
+        $wifiResult = Invoke-PixooWifiRecovery -SettingsPath $wifiConfig -StateDir $logDir
+        Add-Log "pixoo-wifi $wifiResult"
+      } catch {
+        # Recovery failure must not block ordinary Pixoo/Weather processing.
+        Add-Log ('pixoo-wifi WARNING ' + $_.Exception.Message)
+      }
+    }
+  }
   if (-not $SkipWeatherRefresh) {
     Invoke-Weather
   }
-  if (-not (Test-PixooRenderDue)) {
+  if (-not $renderDue) {
     return
   }
   $script = Join-Path $lifeBoardDir 'pixoo_display\pixoo_lifeboard.js'

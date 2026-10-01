@@ -235,6 +235,22 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
 
 ## Troubleshooting animation uploads
 
+- The server runner can automatically recover the known repeater connectivity
+  failure. `pixoo_display/wifi_recovery.local.ps1` returns a hashtable containing
+  `MachineName`, `InterfaceGuid`, `InterfaceName`, `Ssid`, `Profile`,
+  `RepeaterBssid`, `ParentBssid`, and `PixooIp`. Keep this deployment-specific
+  file out of Git; normal server deployments preserve all `*.local.*` files.
+- Before a scheduled Pixoo send, recovery checks the configured Wi-Fi interface.
+  Only the known repeater plus an unsuccessful read-only Pixoo HTTP probe causes
+  a parent-AP reconnect. Working repeater connections, parent/unknown APs, other
+  PCs, and dry runs are left unchanged. Reconnect attempts have a 10-minute
+  cooldown. A separately launched hidden rollback guard must report ready before
+  switching; after 90 seconds without verified parent + Pixoo HTTP success, it
+  requests the existing saved Wi-Fi profile. Normal send processing continues
+  even if recovery fails. See `pixoo-wifi` in `lifeboard_ops_runner.log` and
+  `wifi_recovery.log` for guard fallbacks. Daytime checks run each minute;
+  overnight checks run at the existing 15-minute send boundaries.
+
 - A failed animation update can appear as `Loading`, a brief corrupted/noise
   screen, and then a return to the previously displayed LifeBoard frame. The
   Pixoo local API may still return `error_code: 0`, so an API success response

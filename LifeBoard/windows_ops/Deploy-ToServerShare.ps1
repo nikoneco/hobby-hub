@@ -50,6 +50,9 @@ function Test-ExcludedFile {
   if ($excludedNames -contains $File.Name) {
     return $true
   }
+  if ($File.Name -like '*.local.*') {
+    return $true
+  }
   if ($File.Name -like '*.log') {
     return $true
   }
@@ -103,6 +106,10 @@ Copy-FileSafe `
 Copy-FileSafe `
   -Source (Join-Path $lifeBoardSource 'windows_ops\LifeBoard_RunHidden.vbs') `
   -Destination (Join-Path $targetRootResolved 'LifeBoard_RunHidden.vbs')
+
+Copy-FileSafe `
+  -Source (Join-Path $lifeBoardSource 'windows_ops\Pixoo_WifiRecovery.ps1') `
+  -Destination (Join-Path $targetRootResolved 'Pixoo_WifiRecovery.ps1')
 
 Copy-FileSafe `
   -Source (Join-Path $lifeBoardSource 'windows_ops\LifeBoard_Task_Setup.ps1') `
