@@ -170,8 +170,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   weather/garbage/work change, or a night/transition scene still requires one
   complete base-animation upload. The hourglass may appear for that upload.
 - Set `LIFEBOARD_PIXOO_ANIMATE_BUS_BAR=0` to force static-frame operation.
-- A small amber cat sits beside the parked bus on holidays and paid-leave days
-  (`休日` / `有給`), moving its tail. It yields the header when a bus is 5 minutes
+- A small amber cat sits beside the parked bus on `/`, `H`, `AL`, and `10H`
+  days, moving its tail. Eligibility uses the shift code rather than its display
+  label, so `SV` does not qualify despite also displaying `有給`. An overnight
+  shift still in progress takes priority over the next day's `/` until 08:09.
+  The cat yields the header when a bus is 5 minutes
   or less away, during first/last-bus transitions, at sunrise, and while an exam
   title takes priority over the holiday marker.
 - In the overnight waiting scene the cat curls up beside the moon. A 36-frame

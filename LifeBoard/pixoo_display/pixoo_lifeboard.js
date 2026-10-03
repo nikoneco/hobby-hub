@@ -899,7 +899,7 @@ function resolveCatScene(snapshot, workStatus, busScene, options) {
     return 'none';
   }
   if (busScene === 'night') return 'sleeping';
-  if (workStatus && ['休日', '有給'].includes(workStatus.mixedText)) return 'awake';
+  if (workStatus && ['/', 'H', 'AL', '10H'].includes(workStatus.shiftCode)) return 'awake';
   return 'none';
 }
 
@@ -1042,7 +1042,7 @@ function buildWorkStatus(lifeData, nowValue) {
   const yesterdayShift = findShiftForDate(events, yesterday);
   const activeShift = activeShiftCode(now, todayShift, yesterdayShift);
   if (activeShift) {
-    return { mixedText: activeShift + '勤中', color: COLORS.pink };
+    return { mixedText: activeShift + '勤中', color: COLORS.pink, shiftCode: activeShift };
   }
 
   if (!todayShift) {
@@ -1050,20 +1050,20 @@ function buildWorkStatus(lifeData, nowValue) {
   }
   if (todayShift === '/') {
     if (['AL', 'SV', '10H'].includes(yesterdayShift)) {
-      return { mixedText: '休日', color: COLORS.blue };
+      return { mixedText: '休日', color: COLORS.blue, shiftCode: todayShift };
     }
-    return { mixedText: '明け', color: COLORS.blue };
+    return { mixedText: '明け', color: COLORS.blue, shiftCode: todayShift };
   }
   if (todayShift === 'H') {
-    return { mixedText: '休日', color: COLORS.blue };
+    return { mixedText: '休日', color: COLORS.blue, shiftCode: todayShift };
   }
   if (todayShift === 'AL' || todayShift === 'SV') {
-    return { mixedText: '有給', color: COLORS.blue };
+    return { mixedText: '有給', color: COLORS.blue, shiftCode: todayShift };
   }
   if (todayShift === '10H') {
-    return { mixedText: '10H', color: COLORS.blue };
+    return { mixedText: '10H', color: COLORS.blue, shiftCode: todayShift };
   }
-  return { mixedText: todayShift + '勤', color: COLORS.green };
+  return { mixedText: todayShift + '勤', color: COLORS.green, shiftCode: todayShift };
 }
 
 function collectCalendarEvents(calendar) {

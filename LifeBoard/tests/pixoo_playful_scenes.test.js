@@ -25,8 +25,15 @@ const catScene = (snapshot, life, scene = 'normal', overrides = {}) => context.r
   snapshot, context.buildWorkStatus(life, overrides.now || options.now), scene, { ...options, ...overrides }
 );
 
-for (const title of ['H', 'AL', 'SV']) assert.strictEqual(catScene(far, data(title)), 'awake');
-for (const title of ['D', 'N', 'S', '/', '10H']) assert.strictEqual(catScene(far, data(title)), 'none');
+for (const title of ['/', 'H', 'AL', '10H']) assert.strictEqual(catScene(far, data(title)), 'awake');
+for (const title of ['D', 'N', 'S', 'SV']) assert.strictEqual(catScene(far, data(title)), 'none');
+assert.strictEqual(context.buildWorkStatus(data('AL'), options.now).mixedText, context.buildWorkStatus(data('SV'), options.now).mixedText, 'AL and SV share a label but only AL may show the cat');
+const afterNightShift = data('/', [{ date: '2026-10-03', title: 'N', allDay: true }]);
+assert.strictEqual(catScene(far, afterNightShift, 'normal', { now: '2026-10-04T08:08:00+09:00' }), 'none', 'night shift still in progress must take priority over the slash day');
+assert.strictEqual(catScene(far, afterNightShift, 'normal', { now: '2026-10-04T08:09:00+09:00' }), 'awake', 'cat must appear once the slash day becomes post-shift');
+for (const previousTitle of ['AL', 'SV', '10H']) {
+  assert.strictEqual(catScene(far, data('/', [{ date: '2026-10-03', title: previousTitle, allDay: true }])), 'awake', 'slash day must qualify even when displayed as holiday');
+}
 assert.strictEqual(catScene(far, {}), 'none', 'missing calendar must not invent a holiday');
 assert.strictEqual(catScene(far, data('H', [{ date: '2026-10-04', title: '試験', category: '試験関係', allDay: true }])), 'none');
 assert.strictEqual(catScene(ended, holiday, 'sunrise'), 'none');
@@ -48,7 +55,7 @@ for (const remainingMinutes of [5, 1, 0]) {
 const awake = render(far, holiday);
 assert.strictEqual(awake.length, 6);
 assert.ok(!awake[0].equals(awake[3]), 'tail must move');
-const withoutCat = render(far, data('10H'));
+const withoutCat = render(far, data('N'));
 for (let i = 0; i < awake.length; i += 1) {
   assert.ok(awake[i].subarray(16 * 64 * 3).equals(withoutCat[i].subarray(16 * 64 * 3)), 'bus times, remaining, weather, garbage and rail must remain identical');
 }
