@@ -957,12 +957,12 @@ function drawWalkingCat(frame, x, y, phase, goingRight) {
   const pattern = [
     '.........................##.',
     '..........................#.',
-    '..........................#.',
-    '..#..#...................##.',
+    '.....#....................#.',
+    '...#.##..................##.',
     '..#####.................##..',
     '.########....#####.....##...',
     '...#####################....',
-    '.....####################...',
+    '......###################...',
     '......##################....',
     '.......################.....',
     '.......###....########......',
@@ -1014,11 +1014,20 @@ function drawSittingNightCat(frame, x, y, phase) {
     '............#########.##....',
     '...........##########.##....',
     '..........###########.###...',
-    '..###################.###...'
+    '..........###########.###...'
   ];
   drawNightCatPattern(frame, pattern, x, y, false);
-  // Only the tail tip flicks; the seated posture remains still.
-  if (phase === 2 || phase === 3) drawLine(frame, x + 2, y + 14, x + 4, y + 14, NIGHT_CAT_COLOR);
+  const tailPose = [0, 1, 2, 2, 1, 0][Number(phase || 0) % ANIMATION_FRAME_COUNT];
+  const tail = [
+    [[10, 15], [7, 15], [4, 15], [2, 15]],
+    [[10, 15], [7, 15], [5, 14], [3, 13], [2, 13]],
+    [[10, 15], [7, 14], [5, 12], [4, 10], [3, 10]]
+  ][tailPose];
+  // Lift and settle the whole free tail; keep its root and the body stationary.
+  tail.slice(1).forEach(([x2, y2], index) => {
+    const [x1, y1] = tail[index];
+    drawLine(frame, x + x1, y + y1, x + x2, y + y2, NIGHT_CAT_COLOR);
+  });
 }
 
 function drawNightCatPattern(frame, pattern, x, y, mirror) {

@@ -186,12 +186,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   frames, walks out and back for 12 frames, then sits again for 12 frames.
   The cat uses one pale-grey silhouette colour with no face or coat details.
   Its ears, seated haunches, front legs and long tail define the outline; the
-  seated tail tip flicks and walking legs alternate. The daytime header cat is
+  seated tail lifts and settles through three poses while its body stays still,
+  and walking legs alternate. The daytime header cat is
   unchanged. The previous grey tabby design is preserved with its sprite source,
   64x64 frames and animation in `art_archive/gray-tabby-cade2ab/`; its complete
   renderer remains in commit `cade2ab`.
   The walking outline uses a smaller head, a shallow shoulder curve, an angled
-  throat/chest and a tapered hip-to-leg join. Its first monochrome version is
+  throat/chest and a tapered hip-to-leg join. Offset ears and a short muzzle/chin
+  define its side profile. Its first monochrome version is
   retained in `art_archive/silhouette-4798875/` and commit `4798875`.
   The work marker remains at the top right; the clock, JR, weather and garbage
   rows keep their usual display. At 06:00 the sunrise/first-bus display returns.

@@ -125,6 +125,29 @@ for (let i = 0; i < night.length; i += 1) {
 assert.ok(catPositions.size >= 6, 'cat must walk to multiple positions');
 assert.ok(!night[0].equals(night[12]), 'cat must alternate between sitting and walking');
 assert.ok(night[0].equals(night[24]), 'cat must return home and resume sitting');
+const sittingPoses = Array.from({ length: 6 }, (_, phase) => {
+  const frame = context.createFrame([0, 0, 0]);
+  context.drawSittingNightCat(frame, 0, 0, phase);
+  return frame;
+});
+const tailMinY = [];
+for (const pose of sittingPoses) {
+  let minY = 16;
+  for (let y = 0; y < 16; y += 1) {
+    for (let x = 0; x < 28; x += 1) {
+      if (x >= 10) {
+        assert.deepStrictEqual(pixel(pose, x, y), pixel(sittingPoses[0], x, y), 'seated body must stay still while the tail moves');
+      } else if (pixel(pose, x, y).some(Boolean)) {
+        minY = Math.min(minY, y);
+        assert.ok(x >= 2 && y >= 10, 'free tail must stay in its lower-left space');
+      }
+    }
+  }
+  tailMinY.push(minY);
+}
+assert.ok(Math.max(...tailMinY) - Math.min(...tailMinY) >= 4, 'tail must lift visibly, not just flick one pixel');
+assert.strictEqual(new Set(sittingPoses.map((frame) => frame.toString('base64'))).size, 3, 'seated tail must have three distinct poses');
+assert.ok(sittingPoses[0].equals(sittingPoses[5]) && sittingPoses[1].equals(sittingPoses[4]) && sittingPoses[2].equals(sittingPoses[3]), 'tail must lift and settle symmetrically without a loop jump');
 const forcedNight = render(far, holiday, { busScene: 'night' });
 const actualSittingHeaderCat = context.drawSittingHeaderCat;
 context.drawSittingHeaderCat = () => {};
