@@ -7,7 +7,7 @@ const path = require('path');
 const vm = require('vm');
 const sourcePath = path.resolve(__dirname, '../pixoo_display/pixoo_lifeboard.js');
 const context = vm.createContext({ require, module: { exports: {} }, __dirname: path.dirname(sourcePath), Buffer, process, console });
-vm.runInContext(fs.readFileSync(sourcePath, 'utf8') + '\nthis.nightCatFur = NIGHT_CAT_COLORS.fur;', context);
+vm.runInContext(fs.readFileSync(sourcePath, 'utf8') + '\nthis.nightCatFur = NIGHT_CAT_COLOR;', context);
 const awakeCatLottery = context.isAwakeCatVisible;
 // Test shift and transport priorities with a winning draw; test the real draw below.
 context.isAwakeCatVisible = () => true;
@@ -65,7 +65,7 @@ for (let i = 0; i < awake.length; i += 1) {
 const nightOptions = { busScene: 'auto', now: '2026-10-04T23:00:00+09:00' };
 const night = render(ended, holiday, nightOptions);
 assert.strictEqual(night.length, 36);
-assert.strictEqual(catScene(ended, holiday, 'night'), 'sleeping');
+assert.strictEqual(catScene(ended, holiday, 'night'), 'sitting');
 assert.strictEqual(context.resolveBusScene(ended, { ...options, ...nightOptions }), 'night');
 assert.strictEqual(context.resolveBusScene(far, { ...options, ...nightOptions }), 'normal', 'active bus must not become a night scene');
 assert.strictEqual(render(ended, holiday, { busScene: 'auto', now: '2026-10-04T06:00:00+09:00' }).length, 6);
@@ -76,8 +76,8 @@ const railAlert = { ...holiday, rail: { routes: [{ severity: 'delay', statusText
 assert.strictEqual(render(ended, railAlert, nightOptions).length, 6, 'rail alerts must keep their regular loop');
 const staticNight = render(ended, holiday, { ...nightOptions, animateBusBar: false });
 assert.strictEqual(staticNight.length, 1);
-assert.ok(staticNight[0].equals(night[0]), 'static mode must keep the quiet sleeping scene');
-assert.ok(!night[0].equals(night[2]), 'sleeping cat and stars must move');
+assert.ok(staticNight[0].equals(night[0]), 'static mode must keep the quiet sitting scene');
+assert.ok(!night[0].equals(night[2]), 'sitting cat and stars must move');
 const actualMeteor = context.drawShootingStar;
 context.drawShootingStar = () => {};
 const nightWithoutMeteor = render(ended, holiday, nightOptions);
@@ -85,12 +85,12 @@ context.drawShootingStar = actualMeteor;
 const normalEndedFrames = render(ended, holiday);
 const catPositions = new Set();
 const nightCatFur = Array.from(context.nightCatFur).join();
-const actualSleepingNightCat = context.drawSleepingNightCat;
+const actualSittingNightCat = context.drawSittingNightCat;
 const actualWalkingCat = context.drawWalkingCat;
-context.drawSleepingNightCat = () => {};
+context.drawSittingNightCat = () => {};
 context.drawWalkingCat = () => {};
 const nightWithoutCat = render(ended, holiday, nightOptions);
-context.drawSleepingNightCat = actualSleepingNightCat;
+context.drawSittingNightCat = actualSittingNightCat;
 context.drawWalkingCat = actualWalkingCat;
 for (let i = 0; i < night.length; i += 1) {
   const quiet = nightWithoutMeteor[i];
@@ -100,6 +100,7 @@ for (let i = 0; i < night.length; i += 1) {
     for (let x = 0; x < 64; x += 1) {
       if (pixel(night[i], x, y).join() !== pixel(nightWithoutCat[i], x, y).join()) {
         assert.ok(x >= 6 && x <= 53 && y >= 23 && y <= 38, 'all cat colours must remain inside the freed bus panel');
+        assert.strictEqual(pixel(night[i], x, y).join(), nightCatFur, 'night cat must use exactly one silhouette colour');
       }
       if (pixel(night[i], x, y).join() === nightCatFur) {
         assert.ok(x >= 6 && x <= 53 && y >= 23 && y <= 38, 'cat must remain inside the freed bus panel');
@@ -122,8 +123,37 @@ for (let i = 0; i < night.length; i += 1) {
   assert.strictEqual(differences > 0, i >= 31 && i <= 34);
 }
 assert.ok(catPositions.size >= 6, 'cat must walk to multiple positions');
-assert.ok(!night[0].equals(night[12]), 'cat must alternate between sleeping and walking');
-assert.ok(night[0].equals(night[24]), 'cat must return home and resume sleeping');
+assert.ok(!night[0].equals(night[12]), 'cat must alternate between sitting and walking');
+assert.ok(night[0].equals(night[24]), 'cat must return home and resume sitting');
+const forcedNight = render(far, holiday, { busScene: 'night' });
+const actualSittingHeaderCat = context.drawSittingHeaderCat;
+context.drawSittingHeaderCat = () => {};
+const forcedNightWithoutCat = render(far, holiday, { busScene: 'night' });
+context.drawSittingHeaderCat = actualSittingHeaderCat;
+assert.strictEqual(forcedNight.length, 6);
+for (let i = 0; i < forcedNight.length; i += 1) {
+  let catPixels = 0;
+  for (let y = 0; y < 64; y += 1) {
+    for (let x = 0; x < 64; x += 1) {
+      if (pixel(forcedNight[i], x, y).join() === pixel(forcedNightWithoutCat[i], x, y).join()) continue;
+      catPixels += 1;
+      assert.ok(x >= 2 && x <= 13 && y >= 8 && y <= 14, 'forced night header cat must fit beside the active bus');
+      assert.strictEqual(pixel(forcedNight[i], x, y).join(), nightCatFur);
+    }
+  }
+  assert.ok(catPixels > 20, 'explicit night mode with an active bus must retain a seated cat');
+}
+for (const phase of [0, 1, 2, 3, 4, 5]) {
+  const left = context.createFrame([0, 0, 0]);
+  const right = context.createFrame([0, 0, 0]);
+  context.drawWalkingCat(left, 0, 0, phase, false);
+  context.drawWalkingCat(right, 0, 0, phase, true);
+  for (let y = 0; y < 16; y += 1) {
+    for (let x = 0; x < 28; x += 1) {
+      assert.deepStrictEqual(pixel(left, x, y), pixel(right, 27 - x, y), 'body, tail and moving legs must all mirror');
+    }
+  }
+}
 const actualEndedMessage = context.drawBusEndedMessage;
 let endedMessageCalls = 0;
 context.drawBusEndedMessage = (...args) => { endedMessageCalls += 1; actualEndedMessage(...args); };
@@ -157,7 +187,7 @@ for (let windowIndex = 0; windowIndex < 24; windowIndex += 1) {
     for (const title of ['/', 'H', 'AL', '10H']) {
       assert.strictEqual(catScene(far, data(title), 'normal', { now }), winner ? 'awake' : 'none');
     }
-    assert.strictEqual(catScene(ended, holiday, 'night', { now }), 'sleeping', 'sleeping cat must ignore the lottery');
+    assert.strictEqual(catScene(ended, holiday, 'night', { now }), 'sitting', 'sitting cat must ignore the lottery');
     assert.strictEqual(catScene(far, data('SV'), 'normal', { now }), 'none', 'a winning draw must not admit an excluded shift');
   }
 }
@@ -227,7 +257,7 @@ async function verifyUploadRecovery() {
 }
 
 verifyUploadRecovery().then(() => {
-  console.log('Pixoo playful scenes: stable random awake cat, night cat sleeping/walking, scene priorities, 36-frame pixel isolation, upload recovery and overlay cache OK');
+  console.log('Pixoo playful scenes: stable random awake cat, night cat sitting/walking, scene priorities, 36-frame pixel isolation, upload recovery and overlay cache OK');
 }).catch((error) => {
   console.error(error);
   process.exitCode = 1;

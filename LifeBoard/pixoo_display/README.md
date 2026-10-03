@@ -182,17 +182,21 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   title takes priority over the holiday marker.
 - The overnight scene replaces the bus icon and both first-bus waiting-message
   rows with a small night landscape (y=8 through 39). A larger cat is always
-  present, regardless of the awake-cat draw or work shift: it sleeps for 12
-  frames, walks out and back for 12 frames, then sleeps again for 12 frames.
-  Its grey tabby sprite has a round face, short triangular ears, whiskers and a
-  thin curled or upright tail in both poses. The daytime header cat is unchanged.
+  present, regardless of the awake-cat draw or work shift: it sits for 12
+  frames, walks out and back for 12 frames, then sits again for 12 frames.
+  The cat uses one pale-grey silhouette colour with no face or coat details.
+  Its ears, seated haunches, front legs and long tail define the outline; the
+  seated tail tip flicks and walking legs alternate. The daytime header cat is
+  unchanged. The previous grey tabby design is preserved with its sprite source,
+  64x64 frames and animation in `art_archive/gray-tabby-cade2ab/`; its complete
+  renderer remains in commit `cade2ab`.
   The work marker remains at the top right; the clock, JR, weather and garbage
   rows keep their usual display. At 06:00 the sunrise/first-bus display returns.
   The 36-frame native loop has four meteor frames, so a shooting star
   passes about every 23.4 seconds at the default 650 ms speed. Weather and garbage
   keep their six-phase motion; clock items continue to run on the device. This
   sequence is uploaded only when its structural pixels change. Rail alerts retain
-  the regular six-frame loop with the sleeping cat and no meteor. Static mode shows a sleeping cat
+  the regular six-frame loop with the seated cat and no meteor. Static mode shows a seated cat
   with no shooting star.
 - If an animation upload fails and falls back to one static frame, the running
   clock is retained and the full animation is retried on the next scheduled send.
