@@ -170,6 +170,20 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   weather/garbage/work change, or a night/transition scene still requires one
   complete base-animation upload. The hourglass may appear for that upload.
 - Set `LIFEBOARD_PIXOO_ANIMATE_BUS_BAR=0` to force static-frame operation.
+- A small amber cat sits beside the parked bus on holidays and paid-leave days
+  (`休日` / `有給`), moving its tail. It yields the header when a bus is 5 minutes
+  or less away, during first/last-bus transitions, at sunrise, and while an exam
+  title takes priority over the holiday marker.
+- In the overnight waiting scene the cat curls up beside the moon. A 36-frame
+  native loop contains 32 quiet frames and four meteor frames, so a shooting star
+  passes about every 23.4 seconds at the default 650 ms speed. Weather and garbage
+  keep their six-phase motion; clock items continue to run on the device. This
+  sequence is uploaded only when its structural pixels change. Rail alerts retain
+  the regular six-frame loop without a meteor. Static mode shows a sleeping cat
+  with no shooting star.
+- If an animation upload fails and falls back to one static frame, the running
+  clock is retained and the full animation is retried on the next scheduled send.
+  The structural-frame cache is saved only after a complete upload.
 - This script intentionally uses only Node.js built-in APIs.
 - If `LifeBoard\misaki_png_2021-05-05a\misaki_gothic.png` exists, the garbage
   row and the weather glyph are rendered with Misaki Gothic bitmap Japanese text.

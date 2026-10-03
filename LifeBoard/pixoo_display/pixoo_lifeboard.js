@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const SIZE = 64;
 const PIXELS = SIZE * SIZE;
 const ANIMATION_FRAME_COUNT = 6;
+const NIGHT_ANIMATION_FRAME_COUNT = 36;
 const BUS_DEPARTURE_GRACE_MS = 0;
 const DEFAULT_INPUT = path.resolve(__dirname, '..', 'data', 'bus_snapshot.json');
 const DEFAULT_PREVIEW = path.resolve(__dirname, '..', 'data', 'pixoo_preview.svg');
@@ -183,6 +184,7 @@ async function main() {
   const runtimeState = readRuntimeState(options.stateFile);
   options.busTransition = resolveBusTransition(snapshot, runtimeState, options);
   const frames = renderLifeBoardFrames(snapshot, lifeData, options);
+  options.animationFrameCount = frames.length;
   const previewFrames = options.itemOverlay
     ? frames.map((frame) => renderDynamicItemsPreview(frame, snapshot))
     : frames;
@@ -211,9 +213,9 @@ async function main() {
       runtimeState.overlayBaseHash &&
       runtimeState.overlayBaseHash === overlayBaseHash
     );
-    if (!canReuseOverlayBase) {
-      await pushFrameToPixoo(options.pixooIp, frames, options);
-    }
+    const uploadedFrameCount = canReuseOverlayBase ? frames.length
+      : await pushFrameToPixoo(options.pixooIp, frames, options);
+    options.animationFrameCount = uploadedFrameCount;
     if (itemOverlayEnabled) {
       await pushDynamicItemsToPixoo(options.pixooIp, snapshot, staleClockColor(snapshot), {
         clearExisting: !canReuseOverlayBase
@@ -223,7 +225,7 @@ async function main() {
     }
     options.baseFrameUploaded = !canReuseOverlayBase;
     const nextRuntimeState = buildNextRuntimeState(snapshot, runtimeState, options.busTransition);
-    if (itemOverlayEnabled) {
+    if (itemOverlayEnabled && uploadedFrameCount === frames.length) {
       nextRuntimeState.overlayBaseHash = overlayBaseHash;
     } else {
       delete nextRuntimeState.overlayBaseHash;
@@ -416,11 +418,11 @@ function resolveBusScene(snapshot, options, date) {
   if (['night', 'sunrise', 'normal'].includes(requested)) {
     return requested;
   }
-  const now = date || new Date();
+  const now = date || new Date(options && options.now || Date.now());
   if (isSunriseMinute(now)) {
     return 'sunrise';
   }
-  if (!getPrimaryBusItem(snapshot) && isFirstBusWaitWindow(now)) {
+  if (!getPrimaryBusItem(snapshot) && (now.getHours() >= 23 || isFirstBusWaitWindow(now))) {
     return 'night';
   }
   return 'normal';
@@ -435,28 +437,36 @@ function renderLifeBoardFrames(snapshot, lifeData, options) {
   const weatherStatus = buildWeatherStatus(lifeData);
   const weatherMotion = weatherStatus.motion || Boolean(weatherStatus.wind && weatherStatus.wind.motion);
   const garbageMotion = buildGarbageStatus(lifeData).hasItems;
+  const catScene = resolveCatScene(snapshot, buildWorkStatus(lifeData, options && options.now), busScene, options);
   const hasMotion = busUrgent || busTransition !== 'none' || busScene !== 'normal'
-    || railAlert || weatherMotion || garbageMotion;
+    || railAlert || weatherMotion || garbageMotion || catScene !== 'none';
   if (!options.animateBusBar || !hasMotion) {
     return [renderLifeBoardFrame(snapshot, lifeData, Object.assign({}, options, {
       busArrival,
       busIconMoves: false,
       busTransition,
       busScene,
+      catScene,
       busBarBlinkOn: true
     }))];
   }
-  return Array.from({ length: ANIMATION_FRAME_COUNT }, (_, animationPhase) => renderLifeBoardFrame(
+  // Most of the night loop is quiet; the device plays one brief meteor at the end.
+  const shootingStars = busScene === 'night' && !getPrimaryBusItem(snapshot)
+    && busTransition === 'none' && !railAlert;
+  const frameCount = shootingStars ? NIGHT_ANIMATION_FRAME_COUNT : ANIMATION_FRAME_COUNT;
+  return Array.from({ length: frameCount }, (_, animationIndex) => renderLifeBoardFrame(
     snapshot,
     lifeData,
     Object.assign({}, options, {
-      animationPhase,
+      animationPhase: animationIndex % ANIMATION_FRAME_COUNT,
+      shootingStarStep: shootingStars ? animationIndex - (NIGHT_ANIMATION_FRAME_COUNT - 5) : -1,
       busArrival,
       busIconMoves: busUrgent && !busArrival,
       busTransition,
       busScene,
-      busBarBlinkOn: !busUrgent || animationPhase % 2 === 0,
-      railAlertBlinkOn: !railAlert || animationPhase % 2 === 0,
+      catScene,
+      busBarBlinkOn: !busUrgent || animationIndex % 2 === 0,
+      railAlertBlinkOn: !railAlert || animationIndex % 2 === 0,
       weatherIconMoves: weatherMotion,
       garbageIconMoves: garbageMotion
     })
@@ -507,7 +517,7 @@ function drawRoutePanel(frame, config, options) {
     drawBusStop(frame, 16, config.y);
     drawRisingSun(frame, 26, config.y, phase);
   } else if (item) {
-    let busX = 16;
+    let busX = options && options.catScene === 'awake' ? 2 : 16;
     let busStopX = 16;
     if (transition === 'first-bus') {
       busX = 46 - (phase * 6);
@@ -528,10 +538,15 @@ function drawRoutePanel(frame, config, options) {
     drawBusStop(frame, 16, config.y);
     drawBusIcon(frame, 1 - (phase * 3), config.y, config.accent, { headlightOn: false });
   } else if (busScene === 'night') {
-    drawBusStop(frame, 2, config.y);
     drawMoonAndStars(frame, 20, config.y, phase);
+    drawShootingStar(frame, config.y, options && options.shootingStarStep);
   } else {
-    drawBusStop(frame, 16, config.y);
+    drawBusStop(frame, options && options.catScene === 'awake' ? 2 : 16, config.y);
+  }
+  if (options && options.catScene === 'sleeping') {
+    drawCat(frame, 2, config.y, phase, true);
+  } else if (options && options.catScene === 'awake') {
+    drawCat(frame, 20, config.y, phase, false);
   }
   if (config.workStatus && config.workStatus.mixedText) {
     drawWorkStatus(frame, config.y, config.workStatus, options);
@@ -586,7 +601,8 @@ function drawWorkStatus(frame, y, status, options) {
 }
 
 function drawBusEndedMessage(frame, y, options) {
-  const firstBusWait = String(options && options.busScene || '') === 'sunrise' || isFirstBusWaitWindow();
+  const firstBusWait = String(options && options.busScene || '') === 'sunrise'
+    || isFirstBusWaitWindow(options && options.now ? new Date(options.now) : undefined);
   const firstLine = firstBusWait ? '始発バスを' : '本日のバスは';
   const secondLine = firstBusWait ? 'お待ちください' : '終わりました！';
   const secondColor = firstBusWait ? COLORS.blue : COLORS.pink;
@@ -869,10 +885,72 @@ function drawMoonAndStars(frame, x, y, phase) {
       if (row[column] === 'F') setPixel(frame, x + column, y + rowIndex, moonFill);
     }
   });
-  drawSparkle(frame, x - 7, y + 1, step % 2 === 0 ? COLORS.white : dimRgb(COLORS.white, 0.25), step % 2 === 0);
+  drawSparkle(frame, x - 5, y + 1, step % 2 === 0 ? COLORS.white : dimRgb(COLORS.white, 0.25), step % 2 === 0);
   drawSparkle(frame, x - 3, y + 5, step % 3 === 0 ? COLORS.cyan : dimRgb(COLORS.cyan, 0.25), step % 3 === 0);
   drawSparkle(frame, x + 9, y + 1, step % 2 === 1 ? COLORS.white : dimRgb(COLORS.white, 0.25), step % 2 === 1);
-  drawSparkle(frame, x + 13, y + 5, step % 3 === 1 ? COLORS.cyan : dimRgb(COLORS.cyan, 0.25), step % 3 === 1);
+  drawSparkle(frame, x + 12, y + 5, step % 3 === 1 ? COLORS.cyan : dimRgb(COLORS.cyan, 0.25), step % 3 === 1);
+}
+
+function resolveCatScene(snapshot, workStatus, busScene, options) {
+  // Transport transitions and imminent departures own the entire header.
+  const transition = String(options && options.busTransition || 'none');
+  if (busScene === 'sunrise' || ['service-ended', 'first-bus'].includes(transition)
+      || isBusWithinMinutes(snapshot, 5)) {
+    return 'none';
+  }
+  if (busScene === 'night') return 'sleeping';
+  if (workStatus && ['休日', '有給'].includes(workStatus.mixedText)) return 'awake';
+  return 'none';
+}
+
+function drawShootingStar(frame, y, step) {
+  if (!Number.isInteger(step) || step < 0 || step > 3) return;
+  const headX = 30 - step * 4;
+  const headY = y + 1 + step;
+  for (let tail = 3; tail >= 1; tail -= 1) {
+    setPixel(frame, headX + tail, Math.max(y, headY - tail), dimRgb(COLORS.cyan, (4 - tail) / 5));
+  }
+  setPixel(frame, headX, headY, COLORS.white);
+}
+
+function drawCat(frame, x, y, phase, sleeping) {
+  const step = Number(phase || 0) % ANIMATION_FRAME_COUNT;
+  const fur = [205, 162, 112];
+  const pattern = sleeping ? [
+    '.......F.F..',
+    '..FFFFFFFFF.',
+    '.FFFFFFFFFF.',
+    'FFFFFFFFFFF.',
+    'FFFFFFFFFFF.',
+    '.FFFFFFFFF..',
+    '..FFFFFF....'
+  ] : [
+    '.F...F......',
+    '.FFFFF......',
+    '.FEFEF......',
+    '.FFFFF......',
+    '..FFF.......',
+    '.FFFFF......',
+    '.FFFFF......'
+  ];
+  pattern.forEach((row, rowIndex) => {
+    for (let column = 0; column < row.length; column += 1) {
+      if (row[column] === 'F') setPixel(frame, x + column, y + rowIndex, fur);
+      if (row[column] === 'E') setPixel(frame, x + column, y + rowIndex, COLORS.black);
+    }
+  });
+  if (sleeping) {
+    drawLine(frame, x + 7, y + 3, x + 8, y + 3, COLORS.black);
+    setPixel(frame, x + 10, y + 4, COLORS.pink);
+    drawLine(frame, x + 3, y + 3, x + 3, y + 4, dimRgb(fur, 0.5));
+    if (step === 2 || step === 3) setPixel(frame, x + 4, y, fur);
+  } else {
+    setPixel(frame, x + 3, y + 3, COLORS.pink);
+    const tailY = step < 3 ? 3 : 4;
+    drawLine(frame, x + 6, y + 6, x + 9, y + 6, fur);
+    drawLine(frame, x + 9, y + 6, x + 10, y + tailY, fur);
+    setPixel(frame, x + 11, y + tailY, fur);
+  }
 }
 
 function drawRisingSun(frame, x, y, phase) {
@@ -1912,7 +1990,9 @@ async function pushFrameToPixoo(ipAddress, frames, options) {
       PicSpeed: 1000,
       PicData: frameList[0].toString('base64')
     }));
+    return 1;
   }
+  return frameList.length;
 }
 
 async function clearDynamicItemsOnPixoo(ipAddress) {
@@ -2271,8 +2351,9 @@ function printSummary(snapshot, lifeData, options) {
   const weather = buildWeatherStatus(lifeData);
   const garbage = buildGarbageStatus(lifeData);
   const busScene = resolveBusScene(snapshot, options);
+  const catScene = resolveCatScene(snapshot, buildWorkStatus(lifeData, options.now), busScene, options);
   const hasMotion = isBusWithinMinutes(snapshot, 5) || String(options.busTransition || 'none') !== 'none'
-    || busScene !== 'normal' || Boolean(rail.issue) || weather.motion || garbage.hasItems;
+    || busScene !== 'normal' || Boolean(rail.issue) || weather.motion || garbage.hasItems || catScene !== 'none';
   console.log(JSON.stringify({
     mode: options.push ? 'pushed' : 'preview',
     input: options.input,
@@ -2281,11 +2362,12 @@ function printSummary(snapshot, lifeData, options) {
     preview: options.preview || null,
     pngPreview: options.pngPreview || null,
     pixooIp: options.push ? options.pixooIp : null,
-    animationFrames: options.animateBusBar && hasMotion ? ANIMATION_FRAME_COUNT : 1,
+    animationFrames: options.animationFrameCount || (options.animateBusBar && hasMotion ? ANIMATION_FRAME_COUNT : 1),
     itemOverlay: Boolean(options.itemOverlay),
     baseFrameUploaded: options.push ? Boolean(options.baseFrameUploaded) : null,
     busTransition: options.busTransition || 'none',
     busScene,
+    catScene,
     generatedAt: snapshot.generatedAt || '',
     status: {
       rail: rail.text,
