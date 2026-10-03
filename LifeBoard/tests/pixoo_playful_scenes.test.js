@@ -7,7 +7,7 @@ const path = require('path');
 const vm = require('vm');
 const sourcePath = path.resolve(__dirname, '../pixoo_display/pixoo_lifeboard.js');
 const context = vm.createContext({ require, module: { exports: {} }, __dirname: path.dirname(sourcePath), Buffer, process, console });
-vm.runInContext(fs.readFileSync(sourcePath, 'utf8'), context);
+vm.runInContext(fs.readFileSync(sourcePath, 'utf8') + '\nthis.nightCatFur = NIGHT_CAT_COLORS.fur;', context);
 const awakeCatLottery = context.isAwakeCatVisible;
 // Test shift and transport priorities with a winning draw; test the real draw below.
 context.isAwakeCatVisible = () => true;
@@ -84,13 +84,24 @@ const nightWithoutMeteor = render(ended, holiday, nightOptions);
 context.drawShootingStar = actualMeteor;
 const normalEndedFrames = render(ended, holiday);
 const catPositions = new Set();
+const nightCatFur = Array.from(context.nightCatFur).join();
+const actualSleepingNightCat = context.drawSleepingNightCat;
+const actualWalkingCat = context.drawWalkingCat;
+context.drawSleepingNightCat = () => {};
+context.drawWalkingCat = () => {};
+const nightWithoutCat = render(ended, holiday, nightOptions);
+context.drawSleepingNightCat = actualSleepingNightCat;
+context.drawWalkingCat = actualWalkingCat;
 for (let i = 0; i < night.length; i += 1) {
   const quiet = nightWithoutMeteor[i];
   let differences = 0;
   const furXs = [];
   for (let y = 0; y < 64; y += 1) {
     for (let x = 0; x < 64; x += 1) {
-      if (pixel(night[i], x, y).join() === '205,162,112') {
+      if (pixel(night[i], x, y).join() !== pixel(nightWithoutCat[i], x, y).join()) {
+        assert.ok(x >= 6 && x <= 53 && y >= 23 && y <= 38, 'all cat colours must remain inside the freed bus panel');
+      }
+      if (pixel(night[i], x, y).join() === nightCatFur) {
         assert.ok(x >= 6 && x <= 53 && y >= 23 && y <= 38, 'cat must remain inside the freed bus panel');
         furXs.push(x);
       }

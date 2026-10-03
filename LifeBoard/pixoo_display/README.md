@@ -184,6 +184,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   rows with a small night landscape (y=8 through 39). A larger cat is always
   present, regardless of the awake-cat draw or work shift: it sleeps for 12
   frames, walks out and back for 12 frames, then sleeps again for 12 frames.
+  Its grey tabby sprite has a round face, short triangular ears, whiskers and a
+  thin curled or upright tail in both poses. The daytime header cat is unchanged.
   The work marker remains at the top right; the clock, JR, weather and garbage
   rows keep their usual display. At 06:00 the sunrise/first-bus display returns.
   The 36-frame native loop has four meteor frames, so a shooting star
