@@ -8,6 +8,9 @@ const vm = require('vm');
 const sourcePath = path.resolve(__dirname, '../pixoo_display/pixoo_lifeboard.js');
 const context = vm.createContext({ require, module: { exports: {} }, __dirname: path.dirname(sourcePath), Buffer, process, console });
 vm.runInContext(fs.readFileSync(sourcePath, 'utf8'), context);
+const awakeCatLottery = context.isAwakeCatVisible;
+// Test shift and transport priorities with a winning draw; test the real draw below.
+context.isAwakeCatVisible = () => true;
 const fixture = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../pixoo_animation_test/fixture_life_data_sun.json'), 'utf8'));
 fixture.rail = { routes: [{ severity: 'normal', statusText: '平常運転' }] };
 const options = {
@@ -96,6 +99,43 @@ if (process.argv[2]) {
     frames.forEach((frame, index) => context.writePngPreview(frame, path.join(directory, `${label}_${String(index).padStart(2, '0')}.png`)));
   }
 }
+
+context.isAwakeCatVisible = awakeCatLottery;
+const lotteryResults = new Set();
+const lotteryTimes = new Map();
+for (let windowIndex = 0; windowIndex < 24; windowIndex += 1) {
+  const start = Date.parse(options.now) + windowIndex * 10 * 60 * 1000;
+  const winner = awakeCatLottery(start);
+  lotteryResults.add(winner);
+  lotteryTimes.set(winner, new Date(start).toISOString());
+  for (const offset of [0, 60000, 300000, 599999]) {
+    const now = new Date(start + offset).toISOString();
+    assert.strictEqual(awakeCatLottery(now), winner, 'one draw must be stable for the entire ten-minute window');
+    for (const title of ['/', 'H', 'AL', '10H']) {
+      assert.strictEqual(catScene(far, data(title), 'normal', { now }), winner ? 'awake' : 'none');
+    }
+    assert.strictEqual(catScene(ended, holiday, 'night', { now }), 'sleeping', 'sleeping cat must ignore the lottery');
+    assert.strictEqual(catScene(far, data('SV'), 'normal', { now }), 'none', 'a winning draw must not admit an excluded shift');
+  }
+}
+assert.strictEqual(lotteryResults.size, 2, 'draws must include both visible and absent cats');
+for (const winner of [false, true]) {
+  const now = lotteryTimes.get(winner);
+  const nightFrames = render(ended, holiday, { busScene: 'night', now });
+  assert.strictEqual(nightFrames.length, 36, 'both lottery outcomes must retain the night loop');
+  assert.strictEqual(render(ended, holiday, { busScene: 'night', now, animateBusBar: false }).length, 1);
+  for (const transition of ['first-bus', 'service-ended']) {
+    assert.strictEqual(catScene(ended, holiday, 'night', { now, busTransition: transition }), 'none');
+  }
+  const urgent = { routes: [{ ...far.routes[0], items: [{ ...far.routes[0].items[0], remainingMinutes: 5 }] }] };
+  assert.strictEqual(catScene(urgent, holiday, 'normal', { now }), 'none');
+}
+const rebootedContext = vm.createContext({ require, module: { exports: {} }, __dirname: path.dirname(sourcePath), Buffer, process, console });
+vm.runInContext(fs.readFileSync(sourcePath, 'utf8'), rebootedContext);
+for (const [winner, now] of lotteryTimes) {
+  assert.strictEqual(rebootedContext.isAwakeCatVisible(now), winner, 'process restart must preserve the same draw');
+}
+
 async function verifyUploadRecovery() {
   const sender = vm.createContext({
     require, module: { exports: {} }, __dirname: path.dirname(sourcePath), Buffer, process,
@@ -144,7 +184,7 @@ async function verifyUploadRecovery() {
 }
 
 verifyUploadRecovery().then(() => {
-  console.log('Pixoo playful scenes: scene priorities, static mode, 36-frame pixel isolation, upload fallback/retry and overlay cache OK');
+  console.log('Pixoo playful scenes: stable random awake cat, permanent sleeping cat, scene priorities, 36-frame pixel isolation, upload recovery and overlay cache OK');
 }).catch((error) => {
   console.error(error);
   process.exitCode = 1;

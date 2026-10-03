@@ -10,6 +10,7 @@ const SIZE = 64;
 const PIXELS = SIZE * SIZE;
 const ANIMATION_FRAME_COUNT = 6;
 const NIGHT_ANIMATION_FRAME_COUNT = 36;
+const AWAKE_CAT_INTERVAL_MS = 10 * 60 * 1000;
 const BUS_DEPARTURE_GRACE_MS = 0;
 const DEFAULT_INPUT = path.resolve(__dirname, '..', 'data', 'bus_snapshot.json');
 const DEFAULT_PREVIEW = path.resolve(__dirname, '..', 'data', 'pixoo_preview.svg');
@@ -178,6 +179,7 @@ async function main() {
     printHelp();
     return;
   }
+  options.now = options.now || new Date();
 
   const snapshot = readSnapshot(options.input);
   const lifeData = await readLifeBoardData(options);
@@ -899,8 +901,18 @@ function resolveCatScene(snapshot, workStatus, busScene, options) {
     return 'none';
   }
   if (busScene === 'night') return 'sleeping';
-  if (workStatus && ['/', 'H', 'AL', '10H'].includes(workStatus.shiftCode)) return 'awake';
+  if (workStatus && ['/', 'H', 'AL', '10H'].includes(workStatus.shiftCode)
+      && isAwakeCatVisible(options && options.now)) return 'awake';
   return 'none';
+}
+
+function isAwakeCatVisible(nowValue) {
+  const parsed = new Date(nowValue || Date.now()).getTime();
+  const nowMs = Number.isFinite(parsed) ? parsed : Date.now();
+  // A stable, roughly 50% draw per ten-minute window, shared by previews and sends.
+  // Minute updates and process restarts must not redraw or upload a new base.
+  const window = Math.floor(nowMs / AWAKE_CAT_INTERVAL_MS);
+  return crypto.createHash('sha256').update('lifeboard-cat:' + window).digest()[0] < 128;
 }
 
 function drawShootingStar(frame, y, step) {
