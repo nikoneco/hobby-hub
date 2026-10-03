@@ -78,19 +78,51 @@ const staticNight = render(ended, holiday, { ...nightOptions, animateBusBar: fal
 assert.strictEqual(staticNight.length, 1);
 assert.ok(staticNight[0].equals(night[0]), 'static mode must keep the quiet sleeping scene');
 assert.ok(!night[0].equals(night[2]), 'sleeping cat and stars must move');
+const actualMeteor = context.drawShootingStar;
+context.drawShootingStar = () => {};
+const nightWithoutMeteor = render(ended, holiday, nightOptions);
+context.drawShootingStar = actualMeteor;
+const normalEndedFrames = render(ended, holiday);
+const catPositions = new Set();
 for (let i = 0; i < night.length; i += 1) {
-  const quiet = night[i % 6];
+  const quiet = nightWithoutMeteor[i];
   let differences = 0;
+  const furXs = [];
   for (let y = 0; y < 64; y += 1) {
     for (let x = 0; x < 64; x += 1) {
+      if (pixel(night[i], x, y).join() === '205,162,112') {
+        assert.ok(x >= 6 && x <= 53 && y >= 23 && y <= 38, 'cat must remain inside the freed bus panel');
+        furXs.push(x);
+      }
       if (pixel(night[i], x, y).join() === pixel(quiet, x, y).join()) continue;
       differences += 1;
       assert.ok(i >= 31 && i <= 34, 'only four frames per cycle may contain a meteor');
-      assert.ok(x >= 14 && x <= 33 && y >= 8 && y <= 14, 'meteor must stay within sky, clear of cat, clock and work marker');
+      assert.ok(x >= 18 && x <= 45 && y >= 16 && y <= 20, 'meteor must stay above cat, below work marker and clear of information rows');
     }
+  }
+  assert.ok(furXs.length > 80, 'a large cat must remain visible in every frame');
+  catPositions.add(Math.min(...furXs));
+  const normal = normalEndedFrames[i % normalEndedFrames.length];
+  assert.ok(night[i].subarray(0, 8 * 64 * 3).equals(normal.subarray(0, 8 * 64 * 3)), 'clock/date pixels must be unchanged');
+  assert.ok(night[i].subarray(40 * 64 * 3).equals(normal.subarray(40 * 64 * 3)), 'JR/weather/garbage pixels must be unchanged');
+  for (let y = 8; y < 15; y += 1) {
+    assert.ok(night[i].subarray((y * 64 + 34) * 3, (y * 64 + 64) * 3).equals(normal.subarray((y * 64 + 34) * 3, (y * 64 + 64) * 3)), 'work marker pixels must be preserved');
   }
   assert.strictEqual(differences > 0, i >= 31 && i <= 34);
 }
+assert.ok(catPositions.size >= 6, 'cat must walk to multiple positions');
+assert.ok(!night[0].equals(night[12]), 'cat must alternate between sleeping and walking');
+assert.ok(night[0].equals(night[24]), 'cat must return home and resume sleeping');
+const actualEndedMessage = context.drawBusEndedMessage;
+let endedMessageCalls = 0;
+context.drawBusEndedMessage = (...args) => { endedMessageCalls += 1; actualEndedMessage(...args); };
+render(ended, holiday, nightOptions);
+render({ routes: [] }, holiday, nightOptions);
+assert.strictEqual(endedMessageCalls, 0, 'night scene must not draw waiting or ended text');
+render(ended, holiday, { busScene: 'sunrise' });
+assert.ok(endedMessageCalls > 0, 'sunrise must retain the first-bus message');
+context.drawBusEndedMessage = actualEndedMessage;
+assert.ok(render({ routes: [] }, holiday, nightOptions)[0].equals(night[0]), 'night without bus data must not add NO DATA over the scene');
 
 if (process.argv[2]) {
   const directory = path.resolve(process.argv[2]);
@@ -184,7 +216,7 @@ async function verifyUploadRecovery() {
 }
 
 verifyUploadRecovery().then(() => {
-  console.log('Pixoo playful scenes: stable random awake cat, permanent sleeping cat, scene priorities, 36-frame pixel isolation, upload recovery and overlay cache OK');
+  console.log('Pixoo playful scenes: stable random awake cat, night cat sleeping/walking, scene priorities, 36-frame pixel isolation, upload recovery and overlay cache OK');
 }).catch((error) => {
   console.error(error);
   process.exitCode = 1;

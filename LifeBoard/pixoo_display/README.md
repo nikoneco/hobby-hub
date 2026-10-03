@@ -180,13 +180,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   The cat yields the header when a bus is 5 minutes
   or less away, during first/last-bus transitions, at sunrise, and while an exam
   title takes priority over the holiday marker.
-- In the overnight waiting scene the cat always curls up beside the moon,
-  regardless of the awake-cat draw or work shift. A 36-frame
-  native loop contains 32 quiet frames and four meteor frames, so a shooting star
+- The overnight scene replaces the bus icon and both first-bus waiting-message
+  rows with a small night landscape (y=8 through 39). A larger cat is always
+  present, regardless of the awake-cat draw or work shift: it sleeps for 12
+  frames, walks out and back for 12 frames, then sleeps again for 12 frames.
+  The work marker remains at the top right; the clock, JR, weather and garbage
+  rows keep their usual display. At 06:00 the sunrise/first-bus display returns.
+  The 36-frame native loop has four meteor frames, so a shooting star
   passes about every 23.4 seconds at the default 650 ms speed. Weather and garbage
   keep their six-phase motion; clock items continue to run on the device. This
   sequence is uploaded only when its structural pixels change. Rail alerts retain
-  the regular six-frame loop without a meteor. Static mode shows a sleeping cat
+  the regular six-frame loop with the sleeping cat and no meteor. Static mode shows a sleeping cat
   with no shooting star.
 - If an animation upload fails and falls back to one static frame, the running
   clock is retained and the full animation is retried on the next scheduled send.

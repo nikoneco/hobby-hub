@@ -461,6 +461,7 @@ function renderLifeBoardFrames(snapshot, lifeData, options) {
     lifeData,
     Object.assign({}, options, {
       animationPhase: animationIndex % ANIMATION_FRAME_COUNT,
+      nightAnimationIndex: animationIndex,
       shootingStarStep: shootingStars ? animationIndex - (NIGHT_ANIMATION_FRAME_COUNT - 5) : -1,
       busArrival,
       busIconMoves: busUrgent && !busArrival,
@@ -512,6 +513,11 @@ function drawRoutePanel(frame, config, options) {
   const phase = Number(options && options.animationPhase || 0) % ANIMATION_FRAME_COUNT;
   const busScene = String(options && options.busScene || 'normal');
   const transition = String(options && options.busTransition || 'none');
+  if (!item && busScene === 'night' && transition === 'none') {
+    drawNightScene(frame, config.y, options);
+    if (config.workStatus) drawWorkStatus(frame, config.y, config.workStatus, options);
+    return;
+  }
   const barColor = options && options.busBarBlinkOn === false ? COLORS.dim : config.accent;
   drawRect(frame, 0, config.y, 1, 29, barColor);
 
@@ -917,12 +923,65 @@ function isAwakeCatVisible(nowValue) {
 
 function drawShootingStar(frame, y, step) {
   if (!Number.isInteger(step) || step < 0 || step > 3) return;
-  const headX = 30 - step * 4;
-  const headY = y + 1 + step;
+  const headX = 42 - step * 8;
+  const headY = y + 9 + step;
   for (let tail = 3; tail >= 1; tail -= 1) {
-    setPixel(frame, headX + tail, Math.max(y, headY - tail), dimRgb(COLORS.cyan, (4 - tail) / 5));
+    setPixel(frame, headX + tail, Math.max(y + 8, headY - tail), dimRgb(COLORS.cyan, (4 - tail) / 5));
   }
   setPixel(frame, headX, headY, COLORS.white);
+}
+
+function drawNightScene(frame, y, options) {
+  const phase = Number(options && options.animationPhase || 0) % ANIMATION_FRAME_COUNT;
+  const index = Number(options && options.nightAnimationIndex || 0);
+  drawMoonAndStars(frame, 48, y + 8, phase);
+  [[6, 5], [17, 12], [27, 3], [35, 12]].forEach(([x, offsetY], starIndex) => {
+    const bright = (phase + starIndex) % 3 === 0;
+    drawSparkle(frame, x, y + offsetY, dimRgb(COLORS.white, bright ? 0.7 : 0.18), bright);
+  });
+  drawShootingStar(frame, y, options && options.shootingStarStep);
+  drawLine(frame, 3, y + 31, 61, y + 31, [14, 24, 38]);
+  if (index >= 12 && index < 24) {
+    const walkingIndex = index - 12;
+    const goingRight = walkingIndex < 6;
+    const x = goingRight ? 6 + walkingIndex * 4 : 26 - (walkingIndex - 6) * 4;
+    drawWalkingCat(frame, x, y + 15, phase, goingRight);
+  } else {
+    const sprite = createFrame(COLORS.black);
+    drawCat(sprite, 0, 0, phase, true);
+    for (let sy = 0; sy < 7; sy += 1) {
+      for (let sx = 0; sx < 12; sx += 1) {
+        const offset = (sy * SIZE + sx) * 3;
+        const color = Array.from(sprite.subarray(offset, offset + 3));
+        if (color.some(Boolean)) drawRect(frame, 6 + sx * 2, y + 17 + sy * 2, 2, 2, color);
+      }
+    }
+  }
+}
+
+function drawWalkingCat(frame, x, y, phase, goingRight) {
+  const fur = [205, 162, 112];
+  const pattern = [
+    '.F.F..........',
+    '.FFFF.........',
+    '.FEFF.........',
+    '.NFFFF........',
+    '..FFFFFFFFF.T.',
+    '..FFFFFFFFFTT.'
+  ];
+  pattern.forEach((row, sy) => {
+    for (let sx = 0; sx < row.length; sx += 1) {
+      if (row[sx] === '.') continue;
+      const column = goingRight ? 13 - sx : sx;
+      const color = row[sx] === 'E' ? COLORS.black : row[sx] === 'N' ? COLORS.pink : fur;
+      drawRect(frame, x + column * 2, y + sy * 2, 2, 2, color);
+    }
+  });
+  const stride = Number(phase || 0) % 2;
+  [3 + stride, 8 - stride].forEach((leg) => {
+    const column = goingRight ? 13 - leg : leg;
+    drawRect(frame, x + column * 2, y + 12, 2, 4, fur);
+  });
 }
 
 function drawCat(frame, x, y, phase, sleeping) {
