@@ -83,15 +83,14 @@ context.drawShootingStar = () => {};
 const nightWithoutMeteor = render(ended, holiday, nightOptions);
 context.drawShootingStar = actualMeteor;
 const normalEndedFrames = render(ended, holiday);
-const catPositions = new Set();
 const nightCatFur = Array.from(context.nightCatFur).join();
 const actualSittingNightCat = context.drawSittingNightCat;
-const actualWalkingCat = context.drawWalkingCat;
+const actualStretchingNightCat = context.drawStretchingNightCat;
 context.drawSittingNightCat = () => {};
-context.drawWalkingCat = () => {};
+context.drawStretchingNightCat = () => {};
 const nightWithoutCat = render(ended, holiday, nightOptions);
 context.drawSittingNightCat = actualSittingNightCat;
-context.drawWalkingCat = actualWalkingCat;
+context.drawStretchingNightCat = actualStretchingNightCat;
 for (let i = 0; i < night.length; i += 1) {
   const quiet = nightWithoutMeteor[i];
   let differences = 0;
@@ -113,7 +112,6 @@ for (let i = 0; i < night.length; i += 1) {
     }
   }
   assert.ok(furXs.length > 80, 'a large cat must remain visible in every frame');
-  catPositions.add(Math.min(...furXs));
   const normal = normalEndedFrames[i % normalEndedFrames.length];
   assert.ok(night[i].subarray(0, 8 * 64 * 3).equals(normal.subarray(0, 8 * 64 * 3)), 'clock/date pixels must be unchanged');
   assert.ok(night[i].subarray(40 * 64 * 3).equals(normal.subarray(40 * 64 * 3)), 'JR/weather/garbage pixels must be unchanged');
@@ -122,9 +120,16 @@ for (let i = 0; i < night.length; i += 1) {
   }
   assert.strictEqual(differences > 0, i >= 31 && i <= 34);
 }
-assert.ok(catPositions.size >= 6, 'cat must walk to multiple positions');
-assert.ok(!night[0].equals(night[12]), 'cat must alternate between sitting and walking');
-assert.ok(night[0].equals(night[24]), 'cat must return home and resume sitting');
+const poseCalls = [];
+context.drawSittingNightCat = (...args) => { poseCalls.push('sitting'); actualSittingNightCat(...args); };
+context.drawStretchingNightCat = (...args) => { poseCalls.push(args[3] ? 'stretching' : 'lowering'); actualStretchingNightCat(...args); };
+render(ended, holiday, nightOptions);
+context.drawSittingNightCat = actualSittingNightCat;
+context.drawStretchingNightCat = actualStretchingNightCat;
+assert.strictEqual(poseCalls.filter((pose) => pose === 'sitting').length, 32, 'most of the loop must remain seated');
+assert.deepStrictEqual(poseCalls.slice(16, 20), ['lowering', 'stretching', 'stretching', 'lowering'], 'one brief stretch must include lowering and rising');
+assert.ok(!night[0].equals(night[18]), 'the stretch must be visually different from sitting');
+assert.ok(night[0].equals(night[24]), 'cat must resume the same seated scene');
 const sittingPoses = Array.from({ length: 6 }, (_, phase) => {
   const frame = context.createFrame([0, 0, 0]);
   context.drawSittingNightCat(frame, 0, 0, phase);
@@ -166,16 +171,27 @@ for (let i = 0; i < forcedNight.length; i += 1) {
   }
   assert.ok(catPixels > 20, 'explicit night mode with an active bus must retain a seated cat');
 }
-for (const phase of [0, 1, 2, 3, 4, 5]) {
-  const left = context.createFrame([0, 0, 0]);
-  const right = context.createFrame([0, 0, 0]);
-  context.drawWalkingCat(left, 0, 0, phase, false);
-  context.drawWalkingCat(right, 0, 0, phase, true);
-  for (let y = 0; y < 16; y += 1) {
-    for (let x = 0; x < 28; x += 1) {
-      assert.deepStrictEqual(pixel(left, x, y), pixel(right, 27 - x, y), 'body, tail and moving legs must all mirror');
+for (const extended of [false, true]) {
+  const frame = context.createFrame([0, 0, 0]);
+  context.drawStretchingNightCat(frame, 0, 0, extended);
+  const fur = [];
+  for (let y = 0; y < 64; y += 1) for (let x = 0; x < 64; x += 1) {
+    if (!pixel(frame, x, y).some(Boolean)) continue;
+    assert.ok(x < 28 && y < 16, 'stretch must stay inside its sprite bounds');
+    fur.push([x, y]);
+  }
+  const connected = new Set([fur[0].join()]);
+  let added = true;
+  while (added) {
+    added = false;
+    for (const [x, y] of fur) {
+      if (connected.has([x, y].join())) continue;
+      if ([-1, 0, 1].some((dx) => [-1, 0, 1].some((dy) => connected.has([x + dx, y + dy].join())))) {
+        connected.add([x, y].join()); added = true;
+      }
     }
   }
+  assert.strictEqual(connected.size, fur.length, 'stretch silhouette must remain connected, including ears, feet and tail');
 }
 const actualEndedMessage = context.drawBusEndedMessage;
 let endedMessageCalls = 0;
@@ -280,7 +296,7 @@ async function verifyUploadRecovery() {
 }
 
 verifyUploadRecovery().then(() => {
-  console.log('Pixoo playful scenes: stable random awake cat, night cat sitting/walking, scene priorities, 36-frame pixel isolation, upload recovery and overlay cache OK');
+  console.log('Pixoo playful scenes: stable random awake cat, seated cat with brief stretch, scene priorities, 36-frame pixel isolation, upload recovery and overlay cache OK');
 }).catch((error) => {
   console.error(error);
   process.exitCode = 1;

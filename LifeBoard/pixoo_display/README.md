@@ -182,19 +182,19 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
   title takes priority over the holiday marker.
 - The overnight scene replaces the bus icon and both first-bus waiting-message
   rows with a small night landscape (y=8 through 39). A larger cat is always
-  present, regardless of the awake-cat draw or work shift: it sits for 12
-  frames, walks out and back for 12 frames, then sits again for 12 frames.
+  present, regardless of the awake-cat draw or work shift: it sits for 32 of the
+  36 frames and briefly stretches in the remaining four frames. The stretch
+  lowers the chest, holds the raised-hip pose for two frames, then rises again
+  (2.6 seconds including transitions at the default 650 ms speed).
   The cat uses one pale-grey silhouette colour with no face or coat details.
   Its ears, seated haunches, front legs and long tail define the outline; the
   seated tail lifts and settles through three poses while its body stays still,
-  and walking legs alternate. The daytime header cat is
+  and the brief stretch extends the front legs along the ground. The daytime header cat is
   unchanged. The previous grey tabby design is preserved with its sprite source,
   64x64 frames and animation in `art_archive/gray-tabby-cade2ab/`; its complete
   renderer remains in commit `cade2ab`.
-  The walking outline uses a smaller head, a shallow shoulder curve, an angled
-  throat/chest and a tapered hip-to-leg join. Offset ears and a short muzzle/chin
-  define its side profile. Its first monochrome version is
-  retained in `art_archive/silhouette-4798875/` and commit `4798875`.
+  The previous walking renderer remains in commit `3a094e9`. Its first monochrome
+  outline is retained in `art_archive/silhouette-4798875/` and commit `4798875`.
   The work marker remains at the top right; the clock, JR, weather and garbage
   rows keep their usual display. At 06:00 the sunrise/first-bus display returns.
   The 36-frame native loop has four meteor frames, so a shooting star
