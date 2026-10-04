@@ -1,4 +1,4 @@
-const CACHE_NAME = "hobby-hub-pwa-content-de523a0bbda7";
+const CACHE_NAME = "hobby-hub-pwa-content-42482f264134";
 const APP_SHELL = [
   "/hobby-hub/",
   "/hobby-hub/index.html",
@@ -18,11 +18,6 @@ const APP_SHELL = [
   "/hobby-hub/jack-load/index.html",
   "/hobby-hub/sudoku/index.html",
   "/hobby-hub/737-study-finder/index.html",
-  "/hobby-hub/737-study-finder/assets/css/app.css",
-  "/hobby-hub/737-study-finder/assets/css/pwa.css",
-  "/hobby-hub/737-study-finder/assets/js/gas-run-shim.js",
-  "/hobby-hub/737-study-finder/assets/js/app.js",
-  "/hobby-hub/737-study-finder/assets/js/pwa-client.js",
   "/hobby-hub/izakaya-scout/index.html",
   "/hobby-hub/izakaya-scout/assets/css/app.css",
   "/hobby-hub/izakaya-scout/assets/css/pwa.css",
@@ -43,7 +38,7 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))));
+  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key.startsWith('hobby-hub-pwa-') && key !== CACHE_NAME).map((key) => caches.delete(key)))));
   self.clients.claim();
 });
 

@@ -14,7 +14,7 @@ const REQUIRED_FILES = [
   'assets/js/app.js',
   'assets/js/pwa-client.js',
   '737-study-finder/index.html',
-  '737-study-finder/assets/js/gas-run-shim.js',
+
   '737-study-finder/assets/answer-figures/ata00-design-range.webp',
   '737-study-finder/assets/answer-figures/ata24-external-power-locations.webp',
   '737-study-finder/assets/answer-figures/ata27-aileron-numbered-diagram.webp',
@@ -39,25 +39,11 @@ for (const relativePath of REQUIRED_FILES) {
 }
 
 const studyHtml = readGenerated('737-study-finder/index.html');
-const studyJs = readGenerated('737-study-finder/assets/js/app.js');
-assert(!/Answer Draft|AI \/ Draft Answers|回答作成用プロンプト/.test(studyHtml + studyJs), '737 Study Finder still exposes draft/prompt UI');
-assert(studyJs.includes('answerFigures'), '737 Study Finder must support selective answer figures');
-assert(studyJs.includes('loading="lazy"'), '737 Study Finder answer figures must remain lazy-loaded');
-assert(studyHtml.includes('id="termDialog"'), '737 Study Finder must include the abbreviation dialog');
-assert(studyJs.includes('resolveTermDefinitions'), '737 Study Finder must resolve abbreviation definitions');
-assert(studyJs.includes('chooseTermDefinition'), '737 Study Finder must prefer context for ambiguous abbreviations');
-assert(studyJs.includes('term-trigger'), '737 Study Finder must render tappable abbreviation terms');
-const answerFigureFiles = [...studyJs.matchAll(/\['([^']+\.webp)',\s*'[^']+'\]/g)]
-  .map((match) => match[1]);
-assert(answerFigureFiles.length >= 26, '737 Study Finder must retain the reviewed answer figure set');
-for (const fileName of new Set(answerFigureFiles)) {
-  assert(
-    fs.existsSync(path.join(DOCS, '737-study-finder', 'assets', 'answer-figures', fileName)),
-    'Missing mapped answer figure: ' + fileName
-  );
-}
+assert(studyHtml.includes('<iframe') && studyHtml.includes('https://nikoneco.github.io/Study_Finder/'), 'Study Finder bridge must use the standalone PWA');
+assert(!studyHtml.includes('<button'), 'Study Finder bridge must not add a back button');
+assert(!studyHtml.includes('gas-run-shim.js'), 'Study Finder must not be generated from HUB source');
 
-for (const relativePath of ['index.html', '737-study-finder/index.html', 'izakaya-scout/index.html', 'lifeboard/index.html']) {
+for (const relativePath of ['index.html', 'izakaya-scout/index.html', 'lifeboard/index.html']) {
   const html = readGenerated(relativePath);
   assert(!/<\?!=|<\?=/.test(html), relativePath + ' still contains GAS template tags');
   assert(html.includes('manifest.webmanifest'), relativePath + ' does not load manifest');

@@ -96,24 +96,7 @@ const APPS = [
     },
     pwaMode: 'hub'
   },
-  {
-    id: 'study737',
-    title: '737 Study Finder',
-    sourceDir: path.join(ROOT, '737_Study_Finder', 'gas'),
-    staticAssetsDir: path.join(ROOT, '737_Study_Finder', 'assets'),
-    outDir: path.join(DOCS, '737-study-finder'),
-    publicPath: PAGES_BASE + '737-study-finder/',
-    gasEndpoint: 'https://script.google.com/macros/s/AKfycbzPwkINDY--2PUYQg5xGoPDtkCLYvGoItobfEJocINxBFviRzcCrxb7Iu5lylirQ7tLOg/exec',
-    bootstrap: {
-      ok: true,
-      data: {
-        appName: '737 Study Finder',
-        setup: {},
-        preparedAtas: ['00', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31', '32', '33', '34', '35', '36', '38', '47', '49', '5X', '7X']
-      }
-    },
-    pwaMode: 'study'
-  },
+
   {
     id: 'izakaya',
     title: '居酒屋Scout',
@@ -279,6 +262,15 @@ function inlineIncludes(app, html) {
 }
 
 function writeSharedPwaFiles() {
+  ensureDir(path.join(DOCS, '737-study-finder'));
+  fs.writeFileSync(path.join(DOCS, '737-study-finder', 'index.html'), buildExternalAppShell({
+    title: '737 Study Finder',
+    src: 'https://nikoneco.github.io/Study_Finder/',
+    themeColor: '#15110e'
+  }), 'utf8');
+  // Existing GAS direct views still reference these reviewed figure URLs.
+  fs.cpSync(path.join(ROOT, 'assets', 'study737-legacy-figures'),
+    path.join(DOCS, '737-study-finder', 'assets', 'answer-figures'), { recursive: true });
   ensureDir(path.join(DOCS, 'sudoku'));
   fs.writeFileSync(path.join(DOCS, 'sudoku', 'index.html'), buildExternalAppShell({
     title: '数独',
@@ -672,11 +664,11 @@ function buildServiceWorker() {
     PAGES_BASE + 'jack-load/index.html',
     PAGES_BASE + 'sudoku/index.html',
     PAGES_BASE + '737-study-finder/index.html',
-    PAGES_BASE + '737-study-finder/assets/css/app.css',
-    PAGES_BASE + '737-study-finder/assets/css/pwa.css',
-    PAGES_BASE + '737-study-finder/assets/js/gas-run-shim.js',
-    PAGES_BASE + '737-study-finder/assets/js/app.js',
-    PAGES_BASE + '737-study-finder/assets/js/pwa-client.js',
+
+
+
+
+
     PAGES_BASE + 'izakaya-scout/index.html',
     PAGES_BASE + 'izakaya-scout/assets/css/app.css',
     PAGES_BASE + 'izakaya-scout/assets/css/pwa.css',
@@ -699,7 +691,7 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))));
+  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key.startsWith('hobby-hub-pwa-') && key !== CACHE_NAME).map((key) => caches.delete(key)))));
   self.clients.claim();
 });
 

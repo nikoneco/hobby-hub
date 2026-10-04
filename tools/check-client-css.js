@@ -6,8 +6,6 @@ const DOCS = path.join(ROOT, 'docs');
 const CSS_FILES = [
   'assets/css/app.css',
   'assets/css/pwa.css',
-  '737-study-finder/assets/css/app.css',
-  '737-study-finder/assets/css/pwa.css',
   'izakaya-scout/assets/css/app.css',
   'izakaya-scout/assets/css/pwa.css',
   'lifeboard/assets/css/app.css',

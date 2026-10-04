@@ -8,11 +8,7 @@ const CHECKS = [
     required: ['handleWebAppJsonpRequest_', 'dispatchWebAppJsonpApi_', "case 'apiGetModules'"],
     forbidden: ["case 'setupProject'"]
   },
-  {
-    file: '737_Study_Finder/gas/Code.gs',
-    required: ['handleWebAppJsonpRequest_', "case 'apiGetQuestionsBundle'", "case 'apiGetQuestionDetail'", "case 'apiGetRandomQuestionDetail'", "case 'apiBuildReviewPrompt'"],
-    forbidden: ["case 'apiImportCsv'", "case 'apiImportPreparedAtaData'", "case 'apiSaveAnswerNote'", "case 'apiSaveConfirmedAnswer'", "case 'setupProject'"]
-  },
+
   {
     file: 'IzakayaScout/gas/Code.gs',
     required: ['handleWebAppJsonpRequest_', "case 'apiSearchShops'", "case 'apiGetSetupStatus'"],
@@ -40,31 +36,7 @@ for (const check of CHECKS) {
   }
 }
 
-const studyImportService = fs.readFileSync(
-  path.join(ROOT, '737_Study_Finder/gas/ImportService.gs'),
-  'utf8'
-);
-assert(
-  studyImportService.includes("digits.padStart(2, '0')"),
-  '737 Study Finder must normalize numeric ATA 0 back to ATA00'
-);
-assert(
-  studyImportService.includes("value === null || value === undefined ? '' : value"),
-  '737 Study Finder must not discard numeric ATA 0 as an empty value'
-);
 
-const studyService = fs.readFileSync(
-  path.join(ROOT, '737_Study_Finder/gas/StudyService.gs'),
-  'utf8'
-);
-assert(
-  studyService.includes('termDictionary: termDictionary'),
-  '737 Study Finder question bundles must include the term dictionary'
-);
-assert(
-  studyService.includes('getTermDictionaryForClient_'),
-  '737 Study Finder must sanitize term dictionary rows for the client'
-);
 
 if (failed) {
   process.exit(1);
