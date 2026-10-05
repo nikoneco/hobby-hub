@@ -70,6 +70,16 @@
     "display_order": 7,
     "icon": "grid",
     "target_url": "./sudoku/"
+  },
+  {
+    "module_id": "household_account_book",
+    "module_name": "家計簿",
+    "category": "daily",
+    "description": "日々の収入と支出を記録する家計簿",
+    "enabled": true,
+    "display_order": 8,
+    "icon": "wallet",
+    "target_url": "https://nikoneco.github.io/household-account-book/"
   }
 ];
   window.hobbyHubOpenModuleUrl = (url) => {

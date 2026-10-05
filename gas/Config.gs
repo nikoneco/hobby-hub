@@ -66,6 +66,14 @@ const CONFIG = {
       WEB_APP_URL: 'https://nikoneco.github.io/hobby-hub/sudoku/',
       ICON: 'grid',
       DISPLAY_ORDER: 7
+    },
+    HOUSEHOLD_ACCOUNT_BOOK: {
+      MODULE_ID: 'household_account_book',
+      NAME: '家計簿',
+      DESCRIPTION: '日々の収入と支出を記録する家計簿',
+      WEB_APP_URL: 'https://nikoneco.github.io/household-account-book/',
+      ICON: 'wallet',
+      DISPLAY_ORDER: 8
     }
   }
 };

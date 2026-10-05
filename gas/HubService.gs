@@ -62,7 +62,8 @@ function buildDefaultModules_() {
     buildIzakayaScoutModule_(),
     buildCelestiFrameModule_(),
     buildJackLoadModule_(),
-    buildSudokuModule_()
+    buildSudokuModule_(),
+    buildHouseholdAccountBookModule_()
   ];
 }
 
@@ -164,6 +165,22 @@ function buildJackLoadModule_() {
 
 function buildSudokuModule_() {
   const app = CONFIG.APPS.SUDOKU;
+  return {
+    module_id: app.MODULE_ID,
+    module_name: app.NAME,
+    description: app.DESCRIPTION,
+    enabled: true,
+    display_order: app.DISPLAY_ORDER,
+    icon: app.ICON,
+    target_url: app.WEB_APP_URL,
+    app_folder_id: '',
+    script_id: '',
+    db_spreadsheet_id: ''
+  };
+}
+
+function buildHouseholdAccountBookModule_() {
+  const app = CONFIG.APPS.HOUSEHOLD_ACCOUNT_BOOK;
   return {
     module_id: app.MODULE_ID,
     module_name: app.NAME,
