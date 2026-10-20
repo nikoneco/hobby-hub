@@ -83,6 +83,16 @@
         "display_order": 8,
         "icon": "wallet",
         "target_url": "https://nikoneco.github.io/household-account-book/"
+      },
+      {
+        "module_id": "arrow_journey",
+        "module_name": "Arrow Journey",
+        "category": "game",
+        "description": "矢印のパズルゲーム",
+        "enabled": true,
+        "display_order": 9,
+        "icon": "arrow",
+        "target_url": "https://nikoneco.github.io/Arrow-Journey/"
       }
     ]
   },
@@ -168,6 +178,16 @@
         "display_order": 8,
         "icon": "wallet",
         "target_url": "https://nikoneco.github.io/household-account-book/"
+      },
+      {
+        "module_id": "arrow_journey",
+        "module_name": "Arrow Journey",
+        "category": "game",
+        "description": "矢印のパズルゲーム",
+        "enabled": true,
+        "display_order": 9,
+        "icon": "arrow",
+        "target_url": "https://nikoneco.github.io/Arrow-Journey/"
       }
     ]
   }

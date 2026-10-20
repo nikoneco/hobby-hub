@@ -74,6 +74,14 @@ const CONFIG = {
       WEB_APP_URL: 'https://nikoneco.github.io/household-account-book/',
       ICON: 'wallet',
       DISPLAY_ORDER: 8
+    },
+    ARROW_JOURNEY: {
+      MODULE_ID: 'arrow_journey',
+      NAME: 'Arrow Journey',
+      DESCRIPTION: '矢印のパズルゲーム',
+      WEB_APP_URL: 'https://nikoneco.github.io/Arrow-Journey/',
+      ICON: 'arrow',
+      DISPLAY_ORDER: 9
     }
   }
 };

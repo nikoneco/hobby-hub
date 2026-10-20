@@ -17,7 +17,8 @@ const app = document.getElementById('app');
     celestiframe: { category: 'hobby', shortDescription: '月と星を見に行く' },
     jack_load: { category: 'aviation', shortDescription: 'JACK荷重とLimit判定' },
     sudoku: { category: 'game', shortDescription: '数字で遊ぶひと休み' },
-    household_account_book: { category: 'daily', shortDescription: '日々の収入と支出を記録' }
+    household_account_book: { category: 'daily', shortDescription: '日々の収入と支出を記録' },
+    arrow_journey: { category: 'game', shortDescription: '矢印のパズルゲーム' }
   };
   const RECENT_STORAGE_KEY = 'hobbyHub.recentApps.v1';
   let currentModules = [];
@@ -249,6 +250,9 @@ const app = document.getElementById('app');
     }
     if (id === 'household_account_book') {
       return '家計';
+    }
+    if (id === 'arrow_journey') {
+      return '→';
     }
     return String(module.icon || 'APP').slice(0, 3).toUpperCase();
   }
