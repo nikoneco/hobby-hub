@@ -301,17 +301,23 @@ function Invoke-Bus {
 }
 
 function Invoke-Weather {
-  if (-not (Test-WeatherFetchDue)) {
-    return
-  }
-  $script = Join-Path $lifeBoardDir 'weather_fetcher\sync_weathernews_snapshot.js'
-  if (-not (Test-Path -LiteralPath $script)) {
-    throw "Weathernews fetcher not found: $script"
-  }
-  $modeArg = if ($DryRun) { '--dry-run' } else { '--post' }
-  Invoke-NodeScript -ScriptPath $script -Arguments @($modeArg) -StepName 'weather-fetch'
-  if (-not $DryRun) {
-    Set-Content -LiteralPath $weatherFetchStatePath -Encoding ASCII -Value ((Get-Date).ToUniversalTime().ToString('o'))
+  param([switch]$ContinueOnError)
+  try {
+    if (-not (Test-WeatherFetchDue)) {
+      return
+    }
+    $script = Join-Path $lifeBoardDir 'weather_fetcher\sync_weathernews_snapshot.js'
+    if (-not (Test-Path -LiteralPath $script)) {
+      throw "Weathernews fetcher not found: $script"
+    }
+    $modeArg = if ($DryRun) { '--dry-run' } else { '--post' }
+    Invoke-NodeScript -ScriptPath $script -Arguments @($modeArg) -StepName 'weather-fetch'
+    if (-not $DryRun) {
+      Set-Content -LiteralPath $weatherFetchStatePath -Encoding ASCII -Value ((Get-Date).ToUniversalTime().ToString('o'))
+    }
+  } catch {
+    if (-not $ContinueOnError) { throw }
+    Add-Log ('weather-fetch WARNING refresh failed; continuing Pixoo with available weather data: ' + $_.Exception.Message)
   }
 }
 
@@ -333,7 +339,7 @@ function Invoke-Pixoo {
     }
   }
   if (-not $SkipWeatherRefresh) {
-    Invoke-Weather
+    Invoke-Weather -ContinueOnError
   }
   if (-not $renderDue) {
     return
@@ -367,7 +373,7 @@ try {
     Invoke-Bus
   }
   if ($Mode -eq 'Weather' -or $Mode -eq 'All') {
-    Invoke-Weather
+    Invoke-Weather -ContinueOnError:($Mode -eq 'All')
   }
   if ($Mode -eq 'TimeTree' -or $Mode -eq 'All') {
     Invoke-TimeTree

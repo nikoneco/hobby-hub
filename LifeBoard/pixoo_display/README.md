@@ -271,6 +271,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\LifeBoard\pixoo_display\un
 
 ## Troubleshooting animation uploads
 
+- Weather refresh failures are logged as warnings and do not stop Pixoo sends
+  in `Pixoo` or `All` mode. The renderer continues with available weather data;
+  standalone `Weather` mode still reports a failed refresh. The Weathernews
+  fetcher uses the JSON forecast endpoint used by its current hourly page,
+  because the legacy page now returns only a JavaScript redirect. Existing
+  coordinate-based legacy URL overrides are translated to the JSON endpoint.
+
 - The server runner can automatically recover the known repeater connectivity
   failure. `pixoo_display/wifi_recovery.local.ps1` returns a hashtable containing
   `MachineName`, `InterfaceGuid`, `InterfaceName`, `Ssid`, `Profile`,

@@ -4,7 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const DEFAULT_WEATHERNEWS_URL = 'https://weathernews.jp/v/wl/35.697986/139.8808895/temp=c&lang=ja&type=hour';
+const DEFAULT_WEATHERNEWS_URL = 'https://www.jp-weathernews.com/v/wl/api/web_main_v6.fcgi?lat=35.697986&lon=139.8808895&language=ja';
 const DEFAULT_LOCATION = {
   locationId: 'edogawa',
   displayName: '江戸川区'
@@ -60,7 +60,7 @@ function parseArgs(args) {
     if (arg === '--help' || arg === '-h') options.help = true;
     else if (arg === '--url') options.url = args[++i];
     else if (arg === '--out') options.outPath = path.resolve(args[++i]);
-    else if (arg === '--input-html') options.inputHtml = path.resolve(args[++i]);
+    else if (arg === '--input-html' || arg === '--input-json') options.inputHtml = path.resolve(args[++i]);
     else if (arg === '--post') options.post = true;
     else if (arg === '--dry-run') options.dryRun = true;
     else if (arg === '--web-app-url') options.webAppUrl = args[++i];
@@ -80,7 +80,8 @@ function parseArgs(args) {
 }
 
 async function fetchWeathernewsHtml(url) {
-  const response = await fetch(url, {
+  const response = await fetch(resolveWeathernewsUrl(url), {
+    signal: AbortSignal.timeout(15000),
     headers: {
       Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
@@ -94,13 +95,70 @@ async function fetchWeathernewsHtml(url) {
   return text;
 }
 
-function buildWeatherSnapshot(html, options) {
-  const rows = parseHourlyRows(html);
+function resolveWeathernewsUrl(value) {
+  const url = new URL(value);
+  // The legacy page now returns a JavaScript redirect, without forecast HTML.
+  const legacy = url.hostname === 'weathernews.jp' && url.pathname.match(/^\/v\/wl\/(-?\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?)(?:\/|$)/);
+  const modernPage = url.hostname === 'www.jp-weathernews.com' && url.pathname === '/mv4/html/hourly.html';
+  if (!legacy && !modernPage) return value;
+  const api = new URL('/v/wl/api/web_main_v6.fcgi', 'https://www.jp-weathernews.com');
+  for (const name of ['lat', 'lon', 'loc']) {
+    if (url.searchParams.has(name)) api.searchParams.set(name, url.searchParams.get(name));
+  }
+  if (legacy) {
+    api.searchParams.set('lat', legacy[1]);
+    api.searchParams.set('lon', legacy[2]);
+  }
+  api.searchParams.set('language', 'ja');
+  return api.href;
+}
+
+function parseWeatherSource(source) {
+  const text = typeof source === 'string' ? source.replace(/^\uFEFF/, '').trim() : '';
+  if (typeof source !== 'object' && !text.startsWith('{') && !text.startsWith('[')) {
+    return { rows: parseHourlyRows(text), observed: parseObservedWeather(text) };
+  }
+  const data = typeof source === 'object' ? source : JSON.parse(text);
+  if (!data || !Array.isArray(data.hourly)) {
+    throw new Error('Weathernews response has no hourly forecast');
+  }
+  const rows = data.hourly.flatMap((row) => {
+    if (!row || typeof row !== 'object') return [];
+    const year = Number(row.year);
+    const month = Number(row.mon);
+    const day = Number(row.day);
+    const hour = Number(row.hour);
+    const temp = parseNumber(row.temp);
+    if (!Number.isInteger(year) || year < 2000 || !Number.isInteger(month) || month < 1 || month > 12 ||
+        !Number.isInteger(day) || day < 1 || day > 31 || !Number.isInteger(hour) || hour < 0 || hour > 23 ||
+        !Number.isFinite(temp) || temp < -100 || temp > 70) return [];
+    const rainValue = parseNumber(row.prec);
+    const windValue = parseNumber(row.wspd);
+    const rain = rainValue >= 0 ? rainValue : NaN;
+    const wind = windValue >= 0 ? windValue : NaN;
+    const iconCode = String(row.wx || '');
+    return [{
+      dateText: day + '日', timeText: String(hour),
+      isoTime: buildTokyoIso(year, month, day, hour),
+      iconCode, rain, temp, wind, kind: classifyHourlyKind(iconCode, rain)
+    }];
+  });
+  const current = data.current || {};
+  const humidity = parseNumber(current.rhum);
+  const temperature = parseNumber(current.temp);
+  return { rows, observed: {
+    temperature: temperature >= -100 && temperature <= 70 ? temperature : NaN,
+    humidity: humidity >= 0 && humidity <= 100 ? humidity : '',
+    statusText: ''
+  } };
+}
+
+function buildWeatherSnapshot(source, options) {
+  const { rows, observed } = parseWeatherSource(source);
   if (!rows.length) {
     throw new Error('Weathernews hourly table was not found');
   }
 
-  const observed = parseObservedWeather(html);
   const now = new Date();
   const lookaheadHours = getLookaheadHours(now);
   const windowRows = rows.slice(0, Math.max(1, lookaheadHours));
@@ -395,7 +453,7 @@ function extract(text, pattern) {
 }
 
 function parseNumber(value) {
-  const match = String(value || '').match(/-?\d+(?:\.\d+)?/);
+  const match = String(value == null ? '' : value).match(/-?\d+(?:\.\d+)?/);
   return match ? Number(match[0]) : NaN;
 }
 
@@ -512,6 +570,7 @@ function printHelp() {
     '  --post             Fetch and post to LifeBoard GAS.',
     '  --url URL          Weathernews hourly forecast URL.',
     '  --input-html PATH  Parse a saved Weathernews HTML file instead of fetching.',
+    '  --input-json PATH  Parse a saved Weathernews forecast JSON response.',
     '  --out PATH         Output JSON path.',
     '  --web-app-url URL  LifeBoard GAS web app URL.',
     '  --token TOKEN      LifeBoard import token.',
@@ -535,5 +594,6 @@ module.exports = {
   analyzeWeatherWindow,
   buildWeatherSnapshot,
   classifyHourlyKind,
-  collapseConsecutiveKinds
+  collapseConsecutiveKinds,
+  resolveWeathernewsUrl
 };
