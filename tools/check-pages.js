@@ -39,9 +39,24 @@ for (const relativePath of REQUIRED_FILES) {
 }
 
 const studyHtml = readGenerated('737-study-finder/index.html');
-assert(studyHtml.includes('<iframe') && studyHtml.includes('https://nikoneco.github.io/Study_Finder/'), 'Study Finder bridge must use the standalone PWA');
+assert(!studyHtml.includes('<iframe'), 'Study Finder legacy entry must not embed an iframe');
+assert(studyHtml.includes('window.location.replace("https://nikoneco.github.io/Study_Finder/")'), 'Study Finder legacy entry must redirect to the standalone PWA');
+assert(studyHtml.includes('737 Study Finderを開いています。'), 'Study Finder redirect must name the correct app');
+assert(readGenerated('assets/js/pwa-client.js').includes("study737: 'https://nikoneco.github.io/Study_Finder/'"), 'Study Finder launcher must open the standalone PWA directly');
 assert(!studyHtml.includes('<button'), 'Study Finder bridge must not add a back button');
 assert(!studyHtml.includes('gas-run-shim.js'), 'Study Finder must not be generated from HUB source');
+
+for (const [moduleId, slug, target, title] of [
+  ['room_library', 'room-library', 'https://nikoneco.github.io/hobby-room-library-PWA/', '趣味部屋図書館'],
+  ['celestiframe', 'celestiframe', 'https://nikoneco.github.io/CelestiFrame/', 'CelestiFrame'],
+  ['sudoku', 'sudoku', 'https://nikoneco.github.io/Sudoku/', '数独']
+]) {
+  const legacyHtml = readGenerated(slug + '/index.html');
+  assert(!legacyHtml.includes('<iframe'), title + ' must not embed an iframe');
+  assert(legacyHtml.includes('window.location.replace(' + JSON.stringify(target) + ')'), title + ' legacy entry must redirect');
+  assert(legacyHtml.includes(title + 'を開いています。'), title + ' redirect must name the correct app');
+  assert(readGenerated('assets/js/pwa-client.js').includes(moduleId + ": '" + target + "'"), title + ' launcher must open the standalone PWA directly');
+}
 
 for (const relativePath of ['index.html', 'izakaya-scout/index.html', 'lifeboard/index.html']) {
   const html = readGenerated(relativePath);

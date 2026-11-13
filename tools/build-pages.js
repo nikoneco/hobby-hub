@@ -29,7 +29,7 @@ const APPS = [
             enabled: true,
             display_order: 1,
             icon: 'book-open',
-            target_url: './737-study-finder/'
+            target_url: 'https://nikoneco.github.io/Study_Finder/'
           },
           {
             module_id: 'room_library',
@@ -89,7 +89,7 @@ const APPS = [
             enabled: true,
             display_order: 7,
             icon: 'grid',
-            target_url: './sudoku/'
+            target_url: 'https://nikoneco.github.io/Sudoku/'
           },
           {
             module_id: 'household_account_book',
@@ -283,7 +283,7 @@ function inlineIncludes(app, html) {
 
 function writeSharedPwaFiles() {
   ensureDir(path.join(DOCS, '737-study-finder'));
-  fs.writeFileSync(path.join(DOCS, '737-study-finder', 'index.html'), buildExternalAppShell({
+  fs.writeFileSync(path.join(DOCS, '737-study-finder', 'index.html'), buildRedirectAppShell({
     title: '737 Study Finder',
     src: 'https://nikoneco.github.io/Study_Finder/',
     themeColor: '#15110e'
@@ -292,19 +292,19 @@ function writeSharedPwaFiles() {
   fs.cpSync(path.join(ROOT, 'assets', 'study737-legacy-figures'),
     path.join(DOCS, '737-study-finder', 'assets', 'answer-figures'), { recursive: true });
   ensureDir(path.join(DOCS, 'sudoku'));
-  fs.writeFileSync(path.join(DOCS, 'sudoku', 'index.html'), buildExternalAppShell({
+  fs.writeFileSync(path.join(DOCS, 'sudoku', 'index.html'), buildRedirectAppShell({
     title: '数独',
     src: 'https://nikoneco.github.io/Sudoku/',
     themeColor: '#f7f5ef'
   }), 'utf8');
   ensureDir(path.join(DOCS, 'room-library'));
-  fs.writeFileSync(path.join(DOCS, 'room-library', 'index.html'), buildExternalAppShell({
+  fs.writeFileSync(path.join(DOCS, 'room-library', 'index.html'), buildRedirectAppShell({
     title: '趣味部屋図書館',
     src: 'https://nikoneco.github.io/hobby-room-library-PWA/',
     themeColor: '#07151a'
   }), 'utf8');
   ensureDir(path.join(DOCS, 'celestiframe'));
-  fs.writeFileSync(path.join(DOCS, 'celestiframe', 'index.html'), buildExternalAppShell({
+  fs.writeFileSync(path.join(DOCS, 'celestiframe', 'index.html'), buildRedirectAppShell({
     title: 'CelestiFrame',
     src: 'https://nikoneco.github.io/CelestiFrame/',
     themeColor: '#07151a'
@@ -498,10 +498,10 @@ function buildModeScript(app) {
     window.location.assign(url);
   };
   const pageTargets = {
-    sudoku: './sudoku/',
-    study737: './737-study-finder/',
-    room_library: './room-library/',
-    celestiframe: './celestiframe/',
+    sudoku: 'https://nikoneco.github.io/Sudoku/',
+    study737: 'https://nikoneco.github.io/Study_Finder/',
+    room_library: 'https://nikoneco.github.io/hobby-room-library-PWA/',
+    celestiframe: 'https://nikoneco.github.io/CelestiFrame/',
     jack_load: 'https://script.google.com/macros/s/AKfycbzO_TsuxIRSqSn5a-YOGyOPDRgaJNHZRDr_8GZpGCOMhYkzLg5QIa3kcli8ETOx1fmEKQ/exec',
     izakaya_scout: './izakaya-scout/',
     lifeboard: './lifeboard/'
@@ -658,7 +658,7 @@ function buildRedirectAppShell(app) {
     </script>
   </head>
   <body>
-    <p>JACK LOADを開いています。自動で切り替わらない場合は <a href="${escapeAttr(app.src)}">こちら</a> を開いてください。</p>
+    <p>${escapeAttr(app.title)}を開いています。自動で切り替わらない場合は <a href="${escapeAttr(app.src)}">こちら</a> を開いてください。</p>
   </body>
 </html>`;
 }

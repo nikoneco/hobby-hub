@@ -9,7 +9,7 @@
     "enabled": true,
     "display_order": 1,
     "icon": "book-open",
-    "target_url": "./737-study-finder/"
+    "target_url": "https://nikoneco.github.io/Study_Finder/"
   },
   {
     "module_id": "room_library",
@@ -69,7 +69,7 @@
     "enabled": true,
     "display_order": 7,
     "icon": "grid",
-    "target_url": "./sudoku/"
+    "target_url": "https://nikoneco.github.io/Sudoku/"
   },
   {
     "module_id": "household_account_book",
@@ -96,10 +96,10 @@
     window.location.assign(url);
   };
   const pageTargets = {
-    sudoku: './sudoku/',
-    study737: './737-study-finder/',
-    room_library: './room-library/',
-    celestiframe: './celestiframe/',
+    sudoku: 'https://nikoneco.github.io/Sudoku/',
+    study737: 'https://nikoneco.github.io/Study_Finder/',
+    room_library: 'https://nikoneco.github.io/hobby-room-library-PWA/',
+    celestiframe: 'https://nikoneco.github.io/CelestiFrame/',
     jack_load: 'https://script.google.com/macros/s/AKfycbzO_TsuxIRSqSn5a-YOGyOPDRgaJNHZRDr_8GZpGCOMhYkzLg5QIa3kcli8ETOx1fmEKQ/exec',
     izakaya_scout: './izakaya-scout/',
     lifeboard: './lifeboard/'

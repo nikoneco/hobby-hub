@@ -12,7 +12,7 @@
         "enabled": true,
         "display_order": 1,
         "icon": "book-open",
-        "target_url": "./737-study-finder/"
+        "target_url": "https://nikoneco.github.io/Study_Finder/"
       },
       {
         "module_id": "room_library",
@@ -72,7 +72,7 @@
         "enabled": true,
         "display_order": 7,
         "icon": "grid",
-        "target_url": "./sudoku/"
+        "target_url": "https://nikoneco.github.io/Sudoku/"
       },
       {
         "module_id": "household_account_book",
@@ -107,7 +107,7 @@
         "enabled": true,
         "display_order": 1,
         "icon": "book-open",
-        "target_url": "./737-study-finder/"
+        "target_url": "https://nikoneco.github.io/Study_Finder/"
       },
       {
         "module_id": "room_library",
@@ -167,7 +167,7 @@
         "enabled": true,
         "display_order": 7,
         "icon": "grid",
-        "target_url": "./sudoku/"
+        "target_url": "https://nikoneco.github.io/Sudoku/"
       },
       {
         "module_id": "household_account_book",

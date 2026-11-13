@@ -17,7 +17,7 @@ const CONFIG = {
       MODULE_ID: 'study737',
       NAME: '737 Study Finder',
       DESCRIPTION: '737-800の学習ノートと問題検索',
-      WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbzPwkINDY--2PUYQg5xGoPDtkCLYvGoItobfEJocINxBFviRzcCrxb7Iu5lylirQ7tLOg/exec'
+      WEB_APP_URL: 'https://nikoneco.github.io/Study_Finder/'
     },
     ROOM_LIBRARY: {
       MODULE_ID: 'room_library',
@@ -63,7 +63,7 @@ const CONFIG = {
       MODULE_ID: 'sudoku',
       NAME: '数独',
       DESCRIPTION: '数字を埋めて楽しむ数独パズル',
-      WEB_APP_URL: 'https://nikoneco.github.io/hobby-hub/sudoku/',
+      WEB_APP_URL: 'https://nikoneco.github.io/Sudoku/',
       ICON: 'grid',
       DISPLAY_ORDER: 7
     },

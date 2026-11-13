@@ -23,7 +23,7 @@ Google Apps Script Web App + Google Sheetsで作る趣味アプリ群の入口�
   - 各アプリへのリンク集/ランチャー専用。
   - `HobbyHub_Master` の `hub_modules` を読んでアプリ一覧を表示します。
 - 737 Study Finderは[独立リポジトリ](https://github.com/nikoneco/Study_Finder)へ移行しました。
-  - [独立PWA](https://nikoneco.github.io/Study_Finder/)を`docs/737-study-finder/`の中継ページからiframe表示します。
+  - カードから[独立PWA](https://nikoneco.github.io/Study_Finder/)へ直接移動します。旧`docs/737-study-finder/`も同じPWAへの転送ページとして維持します。
   - ローカル作業ルートは`D:\アプリ開発\737-800勉強`です。GAS・Study737_DBは従来どおりです。
 - `IzakayaScout/gas/`
   - 居酒屋Scout本体。
@@ -52,10 +52,10 @@ Google Apps Script Web App + Google Sheetsで作る趣味アプリ群の入口�
 
 PDF抽出・CSV生成・データ検証・GAS操作は独立したStudy Finderプロジェクトで行います。現行仕様とコマンドは[独立リポジトリのREADME](https://github.com/nikoneco/Study_Finder)を参照してください。従来のコード履歴はこのリポジトリに保持しています。
 
-趣味HUBは既存の入口URLとGAS直表示版向け回答画像の互換配信だけを担当し、Study Finder本体は生成しません。
+趣味HUBは独立PWAへのリンク、既存の入口URLの転送、GAS直表示版向け回答画像の互換配信を担当し、Study Finder本体は生成しません。
 
 ## 趣味HUBの外部PWAリンク方針
 
-- 別プロジェクトのPWAを趣味HUBに追加するときは、外部URLへ直接遷移させず、`/hobby-hub/<app-slug>/` 配下の中継ページを作ります。
-- 中継ページは外部PWAを `iframe` で表示し、画面内の戻るボタンは置きません。
-- `tools/build-pages.js` の `pageTargets` と Service Worker のキャッシュ対象へ中継ページを追加します。
+- ユーザー指定により、737 Study Finder・趣味部屋図書館・CelestiFrame・数独・家計簿・Arrow Journeyは、それぞれの独立PWAのURLへ直接移動します。
+- 旧HUB内の `737-study-finder/`・`room-library/`・`celestiframe/`・`sudoku/` は、iframeを使わず各PWAへ転送します。旧URLとStudy Finderの互換画像は維持します。
+- 旧URLの転送ページはService Workerのキャッシュ対象として維持し、更新時に古いiframeページから切り替えます。
