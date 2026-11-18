@@ -1,18 +1,15 @@
 # 趣味HUB
 
-Google Apps Script Web App + Google Sheetsで作る趣味アプリ群の入口です。
+自作アプリ群を開く [GitHub Pages PWA](https://nikoneco.github.io/hobby-hub/) です。管理用の入口は Google Apps Script Web App と Google Sheets を使います。
 
 ## ランチャー画面
 
-- PCはアプリ一覧と夜の司書さんを並べた2カラム、スマートフォンは上部の画像と2列のアプリ一覧を表示します。
-- 「すべて／趣味／日常／航空／ゲーム」で一覧を絞り込み、カードを1回押すと従来と同じアプリを開きます。
-- 家計簿は「日常」カテゴリに表示し、指定の `https://nikoneco.github.io/household-account-book/` を直接開きます。ユーザー指定により、このアプリにはHUB内のiframe中継ページを作りません。
-- Arrow Journeyは「ゲーム」カテゴリに表示し、指定の `https://nikoneco.github.io/Arrow-Journey/` を直接開きます。家計簿と同様、HUB内のiframe中継ページは作りません。
-- 最近使ったアプリを端末の `localStorage` に最大3件保存します。保存できない環境でも通常の一覧と起動は利用できます。
-- 吹き出しは端末の時刻に合わせ、ページ読込時と司書さんのタップ時に朝・昼・夜・深夜それぞれ20種類（計80種類）から選びます。画像・吹き出しのどちらでも押せて、キーボードのEnter／Spaceにも対応します。直近5回のセリフIDを端末へ保存し、次の抽選から除外します。保存できなくても表示できます。
-- アプリ一覧の更新ボタンは撤去しました。Pagesでは従来どおり管理用の初期設定を非表示にし、GAS版では初期設定を利用できます。
+- 書斎の5つの入口から、アプリごとの演出と紹介を表示します。「アプリ一覧」から全9件を開けます。
+- LifeBoard と居酒屋ScoutはHUB配下で開きます。家計簿や Arrow Journey などは各アプリの公開先へ移動します。
+- アプリ一覧には、端末の `localStorage` に保存した最近使ったアプリを最大3件表示します。
+- 司書さんを押すと、端末の時刻に合わせて朝・昼・夜・深夜それぞれ20種類からセリフを選びます。直近5回のセリフは次の抽選から除外します。
 
-画面の正本は `gas/index.html`、`gas/style.html`、`gas/script.html` です。`docs` は `node tools/build-pages.js` で生成します。アプリ追加時はモジュールの `category`（`hobby`、`daily`、`aviation`、`game`）を指定でき、既存のGASデータはフロント側の対応表で分類します。
+Pagesの画面と画像は `pages/hub/`、アプリの登録情報は `tools/build-pages.js` のHUBカタログにあります。`node tools/build-pages.js` で `docs` を再生成します。モジュールのカテゴリは `hobby`、`daily`、`aviation`、`game` です。GAS直表示版の画面は `gas/index.html`、`gas/style.html`、`gas/script.html` にあります。
 
 セリフの編集先は `gas/flavor_messages.html` です。`id` は履歴用なので既存行の編集・並べ替え時も維持し、新しい行には未使用IDを付けます。Pagesでは `assets/js/flavor-messages.js` に分離して配信し、Service Workerにも含めます。セリフ履歴は `hobbyHub.flavorHistory.v1` にIDだけを最大5件保存します。
 
@@ -43,7 +40,7 @@ Google Apps Script Web App + Google Sheetsで作る趣味アプリ群の入口�
 
 ローカルの作業ルート:
 
-- 趣味HUB: `gas/`
+- 趣味HUB: `pages/hub/`（Pages）、`gas/`（GAS直表示）
 - 737 Study Finder: `D:\アプリ開発\737-800勉強`（独立Git）
 - 居酒屋Scout: `IzakayaScout/gas/`
 - LifeBoard: `LifeBoard/gas/`

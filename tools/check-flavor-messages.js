@@ -71,7 +71,8 @@ assert.equal(small.select(), small.select(), 'Exhausted future small sets must s
 assert.equal(session(6, new Map(), { missingData: true }).select(), '今日はどこに行く？');
 assert.equal(fs.readFileSync(path.join(root, 'docs/assets/js/flavor-messages.js'), 'utf8').trim(), data.trim());
 const html = fs.readFileSync(path.join(root, 'docs/index.html'), 'utf8');
-assert(html.indexOf('flavor-messages.js') < html.indexOf('/app.js'), 'Data must load before selection');
+assert(html.includes('flavor-messages.js') && html.indexOf('flavor-messages.js') < html.indexOf('/app.js'),
+  'Data must load before selection');
 assert(!html.includes('morning-20'), 'Pages should keep flavor data outside HTML');
 assert(fs.readFileSync(path.join(root, 'docs/sw.js'), 'utf8').includes('assets/js/flavor-messages.js'));
 console.log('check-flavor-messages ok: 80 lines, boundaries, last-5 exclusion, storage fallback, Pages data/cache');

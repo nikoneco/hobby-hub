@@ -5,7 +5,6 @@ const vm = require('vm');
 const ROOT = path.resolve(__dirname, '..');
 const DOCS = path.join(ROOT, 'docs');
 const JS_FILES = [
-  'assets/js/gas-run-shim.js',
   'assets/js/app.js',
   'assets/js/flavor-messages.js',
   'assets/js/pwa-client.js',

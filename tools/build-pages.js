@@ -6,6 +6,11 @@ const crypto = require('crypto');
 const ROOT = path.resolve(__dirname, '..');
 const DOCS = path.join(ROOT, 'docs');
 const PAGES_BASE = '/hobby-hub/';
+const HUB_SOURCE = path.join(ROOT, 'pages', 'hub');
+const HUB_ART = 'assets/night-study';
+const HUB_STYLES = ['assets/css/app.css', 'assets/css/pwa.css'];
+const HUB_SCRIPTS = ['assets/js/flavor-messages.js', 'assets/js/app.js', 'assets/js/pwa-client.js'];
+const HUB_THEME = '#10131b';
 
 const APPS = [
   {
@@ -163,11 +168,12 @@ const BUILD_VERSION = process.env.PWA_BUILD_VERSION || createBuildVersion();
 function createBuildVersion() {
   const hash = crypto.createHash('sha256');
   const files = [__filename];
-  // The HUB image is a standalone Pages asset and a GAS include. Include its
-  // contents in the cache version so replacement artwork always invalidates it.
+  files.push(...listFilesRecursively(HUB_SOURCE));
+  // Keep the legacy portrait URL available for saved links and older HUB pages.
   files.push(path.join(ROOT, 'assets', 'hobby-hub-night-librarian.webp'));
   files.push(path.join(ROOT, 'gas', 'flavor_messages.html'));
   APPS.forEach((app) => {
+    if (app.id === 'hub') return;
     ['index.html', 'style.html', 'script.html'].forEach((name) => {
       files.push(path.join(app.sourceDir, name));
     });
@@ -198,6 +204,10 @@ function main() {
 }
 
 function buildApp(app) {
+  if (app.id === 'hub') {
+    buildHubPages(app);
+    return;
+  }
   ensureDir(app.outDir);
   const assetDir = path.join(app.outDir, 'assets');
   const cssDir = path.join(assetDir, 'css');
@@ -207,10 +217,6 @@ function buildApp(app) {
   if (app.staticAssetsDir && fs.existsSync(app.staticAssetsDir)) {
     fs.cpSync(app.staticAssetsDir, assetDir, { recursive: true });
   }
-  if (app.id === 'hub') {
-    fs.copyFileSync(path.join(ROOT, 'assets', 'hobby-hub-night-librarian.webp'),
-      path.join(assetDir, 'hobby-hub-night-librarian.webp'));
-  }
 
   const css = stripWrapper(readSource(app, 'style.html'), 'style');
   const js = stripWrapper(readSource(app, 'script.html'), 'script');
@@ -219,10 +225,6 @@ function buildApp(app) {
   fs.writeFileSync(path.join(jsDir, 'gas-run-shim.js'), buildGasRunShim(app), 'utf8');
   fs.writeFileSync(path.join(jsDir, 'pwa-client.js'), buildPwaClient(app), 'utf8');
   fs.writeFileSync(path.join(jsDir, 'app.js'), js, 'utf8');
-  if (app.id === 'hub') {
-    fs.writeFileSync(path.join(jsDir, 'flavor-messages.js'),
-      stripWrapper(readSource(app, 'flavor_messages.html'), 'script'), 'utf8');
-  }
 
   let html = readSource(app, 'index.html');
   html = inlineIncludes(app, html);
@@ -249,6 +251,42 @@ function buildApp(app) {
   fs.writeFileSync(path.join(app.outDir, 'index.html'), html, 'utf8');
 }
 
+function versionedAsset(relativePath) {
+  return relativePath + '?v=' + BUILD_VERSION;
+}
+
+function buildHubPages(app) {
+  ensureDir(path.join(DOCS, 'assets/css'));
+  ensureDir(path.join(DOCS, 'assets/js'));
+  fs.copyFileSync(path.join(HUB_SOURCE, 'study.css'), path.join(DOCS, HUB_STYLES[0]));
+  fs.writeFileSync(path.join(DOCS, HUB_STYLES[1]), buildPwaCss(app), 'utf8');
+  fs.writeFileSync(path.join(DOCS, HUB_SCRIPTS[0]),
+    stripWrapper(readSource(app, 'flavor_messages.html'), 'script'), 'utf8');
+  fs.copyFileSync(path.join(HUB_SOURCE, 'study.js'), path.join(DOCS, HUB_SCRIPTS[1]));
+  fs.writeFileSync(path.join(DOCS, HUB_SCRIPTS[2]), buildPwaClient(app), 'utf8');
+  fs.cpSync(path.join(HUB_SOURCE, 'art'), path.join(DOCS, HUB_ART), { recursive: true });
+  fs.copyFileSync(path.join(ROOT, 'assets', 'hobby-hub-night-librarian.webp'),
+    path.join(DOCS, 'assets/hobby-hub-night-librarian.webp'));
+
+  const head = [
+    '<meta name="theme-color" content="' + HUB_THEME + '">',
+    '<link rel="manifest" href="./manifest.webmanifest">',
+    '<link rel="icon" href="./' + versionedAsset('assets/icons/icon-192.png') + '">',
+    '<link rel="apple-touch-icon" href="./' + versionedAsset('assets/icons/icon-192.png') + '">',
+    '<meta name="apple-mobile-web-app-capable" content="yes">',
+    '<meta name="apple-mobile-web-app-title" content="' + escapeAttr(app.title) + '">',
+    ...HUB_STYLES.map((file) => '<link rel="stylesheet" href="./' + versionedAsset(file) + '">')
+  ].join('\n  ');
+  const scripts = HUB_SCRIPTS.map((file) =>
+    '<script src="./' + versionedAsset(file) + '" defer></script>').join('\n  ');
+  const catalog = JSON.stringify(app.bootstrap.data.modules).replace(/</g, '\\u003c');
+  const html = fs.readFileSync(path.join(HUB_SOURCE, 'index.html'), 'utf8')
+    .replace('<!-- HUB_PWA_HEAD -->', () => head)
+    .replace('<!-- HUB_PWA_SCRIPTS -->', () => scripts)
+    .replace('__HUB_CATALOG_JSON__', () => catalog);
+  fs.writeFileSync(path.join(DOCS, 'index.html'), html, 'utf8');
+}
+
 function ensureDocumentMeta(html, title) {
   const tags = [];
   if (!/<meta\s+charset=/i.test(html)) {
@@ -270,12 +308,6 @@ function inlineIncludes(app, html) {
   return html.replace(/<\?!=\s*include\('([^']+)'\);\s*\?>/g, (match, name) => {
     if (name === 'style' || name === 'script') {
       return match;
-    }
-    if (app.id === 'hub' && name === 'flavor_messages') {
-      return '<script src="./assets/js/flavor-messages.js?v=' + BUILD_VERSION + '"></script>';
-    }
-    if (app.id === 'hub' && name === 'hero_mascot') {
-      return './assets/hobby-hub-night-librarian.webp?v=' + BUILD_VERSION;
     }
     return readSource(app, name + '.html').trim();
   });
@@ -321,8 +353,8 @@ function writeSharedPwaFiles() {
     start_url: PAGES_BASE,
     scope: PAGES_BASE,
     display: 'standalone',
-    background_color: '#15110e',
-    theme_color: '#15110e',
+    background_color: HUB_THEME,
+    theme_color: HUB_THEME,
     icons: [
       { src: 'assets/icons/icon-192.png?v=' + BUILD_VERSION, sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
       { src: 'assets/icons/icon-512.png?v=' + BUILD_VERSION, sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
@@ -476,10 +508,10 @@ function buildStaticResponses(app) {
 }
 
 function buildPwaClient(app) {
+  const modeScript = buildModeScript(app);
   return `(() => {
   document.documentElement.classList.add('is-pages-pwa', 'pwa-${app.pwaMode}');
-  ${buildModeScript(app)}
-
+${modeScript ? '  ' + modeScript + '\n' : ''}
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register(${JSON.stringify(relativeToRoot(app, 'sw.js'))}).catch(() => {});
@@ -492,34 +524,7 @@ function buildPwaClient(app) {
 }
 
 function buildModeScript(app) {
-  if (app.pwaMode === 'hub') {
-    return `const staticModules = ${JSON.stringify(app.bootstrap.data.modules, null, 2)};
-  window.hobbyHubOpenModuleUrl = (url) => {
-    window.location.assign(url);
-  };
-  const pageTargets = {
-    sudoku: 'https://nikoneco.github.io/Sudoku/',
-    study737: 'https://nikoneco.github.io/Study_Finder/',
-    room_library: 'https://nikoneco.github.io/hobby-room-library-PWA/',
-    celestiframe: 'https://nikoneco.github.io/CelestiFrame/',
-    jack_load: 'https://script.google.com/macros/s/AKfycbzO_TsuxIRSqSn5a-YOGyOPDRgaJNHZRDr_8GZpGCOMhYkzLg5QIa3kcli8ETOx1fmEKQ/exec',
-    izakaya_scout: './izakaya-scout/',
-    lifeboard: './lifeboard/'
-  };
-  if (typeof window.renderModules === 'function') {
-    const originalRenderModules = window.renderModules;
-    window.renderModules = (modules) => {
-      originalRenderModules((modules || []).map((module) => {
-        const target = pageTargets[String(module.module_id || '')];
-        return target ? Object.assign({}, module, { target_url: target }) : module;
-      }));
-    };
-    window.renderModules(staticModules);
-  }
-  document.querySelectorAll('#setupButton, .admin-tools').forEach((element) => {
-    element.hidden = true;
-  });`;
-  }
+  if (app.pwaMode === 'hub') return '';
   if (app.pwaMode === 'study') {
     return `const promptPanel = document.querySelector('.prompt-panel');
   const adminTools = document.querySelector('.admin-tools');
@@ -665,6 +670,8 @@ function buildRedirectAppShell(app) {
 
 function buildServiceWorker() {
   const cacheName = 'hobby-hub-pwa-' + BUILD_VERSION;
+  const roomArt = listFilesRecursively(path.join(DOCS, HUB_ART))
+    .map((file) => path.relative(DOCS, file).replace(/\\/g, '/')).sort();
   const urls = [
     PAGES_BASE,
     PAGES_BASE + 'index.html',
@@ -673,12 +680,8 @@ function buildServiceWorker() {
     PAGES_BASE + 'assets/icons/icon-192.png',
     PAGES_BASE + 'assets/icons/icon-512.png',
     PAGES_BASE + 'assets/hobby-hub-night-librarian.webp',
-    PAGES_BASE + 'assets/css/app.css',
-    PAGES_BASE + 'assets/css/pwa.css',
-    PAGES_BASE + 'assets/js/gas-run-shim.js',
-    PAGES_BASE + 'assets/js/app.js',
-    PAGES_BASE + 'assets/js/flavor-messages.js',
-    PAGES_BASE + 'assets/js/pwa-client.js',
+    ...[...HUB_STYLES, ...HUB_SCRIPTS].map((file) => PAGES_BASE + versionedAsset(file)),
+    ...roomArt.map((file) => PAGES_BASE + file),
     PAGES_BASE + 'room-library/index.html',
     PAGES_BASE + 'celestiframe/index.html',
     PAGES_BASE + 'jack-load/index.html',
